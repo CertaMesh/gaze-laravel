@@ -60,6 +60,48 @@ it('maps "timed out" stderr to GazeTimeoutException', function () {
     $this->makeGaze()->sanitize('x');
 })->throws(GazeTimeoutException::class);
 
+it('maps a real ProcessTimedOutException into GazeTimeoutException', function () {
+    $factory = new class extends \Illuminate\Process\Factory
+    {
+        public function newPendingProcess()
+        {
+            return new class ($this) extends \Illuminate\Process\PendingProcess
+            {
+                public function run(array|string|null $command = null, ?callable $output = null)
+                {
+                    throw new \Illuminate\Process\Exceptions\ProcessTimedOutException(
+                        new \Symfony\Component\Process\Exception\ProcessTimedOutException(
+                            new \Symfony\Component\Process\Process(['true']),
+                            \Symfony\Component\Process\Exception\ProcessTimedOutException::TYPE_GENERAL,
+                        ),
+                        new \Illuminate\Process\ProcessResult(
+                            new \Symfony\Component\Process\Process(['true']),
+                        ),
+                    );
+                }
+            };
+        }
+    };
+
+    $gaze = new \Naoray\GazeLaravel\Gaze(
+        resolver: new \Naoray\GazeLaravel\BinaryResolver(
+            explicitPath: '/fake/ghostwriter',
+            vendorBinPath: '/nonexistent',
+        ),
+        process: $factory,
+        timeoutSeconds: 1,
+    );
+
+    try {
+        $gaze->sanitize('x');
+        throw new \AssertionError('expected GazeTimeoutException');
+    } catch (GazeTimeoutException $e) {
+        expect($e->exitCode)->toBe(-1)
+            ->and($e->stderrHash)->toBe(hash('sha256', ''))
+            ->and($e->getMessage())->not->toContain('/fake/ghostwriter');
+    }
+});
+
 it('never includes stderr in the log line', function () {
     $stderr = 'SECRET: user email leaked here';
     Process::fake([
