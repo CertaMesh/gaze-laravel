@@ -185,6 +185,54 @@ it('refuses a non-HTTPS release base', function () {
     }
 });
 
+it('parses status and Location header', function () {
+    $headers = [
+        'HTTP/1.1 302 Found',
+        'Server: nginx',
+        'Location: https://objects.example.com/foo.tar.gz',
+        'Content-Length: 0',
+    ];
+
+    [$status, $location] = BinaryInstaller::parseStatusAndLocation($headers);
+
+    expect($status)->toBe(302)
+        ->and($location)->toBe('https://objects.example.com/foo.tar.gz');
+});
+
+it('keeps the final Location when multiple HTTP status lines appear', function () {
+    $headers = [
+        'HTTP/1.1 100 Continue',
+        'HTTP/1.1 200 OK',
+        'Content-Type: application/octet-stream',
+    ];
+
+    [$status, $location] = BinaryInstaller::parseStatusAndLocation($headers);
+
+    expect($status)->toBe(200)
+        ->and($location)->toBeNull();
+});
+
+it('resolves absolute redirect URLs unchanged', function () {
+    expect(BinaryInstaller::resolveLocation(
+        'https://github.com/x/y/z',
+        'https://cdn.example.com/blob',
+    ))->toBe('https://cdn.example.com/blob');
+});
+
+it('resolves root-relative redirects onto the origin scheme and host', function () {
+    expect(BinaryInstaller::resolveLocation(
+        'https://github.com/x/y/z',
+        '/download/artifact.tar.gz',
+    ))->toBe('https://github.com/download/artifact.tar.gz');
+});
+
+it('resolves path-relative redirects against the current directory', function () {
+    expect(BinaryInstaller::resolveLocation(
+        'https://example.com/a/b/c',
+        'd.tar.gz',
+    ))->toBe('https://example.com/a/b/d.tar.gz');
+});
+
 it('short-circuits when the binary is already at the pinned version', function () {
     $binPath = $this->tmpDir.'/ghostwriter';
     $version = BinaryInstaller::PINNED_VERSION;

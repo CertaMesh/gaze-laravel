@@ -140,23 +140,109 @@ final class BinaryInstaller
         @unlink($gzPath);
     }
 
+    private const MAX_REDIRECTS = 5;
+
+    /**
+     * Download the URL to destPath. Redirects are followed manually so every
+     * hop is re-checked for `https://`; PHP's native `follow_location` does
+     * not enforce this and would silently downgrade to plain HTTP.
+     */
     private static function download(string $url, string $destPath): void
     {
-        if (! str_starts_with($url, 'https://')) {
-            throw new \RuntimeException('refusing non-HTTPS download');
+        for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
+            if (! str_starts_with($url, 'https://')) {
+                throw new \RuntimeException('refusing non-HTTPS url');
+            }
+
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'follow_location' => 0,
+                    'ignore_errors' => true,
+                    'timeout' => 60,
+                ],
+                'https' => [
+                    'method' => 'GET',
+                    'follow_location' => 0,
+                    'ignore_errors' => true,
+                    'timeout' => 60,
+                ],
+            ]);
+
+            $bytes = @file_get_contents($url, false, $ctx);
+            if ($bytes === false) {
+                throw new \RuntimeException("download failed: {$url}");
+            }
+
+            /** @var list<string> $headers */
+            $headers = $http_response_header;
+
+            [$status, $location] = self::parseStatusAndLocation($headers);
+
+            if ($status >= 200 && $status < 300) {
+                if (file_put_contents($destPath, $bytes) === false) {
+                    throw new \RuntimeException("could not write {$destPath}");
+                }
+
+                return;
+            }
+
+            if ($status >= 300 && $status < 400 && $location !== null) {
+                $url = self::resolveLocation($url, $location);
+
+                continue;
+            }
+
+            throw new \RuntimeException("download failed with HTTP {$status}");
         }
 
-        $ctx = stream_context_create([
-            'http' => ['method' => 'GET', 'follow_location' => 1, 'timeout' => 60],
-            'https' => ['method' => 'GET', 'follow_location' => 1, 'timeout' => 60],
-        ]);
+        throw new \RuntimeException('too many redirects');
+    }
 
-        $bytes = @file_get_contents($url, false, $ctx);
-        if ($bytes === false) {
-            throw new \RuntimeException("download failed: {$url}");
+    /**
+     * @param  list<string>  $headers
+     * @return array{0: int, 1: ?string}
+     *
+     * @internal exposed for tests
+     */
+    public static function parseStatusAndLocation(array $headers): array
+    {
+        $status = 0;
+        $location = null;
+        foreach ($headers as $header) {
+            if (preg_match('~^HTTP/\S+ (\d{3})~', $header, $m)) {
+                $status = (int) $m[1];
+                $location = null; // reset across multiple status lines
+            }
+            if (stripos($header, 'Location:') === 0) {
+                $location = trim(substr($header, 9));
+            }
         }
-        if (file_put_contents($destPath, $bytes) === false) {
-            throw new \RuntimeException("could not write {$destPath}");
+
+        return [$status, $location];
+    }
+
+    /** @internal exposed for tests */
+    public static function resolveLocation(string $current, string $location): string
+    {
+        if (str_starts_with($location, 'http://') || str_starts_with($location, 'https://')) {
+            return $location;
         }
+
+        $parts = parse_url($current);
+        if ($parts === false || ! isset($parts['scheme'], $parts['host'])) {
+            throw new \RuntimeException('could not parse redirect origin URL');
+        }
+        $base = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+
+        if (str_starts_with($location, '/')) {
+            return $base.$location;
+        }
+
+        // Relative path — strip file from current, join.
+        $path = $parts['path'] ?? '/';
+        $dir = substr($path, 0, strrpos($path, '/') + 1);
+
+        return $base.$dir.$location;
     }
 }
