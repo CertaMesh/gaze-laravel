@@ -105,6 +105,20 @@ class DraftReplyJob implements ShouldQueue
 
 Dedicated subclasses include `GazeUnknownTokenException`, `GazeBlobExpiredException`, `GazeInvalidBlobVersionException`, `GazeIoException`, `GazePolicyOpenException`, and `GazeSigPipeException`.
 
+## Operations
+
+`php artisan gaze:check` verifies binary resolution and encrypter wiring.
+
+`php artisan gaze:doctor --deep` adds policy-file checks plus a clean/restore smoke test.
+
+Exclude blob-carrying jobs from Telescope and Pulse. Keep ciphertext out of long-lived telemetry stores.
+
+Prune failed jobs on a cadence aligned with your session TTL:
+
+```php
+Schedule::command('queue:prune-failed --hours=24')->daily();
+```
+
 ## Testing
 
 ```bash
