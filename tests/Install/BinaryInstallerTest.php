@@ -39,7 +39,7 @@ function gl_makeEvent(BufferIO $io, string $binDir): Event
     $config = new Config(false);
     $config->merge(['config' => ['bin-dir' => $binDir]]);
 
-    $composer = new Composer();
+    $composer = new Composer;
     $composer->setConfig($config);
 
     return new Event('post-install-cmd', $composer, $io);
@@ -63,7 +63,7 @@ function gl_buildFixtureTarGz(string $tmpDir, string $stagingDir, array $files):
     if (file_exists($tarPath.'.gz')) {
         unlink($tarPath.'.gz');
     }
-    $tar = new \PharData($tarPath);
+    $tar = new PharData($tarPath);
     foreach (array_keys($files) as $name) {
         $tar->addFile($stagingDir.'/'.$name, $name);
     }
@@ -72,9 +72,9 @@ function gl_buildFixtureTarGz(string $tmpDir, string $stagingDir, array $files):
     $gzPath = $tarPath.'.gz';
     $tarBytes = file_get_contents($tarPath);
     if ($tarBytes === false) {
-        throw new \RuntimeException('could not read fixture tar');
+        throw new RuntimeException('could not read fixture tar');
     }
-    \Phar::unlinkArchive($tarPath);
+    Phar::unlinkArchive($tarPath);
     file_put_contents($gzPath, gzencode($tarBytes, 9));
 
     return $gzPath;
@@ -95,12 +95,13 @@ it('returns false from alreadyInstalled when binary is missing', function () {
 });
 
 it('matches alreadyInstalled when version output contains the version', function () {
-    $path = $this->tmpDir.'/ghostwriter';
-    file_put_contents($path, "#!/bin/sh\necho 'ghostwriter 0.1.0'\n");
+    $path = $this->tmpDir.'/gaze';
+    file_put_contents($path, "#!/bin/sh\necho 'gaze 0.3.0-rc.2'\n");
     chmod($path, 0755);
 
-    expect(BinaryInstaller::alreadyInstalled($path, '0.1.0'))->toBeTrue()
-        ->and(BinaryInstaller::alreadyInstalled($path, '0.2.0'))->toBeFalse();
+    expect(BinaryInstaller::alreadyInstalled($path, '0.3.0-rc.2'))->toBeTrue()
+        ->and(BinaryInstaller::alreadyInstalled($path, '0.3.0'))->toBeTrue()
+        ->and(BinaryInstaller::alreadyInstalled($path, '0.4.0'))->toBeFalse();
 });
 
 it('accepts a matching sha256 in verifyChecksum', function () {
@@ -131,7 +132,7 @@ it('rejects a sha256 mismatch in verifyChecksum', function () {
     );
 
     BinaryInstaller::verifyChecksum($tar, $sums, 'payload.tar.gz');
-})->throws(\RuntimeException::class, 'sha256 mismatch for payload.tar.gz');
+})->throws(RuntimeException::class, 'sha256 mismatch for payload.tar.gz');
 
 it('requires a checksum entry for the asset', function () {
     $tar = $this->tmpDir.'/payload.tar.gz';
@@ -141,32 +142,32 @@ it('requires a checksum entry for the asset', function () {
     file_put_contents($sums, "# empty\n");
 
     BinaryInstaller::verifyChecksum($tar, $sums, 'payload.tar.gz');
-})->throws(\RuntimeException::class, 'no checksum entry for payload.tar.gz');
+})->throws(RuntimeException::class, 'no checksum entry for payload.tar.gz');
 
-it('extracts the ghostwriter file into bin-dir', function () {
+it('extracts the gaze file into bin-dir', function () {
     $binDir = $this->tmpDir.'/bin';
     mkdir($binDir, 0755, true);
 
     $tar = gl_buildFixtureTarGz(
         $this->tmpDir,
         $this->tmpDir.'/pkg',
-        ['ghostwriter' => "#!/bin/sh\necho ghostwriter 0.1.0\n"],
+        ['gaze' => "#!/bin/sh\necho gaze 0.3.0-rc.2\n"],
     );
 
     BinaryInstaller::extract($tar, $binDir);
 
-    expect($binDir.'/ghostwriter')->toBeFile()
-        ->and(file_get_contents($binDir.'/ghostwriter'))->toContain('ghostwriter');
+    expect($binDir.'/gaze')->toBeFile()
+        ->and(file_get_contents($binDir.'/gaze'))->toContain('gaze');
 });
 
 it('honors GAZE_SKIP_BINARY_DOWNLOAD', function () {
     putenv('GAZE_SKIP_BINARY_DOWNLOAD=1');
     try {
-        $io = new BufferIO();
+        $io = new BufferIO;
         BinaryInstaller::postInstall(gl_makeEvent($io, $this->tmpDir));
 
         expect($io->getOutput())->toContain('skipping binary download')
-            ->and($this->tmpDir.'/ghostwriter')->not->toBeFile();
+            ->and($this->tmpDir.'/gaze')->not->toBeFile();
     } finally {
         putenv('GAZE_SKIP_BINARY_DOWNLOAD');
     }
@@ -175,11 +176,11 @@ it('honors GAZE_SKIP_BINARY_DOWNLOAD', function () {
 it('refuses a non-HTTPS release base', function () {
     putenv('GAZE_RELEASE_BASE=http://example.com/insecure');
     try {
-        $io = new BufferIO();
+        $io = new BufferIO;
         BinaryInstaller::postInstall(gl_makeEvent($io, $this->tmpDir));
 
         expect($io->getOutput())->toContain('non-HTTPS')
-            ->and($this->tmpDir.'/ghostwriter')->not->toBeFile();
+            ->and($this->tmpDir.'/gaze')->not->toBeFile();
     } finally {
         putenv('GAZE_RELEASE_BASE');
     }
@@ -234,14 +235,14 @@ it('resolves path-relative redirects against the current directory', function ()
 });
 
 it('short-circuits when the binary is already at the pinned version', function () {
-    $binPath = $this->tmpDir.'/ghostwriter';
+    $binPath = $this->tmpDir.'/gaze';
     $version = BinaryInstaller::PINNED_VERSION;
-    file_put_contents($binPath, "#!/bin/sh\necho 'ghostwriter {$version}'\n");
+    file_put_contents($binPath, "#!/bin/sh\necho 'gaze {$version}'\n");
     chmod($binPath, 0755);
 
-    $io = new BufferIO();
+    $io = new BufferIO;
     BinaryInstaller::postInstall(gl_makeEvent($io, $this->tmpDir));
 
-    expect($io->getOutput())->toContain("ghostwriter v{$version} already installed")
+    expect($io->getOutput())->toContain("gaze v{$version} already installed")
         ->and($binPath)->toBeFile();
 });
