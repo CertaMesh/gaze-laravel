@@ -4,23 +4,43 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel;
 
-use Illuminate\Contracts\Encryption\Encrypter;
+use Illuminate\Contracts\Encryption\Encrypter as EncrypterContract;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 
-final class EncryptedBlob
+final readonly class EncryptedBlob
 {
-    /**
-     * @param  Encrypter&StringEncrypter  $encrypter
-     */
-    public function __construct(private readonly Encrypter $encrypter) {}
+    private function __construct(private string $ciphertext) {}
 
-    public function wrap(string $plaintextBlob): string
+    public static function wrap(string $plaintextBlob): self
     {
-        return $this->encrypter->encryptString($plaintextBlob);
+        return new self(self::encrypter()->encryptString($plaintextBlob));
     }
 
-    public function unwrap(string $ciphertext): string
+    public static function fromCiphertext(string $ciphertext): self
     {
-        return $this->encrypter->decryptString($ciphertext);
+        return new self($ciphertext);
+    }
+
+    public function ciphertext(): string
+    {
+        return $this->ciphertext;
+    }
+
+    public function decryptedBlob(): string
+    {
+        return self::encrypter()->decryptString($this->ciphertext);
+    }
+
+    /**
+     * @return EncrypterContract&StringEncrypter
+     */
+    private static function encrypter(): EncrypterContract
+    {
+        /** @var EncrypterContract&StringEncrypter $encrypter */
+        $encrypter = app()->bound('gaze.encrypter')
+            ? app('gaze.encrypter')
+            : app('encrypter');
+
+        return $encrypter;
     }
 }

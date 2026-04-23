@@ -17,7 +17,7 @@ it('publishes config to application config path', function () {
 
     $published = require $target;
     expect($published)->toBeArray()
-        ->toHaveKeys(['binary', 'timeout_seconds', 'fail_closed']);
+        ->toHaveKeys(['binary', 'timeout_seconds', 'policy_path', 'blob_encryption_key']);
 
     @unlink($target);
 });

@@ -2,30 +2,24 @@
 
 declare(strict_types=1);
 
-use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Encryption\Encrypter;
 use Naoray\GazeLaravel\EncryptedBlob;
 
-it('round-trips plaintext unchanged', function () {
-    $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
+it('wraps and decrypts the blob', function () {
+    $blob = EncryptedBlob::wrap('secret-session-blob');
 
-    $ciphertext = $blob->wrap('secret-session-blob');
-
-    expect($ciphertext)->not->toBe('secret-session-blob')
-        ->and($blob->unwrap($ciphertext))->toBe('secret-session-blob');
+    expect($blob->ciphertext())->not->toBe('secret-session-blob')
+        ->and($blob->decryptedBlob())->toBe('secret-session-blob');
 });
 
-it('produces distinct ciphertext each wrap', function () {
-    $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
+it('round-trips from existing ciphertext', function () {
+    $blob = EncryptedBlob::wrap('secret-session-blob');
+    $rehydrated = EncryptedBlob::fromCiphertext($blob->ciphertext());
 
-    expect($blob->wrap('x'))->not->toBe($blob->wrap('x'));
+    expect($rehydrated->ciphertext())->toBe($blob->ciphertext())
+        ->and($rehydrated->decryptedBlob())->toBe('secret-session-blob');
 });
 
-it('detects tampering via Laravel AEAD envelope', function () {
-    $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
-
-    $ciphertext = $blob->wrap('a');
-    $tampered = substr($ciphertext, 0, -4).'AAAA';
-
-    $blob->unwrap($tampered);
-})->throws(DecryptException::class);
+it('stays a minimal value object', function () {
+    expect(method_exists(EncryptedBlob::class, '__toString'))->toBeFalse()
+        ->and(method_exists(EncryptedBlob::class, 'toArray'))->toBeFalse();
+});

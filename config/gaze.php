@@ -4,27 +4,33 @@ declare(strict_types=1);
 
 return [
     /*
-     * Absolute path or executable name for the ghostwriter binary.
-     * Defaults to the auto-downloaded copy in vendor/bin/ghostwriter when present,
-     * otherwise falls back to the first "ghostwriter" on $PATH.
+     * Absolute path or executable name for the gaze binary.
+     * Defaults to the auto-downloaded copy in vendor/bin/gaze when present,
+     * otherwise falls back to the first "gaze" on $PATH.
      */
-    'binary' => env('GAZE_BINARY'),
+    'binary' => env('GAZE_BINARY', 'gaze'),
 
     /*
-     * Hard ceiling on any single ghostwriter invocation. A hung process must be
+     * Hard ceiling on any single gaze invocation. A hung process must be
      * killed rather than tying up a worker.
      */
     'timeout_seconds' => (int) env('GAZE_TIMEOUT', 30),
 
     /*
-     * When true (default), any ghostwriter failure raises a GazeException and
-     * the caller must treat that as "no LLM response produced". When false,
-     * Gaze::sanitize / Gaze::restore return a fallback DTO carrying the
-     * ORIGINAL (unsanitized) text with a loud warning marker so dev workflows
-     * keep moving even when the binary is unavailable. Half-anonymized output
-     * is worse than no output. DO NOT set to false in production.
+     * Path to the detector policy file passed to `gaze clean`.
      */
-    'fail_closed' => filter_var(env('GAZE_FAIL_CLOSED', true), FILTER_VALIDATE_BOOL),
+    'policy_path' => env('GAZE_POLICY_PATH', base_path('policy.toml')),
+
+    /*
+     * Optional explicit max-bytes override for the CLI. When unset, the
+     * library pre-flight still enforces the v0.3 default ceiling of 10 MB.
+     */
+    'max_bytes' => env('GAZE_MAX_BYTES'),
+
+    /*
+     * Optional session TTL forwarded to the CLI.
+     */
+    'session_ttl_seconds' => env('GAZE_SESSION_TTL'),
 
     /*
      * Optional dedicated base64-encoded 32-byte key for session-blob encryption.

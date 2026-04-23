@@ -8,6 +8,8 @@ use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 
 final class BinaryResolver
 {
+    private ?string $resolved = null;
+
     public function __construct(
         private readonly ?string $explicitPath,
         private readonly string $vendorBinPath,
@@ -15,21 +17,28 @@ final class BinaryResolver
 
     public function resolve(): string
     {
+        if ($this->resolved !== null) {
+            return $this->resolved;
+        }
+
         if ($this->explicitPath !== null && $this->explicitPath !== '') {
-            return $this->explicitPath;
+            return $this->resolved = $this->explicitPath;
         }
 
         if (is_executable($this->vendorBinPath)) {
-            return $this->vendorBinPath;
+            return $this->resolved = $this->vendorBinPath;
         }
 
-        $which = @shell_exec('command -v ghostwriter 2>/dev/null');
-        if (is_string($which) && ($trimmed = trim($which)) !== '') {
-            return $trimmed;
+        $out = [];
+        $rc = 0;
+        @exec('command -v gaze 2>/dev/null', $out, $rc);
+        $trimmed = trim(implode("\n", $out));
+        if ($rc === 0 && $trimmed !== '') {
+            return $this->resolved = $trimmed;
         }
 
         throw new GazeBinaryMissingException(
-            'ghostwriter binary not found. Set GAZE_BINARY, install the binary, '
+            'gaze binary not found. Set GAZE_BINARY, install the binary, '
             .'or add the naoray/gaze-laravel post-install-cmd to composer.json.'
         );
     }
