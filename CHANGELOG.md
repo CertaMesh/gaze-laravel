@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - `Gaze` now reads `gaze.fail_closed` from config (default `true`). When `false`, `sanitize()` / `restore()` return a fallback DTO carrying the ORIGINAL (unsanitized) text plus a loud warning (`gaze-sanitize-failed-fail-open` / `gaze-restore-failed-fail-open`) instead of throwing. Dev-only escape hatch for when the binary is unavailable — **do not use in production**. Resolves gaze-laravel#1.
+- `GazeException` subclasses now declare retry semantics via two marker interfaces: `TerminalGazeException` (binary-missing, unknown-token, blob-expired — retry pointless) and `TransientGazeException` (sanitize-failed, restore-failed, timeout — retry safe). Callers can branch retry policy mechanically: `$e instanceof TerminalGazeException` → dead-letter; `instanceof TransientGazeException` → normal backoff. No behavior change for callers that ignore the markers.
 
 ### Added
 
