@@ -28,6 +28,7 @@ abstract class TestCase extends OrchestraTestCase
         string $explicitPath = '/fake/ghostwriter',
         string $vendorBinPath = '/nonexistent',
         int $timeoutSeconds = 5,
+        bool $failClosed = true,
     ): Gaze {
         return new Gaze(
             resolver: new BinaryResolver(
@@ -36,6 +37,7 @@ abstract class TestCase extends OrchestraTestCase
             ),
             process: $this->app->make(ProcessFactory::class),
             timeoutSeconds: $timeoutSeconds,
+            failClosed: $failClosed,
         );
     }
 

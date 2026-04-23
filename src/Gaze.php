@@ -21,6 +21,7 @@ class Gaze
         private readonly BinaryResolver $resolver,
         private readonly ProcessFactory $process,
         private readonly int $timeoutSeconds,
+        private readonly bool $failClosed = true,
     ) {}
 
     public function sanitize(string $text, ?Context $context = null): GazeSession
@@ -30,7 +31,15 @@ class Gaze
             $payload['context'] = $context->toArray();
         }
 
-        $result = $this->run('sanitize', $payload, GazeSanitizeFailedException::class);
+        try {
+            $result = $this->run('sanitize', $payload, GazeSanitizeFailedException::class);
+        } catch (GazeException $e) {
+            if ($this->failClosed) {
+                throw $e;
+            }
+
+            return $this->sanitizeFailOpen($text, $e);
+        }
 
         /** @var array{clean_text: string, session_blob: string, metadata?: array{placeholders?: list<string>}, warnings?: list<string>} $decoded */
         $decoded = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
@@ -45,11 +54,19 @@ class Gaze
 
     public function restore(string $text, string $sessionBlob): RestoredText
     {
-        $result = $this->run(
-            'restore',
-            ['text' => $text, 'session_blob' => $sessionBlob],
-            GazeRestoreFailedException::class,
-        );
+        try {
+            $result = $this->run(
+                'restore',
+                ['text' => $text, 'session_blob' => $sessionBlob],
+                GazeRestoreFailedException::class,
+            );
+        } catch (GazeException $e) {
+            if ($this->failClosed) {
+                throw $e;
+            }
+
+            return $this->restoreFailOpen($text, $e);
+        }
 
         /** @var array{restored_text: string, warnings?: list<string>} $decoded */
         $decoded = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
@@ -57,6 +74,41 @@ class Gaze
         return new RestoredText(
             text: $decoded['restored_text'],
             warnings: $decoded['warnings'] ?? [],
+        );
+    }
+
+    /**
+     * fail_closed=false bypass for sanitize. Returns the ORIGINAL (unsanitized)
+     * text with a loud warning. Only usable in dev — production must keep
+     * fail_closed=true or PII leaks through on every ghostwriter failure.
+     */
+    private function sanitizeFailOpen(string $originalText, GazeException $e): GazeSession
+    {
+        Log::warning('gaze sanitize fail-open bypass', [
+            'exit_code' => $e->exitCode,
+            'stderr_sha256' => $e->stderrHash,
+            'reason' => 'fail_closed_disabled',
+        ]);
+
+        return new GazeSession(
+            cleanText: $originalText,
+            sessionBlob: '',
+            placeholders: [],
+            warnings: ['gaze-sanitize-failed-fail-open'],
+        );
+    }
+
+    private function restoreFailOpen(string $originalText, GazeException $e): RestoredText
+    {
+        Log::warning('gaze restore fail-open bypass', [
+            'exit_code' => $e->exitCode,
+            'stderr_sha256' => $e->stderrHash,
+            'reason' => 'fail_closed_disabled',
+        ]);
+
+        return new RestoredText(
+            text: $originalText,
+            warnings: ['gaze-restore-failed-fail-open'],
         );
     }
 

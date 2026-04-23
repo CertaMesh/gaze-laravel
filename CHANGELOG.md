@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- `Gaze` now reads `gaze.fail_closed` from config (default `true`). When `false`, `sanitize()` / `restore()` return a fallback DTO carrying the ORIGINAL (unsanitized) text plus a loud warning (`gaze-sanitize-failed-fail-open` / `gaze-restore-failed-fail-open`) instead of throwing. Dev-only escape hatch for when the binary is unavailable — **do not use in production**. Resolves gaze-laravel#1.
+
 ### Added
 
 - Initial scaffold covering the full surface described in [`docs/PLAN.md`](docs/PLAN.md):

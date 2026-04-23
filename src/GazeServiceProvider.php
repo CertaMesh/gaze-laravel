@@ -37,6 +37,7 @@ class GazeServiceProvider extends ServiceProvider
                 resolver: $app->make(BinaryResolver::class),
                 process: $app->make(ProcessFactory::class),
                 timeoutSeconds: (int) $config->get('gaze.timeout_seconds', 30),
+                failClosed: (bool) $config->get('gaze.fail_closed', true),
             );
         });
 
