@@ -17,9 +17,12 @@ return [
     'timeout_seconds' => (int) env('GAZE_TIMEOUT', 30),
 
     /*
-     * When true, any ghostwriter failure raises a GazeException and the caller
-     * must treat that as "no LLM response produced". Half-anonymized output is
-     * worse than no output. Do not set to false in production.
+     * When true (default), any ghostwriter failure raises a GazeException and
+     * the caller must treat that as "no LLM response produced". When false,
+     * Gaze::sanitize / Gaze::restore return a fallback DTO carrying the
+     * ORIGINAL (unsanitized) text with a loud warning marker so dev workflows
+     * keep moving even when the binary is unavailable. Half-anonymized output
+     * is worse than no output. DO NOT set to false in production.
      */
     'fail_closed' => filter_var(env('GAZE_FAIL_CLOSED', true), FILTER_VALIDATE_BOOL),
 
