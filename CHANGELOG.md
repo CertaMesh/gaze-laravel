@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - `EncryptedBlob` wrapper using Laravel's AEAD envelope (`encryptString`/`decryptString`).
   - Artisan `gaze:check` and `gaze:canary` commands.
   - `FakeGaze` testing helper.
+  - `Contracts\ContextResolver` interface — contract only, no default implementation. Consumers bind one resolver per domain to translate app-specific sources (Eloquent models, DTOs, queue payloads) into `Context`.
   - `BinaryInstaller::postInstall` Composer hook: HTTPS-only download, `sha256` verification against `SHA256SUMS` from the matching release tag, skip-env + short-circuit on idempotent reinstalls.
 - Unit + Feature + Install test suites. Integration suite skips when `GAZE_BINARY` is unset.
 
