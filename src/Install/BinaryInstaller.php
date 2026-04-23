@@ -11,7 +11,7 @@ final class BinaryInstaller
     /** Pinned per gaze-laravel release. Bumped intentionally. */
     public const PINNED_VERSION = '0.1.0';
 
-    private const RELEASE_BASE = 'https://github.com/Naoray/gaze/releases/download';
+    private const RELEASE_BASE = 'https://github.com/worka-ai/gaze/releases/download';
 
     public static function postInstall(Event $event): void
     {
