@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- `Gaze::fake()` facade helper — idiomatic Laravel testing pattern mirroring `Queue::fake()` / `Mail::fake()`. Swaps the bound service for a `FakeGaze`, returns it for chaining, and exposes `Gaze::assertSanitized()`, `Gaze::assertRestored()`, `Gaze::assertSanitizeCount()`, `Gaze::assertRestoreCount()`, `Gaze::assertNothingSanitized()` assertion shims. Resolves [gaze-laravel#3](https://github.com/Naoray/gaze-laravel/issues/3) item 7.
+
 - Initial scaffold covering the full surface described in [`docs/PLAN.md`](docs/PLAN.md):
   - `Gaze::sanitize` and `Gaze::restore` wrapping the `ghostwriter` binary over pipe mode (stdin/stdout JSON).
   - `Context`, `GazeSession`, `RestoredText` readonly DTOs.
