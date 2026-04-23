@@ -40,30 +40,41 @@ final class CheckCommand extends Command
 
         $this->components->twoColumnDetail('version', trim($result->output()));
 
-        $encrypterLabel = $this->resolveEncrypterLabel();
+        [$encrypterLabel, $encrypterOk] = $this->resolveEncrypterLabel();
         $this->components->twoColumnDetail('encrypter', $encrypterLabel);
+
+        if (! $encrypterOk) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
 
         $this->components->twoColumnDetail('status', '<fg=green>OK</>');
 
         return self::SUCCESS;
     }
 
-    private function resolveEncrypterLabel(): string
+    /**
+     * @return array{0: string, 1: bool}
+     */
+    private function resolveEncrypterLabel(): array
     {
         try {
             $this->laravel->make('gaze.encrypter');
         } catch (\Throwable $e) {
             $this->line($e->getMessage());
 
-            return '<fg=red>invalid</>';
+            return ['<fg=red>invalid</>', false];
         }
 
         /** @var \Illuminate\Contracts\Config\Repository $config */
         $config = $this->laravel->make('config');
         $raw = $config->get('gaze.blob_encryption_key');
 
-        return ($raw === null || $raw === '')
+        $label = ($raw === null || $raw === '')
             ? 'gaze.encrypter (APP_KEY fallback)'
             : 'gaze.encrypter (dedicated key)';
+
+        return [$label, true];
     }
 }
