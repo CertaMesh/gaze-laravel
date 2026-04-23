@@ -55,3 +55,21 @@ it('fails when version invocation errors', function () {
         ->assertExitCode(1)
         ->expectsOutputToContain('FAIL');
 });
+
+it('fails when the dedicated encryption key is invalid', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/ghostwriter', vendorBinPath: '/none'),
+    );
+    Process::fake([
+        '*' => Process::result(output: "ghostwriter 0.1.0\n"),
+    ]);
+
+    $this->app->forgetInstance('gaze.encrypter');
+    $this->app['config']->set('gaze.blob_encryption_key', 'not-base64-32-bytes');
+
+    $this->artisan('gaze:check')
+        ->assertExitCode(1)
+        ->expectsOutputToContain('invalid')
+        ->expectsOutputToContain('FAIL');
+});
