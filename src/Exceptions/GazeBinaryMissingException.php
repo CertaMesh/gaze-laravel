@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Exceptions;
 
-class GazeBinaryMissingException extends GazeException
+class GazeBinaryMissingException extends GazeException implements TerminalGazeException
 {
     public function __construct(
         string $message,

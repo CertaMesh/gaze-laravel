@@ -4,6 +4,6 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Exceptions;
 
-class GazeUnknownTokenException extends GazeException
+class GazeUnknownTokenException extends GazeException implements TerminalGazeException
 {
 }
