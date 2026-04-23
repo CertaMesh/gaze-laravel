@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\EncryptedBlob;
 use Naoray\GazeLaravel\Facades\Gaze as GazeFacade;
 use Naoray\GazeLaravel\Gaze;
 
@@ -22,13 +21,6 @@ it('resolves BinaryResolver as a singleton', function () {
     expect($a)->toBe($b);
 });
 
-it('uses default encrypter when no dedicated key is set', function () {
-    $blob = $this->app->make(EncryptedBlob::class);
-    $plaintext = 'hello-gaze';
-
-    expect($blob->unwrap($blob->wrap($plaintext)))->toBe($plaintext);
-});
-
 it('wires the facade to the bound singleton', function () {
     $direct = $this->app->make(Gaze::class);
     GazeFacade::setFacadeApplication($this->app);
@@ -38,25 +30,21 @@ it('wires the facade to the bound singleton', function () {
 
 it('merges package config', function () {
     expect($this->app['config']->get('gaze.timeout_seconds'))->toBe(30)
-        ->and($this->app['config']->get('gaze.fail_closed'))->toBeTrue();
+        ->and($this->app['config']->get('gaze.policy_path'))->toBe(base_path('policy.toml'));
 });
 
 it('uses a distinct encrypter when a dedicated key is configured', function () {
     $this->app->forgetInstance('gaze.encrypter');
-    $this->app->forgetInstance(EncryptedBlob::class);
 
     $this->app['config']->set(
         'gaze.blob_encryption_key',
-        base64_encode(random_bytes(32)),
+        'base64:'.base64_encode(random_bytes(32)),
     );
 
     $default = $this->app->make('encrypter');
     $dedicated = $this->app->make('gaze.encrypter');
 
     expect($default)->not->toBe($dedicated);
-
-    $blob = $this->app->make(EncryptedBlob::class);
-    expect($blob->unwrap($blob->wrap('x')))->toBe('x');
 });
 
 it('fails loudly on an invalid dedicated key', function () {
@@ -64,4 +52,4 @@ it('fails loudly on an invalid dedicated key', function () {
     $this->app['config']->set('gaze.blob_encryption_key', 'not-base64-32-bytes');
 
     $this->app->make('gaze.encrypter');
-})->throws(\RuntimeException::class, 'base64-encoded 32 bytes');
+})->throws(RuntimeException::class, 'base64-encoded 32 bytes');

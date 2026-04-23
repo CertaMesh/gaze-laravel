@@ -6,11 +6,11 @@ namespace Naoray\GazeLaravel\Exceptions;
 
 use Naoray\GazeLaravel\Variant;
 
-class GazeBlobExpiredException extends GazeIntegrityException
+final class GazeInvalidBlobVersionException extends GazeIntegrityException
 {
     public function __construct(string $message, int $exitCode, string $stderrHash, ?\Throwable $previous = null)
     {
-        parent::__construct($message, $exitCode, $stderrHash, Variant::BlobExpired, $previous);
+        parent::__construct($message, $exitCode, $stderrHash, Variant::InvalidBlobVersion, $previous);
     }
 
     public function requiresFreshClean(): bool

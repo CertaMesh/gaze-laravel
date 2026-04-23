@@ -25,7 +25,7 @@ class GazeServiceProvider extends ServiceProvider
 
             return new BinaryResolver(
                 explicitPath: is_string($explicit) && $explicit !== '' ? $explicit : null,
-                vendorBinPath: $app->basePath('vendor/bin/ghostwriter'),
+                vendorBinPath: $app->basePath('vendor/bin/gaze'),
             );
         });
 
@@ -37,7 +37,9 @@ class GazeServiceProvider extends ServiceProvider
                 resolver: $app->make(BinaryResolver::class),
                 process: $app->make(ProcessFactory::class),
                 timeoutSeconds: (int) $config->get('gaze.timeout_seconds', 30),
-                failClosed: (bool) $config->get('gaze.fail_closed', true),
+                policyPath: (string) $config->get('gaze.policy_path', $app->basePath('policy.toml')),
+                maxBytes: is_numeric($config->get('gaze.max_bytes')) ? (int) $config->get('gaze.max_bytes') : null,
+                sessionTtlSeconds: is_numeric($config->get('gaze.session_ttl_seconds')) ? (int) $config->get('gaze.session_ttl_seconds') : null,
             );
         });
 
@@ -54,6 +56,10 @@ class GazeServiceProvider extends ServiceProvider
                 throw new \RuntimeException('GAZE_ENCRYPTION_KEY must be a string.');
             }
 
+            if (str_starts_with($raw, 'base64:')) {
+                $raw = substr($raw, 7);
+            }
+
             $decoded = base64_decode($raw, true);
             if ($decoded === false || strlen($decoded) !== 32) {
                 throw new \RuntimeException(
@@ -63,13 +69,6 @@ class GazeServiceProvider extends ServiceProvider
 
             return new Encrypter($decoded, 'AES-256-CBC');
         });
-
-        $this->app->singleton(EncryptedBlob::class, function (Application $app): EncryptedBlob {
-            /** @var \Illuminate\Contracts\Encryption\Encrypter&\Illuminate\Contracts\Encryption\StringEncrypter $encrypter */
-            $encrypter = $app->make('gaze.encrypter');
-
-            return new EncryptedBlob($encrypter);
-        });
     }
 
     public function boot(): void
@@ -78,6 +77,9 @@ class GazeServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/gaze.php' => $this->app->configPath('gaze.php'),
             ], 'gaze-config');
+            $this->publishes([
+                __DIR__.'/../policy.toml.example' => $this->app->basePath('policy.toml'),
+            ], 'gaze-policy');
 
             $this->commands([
                 CheckCommand::class,

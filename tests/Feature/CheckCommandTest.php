@@ -8,16 +8,16 @@ use Naoray\GazeLaravel\BinaryResolver;
 it('reports OK when binary and version succeed', function () {
     $this->app->instance(
         BinaryResolver::class,
-        new BinaryResolver(explicitPath: '/fake/ghostwriter', vendorBinPath: '/none'),
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     Process::fake([
-        '*' => Process::result(output: "ghostwriter 0.1.0\n"),
+        '*' => Process::result(output: "gaze 0.3.0-rc.2\n"),
     ]);
 
     $this->artisan('gaze:check')
         ->assertExitCode(0)
-        ->expectsOutputToContain('/fake/ghostwriter')
-        ->expectsOutputToContain('ghostwriter 0.1.0')
+        ->expectsOutputToContain('/fake/gaze')
+        ->expectsOutputToContain('gaze 0.3.0-rc.2')
         ->expectsOutputToContain('OK');
 });
 
@@ -45,7 +45,7 @@ it('fails when binary is missing', function () {
 it('fails when version invocation errors', function () {
     $this->app->instance(
         BinaryResolver::class,
-        new BinaryResolver(explicitPath: '/fake/ghostwriter', vendorBinPath: '/none'),
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     Process::fake([
         '*' => Process::result(output: '', errorOutput: 'boom', exitCode: 1),
@@ -59,10 +59,10 @@ it('fails when version invocation errors', function () {
 it('fails when the dedicated encryption key is invalid', function () {
     $this->app->instance(
         BinaryResolver::class,
-        new BinaryResolver(explicitPath: '/fake/ghostwriter', vendorBinPath: '/none'),
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     Process::fake([
-        '*' => Process::result(output: "ghostwriter 0.1.0\n"),
+        '*' => Process::result(output: "gaze 0.3.0-rc.2\n"),
     ]);
 
     $this->app->forgetInstance('gaze.encrypter');

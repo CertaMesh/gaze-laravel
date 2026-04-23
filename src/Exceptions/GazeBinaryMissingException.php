@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Exceptions;
 
-class GazeBinaryMissingException extends GazeException implements TerminalGazeException
+class GazeBinaryMissingException extends GazeOpsConfigException
 {
     public function __construct(
         string $message,
@@ -12,6 +12,6 @@ class GazeBinaryMissingException extends GazeException implements TerminalGazeEx
         string $stderrHash = '',
         ?\Throwable $previous = null,
     ) {
-        parent::__construct($message, $exitCode, $stderrHash, $previous);
+        parent::__construct($message, $exitCode, $stderrHash, null, $previous);
     }
 }

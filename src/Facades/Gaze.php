@@ -6,12 +6,13 @@ namespace Naoray\GazeLaravel\Facades;
 
 use Illuminate\Support\Facades\Facade;
 use Naoray\GazeLaravel\Gaze as GazeService;
+use Naoray\GazeLaravel\GazeSession;
 use Naoray\GazeLaravel\Testing\FakeGaze;
 use PHPUnit\Framework\Assert as PHPUnit;
 
 /**
- * @method static \Naoray\GazeLaravel\GazeSession sanitize(string $text, ?\Naoray\GazeLaravel\Context $context = null)
- * @method static \Naoray\GazeLaravel\RestoredText restore(string $text, string $sessionBlob)
+ * @method static \Naoray\GazeLaravel\GazeSession clean(string $text)
+ * @method static string restore(\Naoray\GazeLaravel\GazeSession $session, string $text)
  *
  * @see GazeService
  */
@@ -26,33 +27,33 @@ final class Gaze extends Facade
      * Swap the bound Gaze service for a FakeGaze and return it so tests can
      * chain assertions. Mirrors Laravel's Queue::fake() / Mail::fake() idiom.
      *
-     * @param  \Closure(string, ?\Naoray\GazeLaravel\Context): \Naoray\GazeLaravel\GazeSession|null  $sanitizeHandler
-     * @param  \Closure(string, string): \Naoray\GazeLaravel\RestoredText|null  $restoreHandler
+     * @param  \Closure(string): GazeSession|null  $cleanHandler
+     * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      */
     public static function fake(
-        ?\Closure $sanitizeHandler = null,
+        ?\Closure $cleanHandler = null,
         ?\Closure $restoreHandler = null,
     ): FakeGaze {
-        $fake = new FakeGaze($sanitizeHandler, $restoreHandler);
-        static::swap($fake);
+        $fake = new FakeGaze($cleanHandler, $restoreHandler);
+        self::swap($fake);
 
         return $fake;
     }
 
-    public static function assertSanitized(?string $expectedText = null): void
+    public static function assertCleaned(?string $expectedText = null): void
     {
         $fake = self::requireFake();
 
         if ($expectedText === null) {
             PHPUnit::assertNotEmpty(
-                $fake->sanitizeCalls(),
-                'Expected Gaze::sanitize to be called at least once.',
+                $fake->cleanCalls(),
+                'Expected Gaze::clean to be called at least once.',
             );
 
             return;
         }
 
-        foreach ($fake->sanitizeCalls() as $call) {
+        foreach ($fake->cleanCalls() as $call) {
             if ($call['text'] === $expectedText) {
                 PHPUnit::assertTrue(true);
 
@@ -60,7 +61,7 @@ final class Gaze extends Facade
             }
         }
 
-        PHPUnit::fail("Expected Gaze::sanitize to be called with given text, but it was not.");
+        PHPUnit::fail('Expected Gaze::clean to be called with given text, but it was not.');
     }
 
     public static function assertRestored(?string $expectedText = null): void
@@ -87,14 +88,14 @@ final class Gaze extends Facade
         PHPUnit::fail('Expected Gaze::restore to be called with given text, but it was not.');
     }
 
-    public static function assertSanitizeCount(int $expected): void
+    public static function assertCleanCount(int $expected): void
     {
         $fake = self::requireFake();
 
         PHPUnit::assertCount(
             $expected,
-            $fake->sanitizeCalls(),
-            "Expected Gaze::sanitize to be called {$expected} time(s).",
+            $fake->cleanCalls(),
+            "Expected Gaze::clean to be called {$expected} time(s).",
         );
     }
 
@@ -109,19 +110,19 @@ final class Gaze extends Facade
         );
     }
 
-    public static function assertNothingSanitized(): void
+    public static function assertNothingCleaned(): void
     {
         $fake = self::requireFake();
 
         PHPUnit::assertEmpty(
-            $fake->sanitizeCalls(),
-            'Expected Gaze::sanitize not to be called.',
+            $fake->cleanCalls(),
+            'Expected Gaze::clean not to be called.',
         );
     }
 
     private static function requireFake(): FakeGaze
     {
-        $resolved = static::getFacadeRoot();
+        $resolved = self::getFacadeRoot();
 
         if (! $resolved instanceof FakeGaze) {
             PHPUnit::fail(
