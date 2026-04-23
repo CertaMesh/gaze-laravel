@@ -2,43 +2,33 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Tests\Integration;
-
 use Naoray\GazeLaravel\Context;
 use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Tests\TestCase;
 
-final class SanitizeRoundTripTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $binary = getenv('GAZE_BINARY');
-        if (! is_string($binary) || $binary === '') {
-            $this->markTestSkipped('GAZE_BINARY not set — integration tests skipped.');
-        }
-
-        $this->app['config']->set('gaze.binary', $binary);
+beforeEach(function () {
+    $binary = getenv('GAZE_BINARY');
+    if (! is_string($binary) || $binary === '') {
+        $this->markTestSkipped('GAZE_BINARY not set — integration tests skipped.');
     }
 
-    public function test_sanitize_then_restore_recovers_original_text(): void
-    {
-        $original = 'Hi Alice (alice@example.com), please confirm.';
+    $this->app['config']->set('gaze.binary', $binary);
+});
 
-        $gaze = $this->app->make(Gaze::class);
+it('round-trips sanitize then restore against the real binary', function () {
+    $original = 'Hi Alice (alice@example.com), please confirm.';
 
-        $session = $gaze->sanitize(
-            $original,
-            new Context(customerName: 'Alice', customerEmail: 'alice@example.com'),
-        );
+    $gaze = $this->app->make(Gaze::class);
 
-        self::assertStringNotContainsString('Alice', $session->cleanText);
-        self::assertStringNotContainsString('alice@example.com', $session->cleanText);
+    $session = $gaze->sanitize(
+        $original,
+        new Context(customerName: 'Alice', customerEmail: 'alice@example.com'),
+    );
 
-        $restored = $gaze->restore($session->cleanText, $session->sessionBlob);
+    expect($session->cleanText)->not->toContain('Alice')
+        ->not->toContain('alice@example.com');
 
-        self::assertStringContainsString('Alice', $restored->text);
-        self::assertStringContainsString('alice@example.com', $restored->text);
-    }
-}
+    $restored = $gaze->restore($session->cleanText, $session->sessionBlob);
+
+    expect($restored->text)->toContain('Alice')
+        ->toContain('alice@example.com');
+});

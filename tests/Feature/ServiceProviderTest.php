@@ -2,84 +2,66 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Tests\Feature;
-
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\EncryptedBlob;
 use Naoray\GazeLaravel\Facades\Gaze as GazeFacade;
 use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Tests\TestCase;
 
-final class ServiceProviderTest extends TestCase
-{
-    public function test_gaze_is_resolvable_as_singleton(): void
-    {
-        $a = $this->app->make(Gaze::class);
-        $b = $this->app->make(Gaze::class);
+it('resolves Gaze as a singleton', function () {
+    $a = $this->app->make(Gaze::class);
+    $b = $this->app->make(Gaze::class);
 
-        self::assertInstanceOf(Gaze::class, $a);
-        self::assertSame($a, $b);
-    }
+    expect($a)->toBeInstanceOf(Gaze::class)
+        ->and($a)->toBe($b);
+});
 
-    public function test_binary_resolver_is_singleton(): void
-    {
-        $a = $this->app->make(BinaryResolver::class);
-        $b = $this->app->make(BinaryResolver::class);
+it('resolves BinaryResolver as a singleton', function () {
+    $a = $this->app->make(BinaryResolver::class);
+    $b = $this->app->make(BinaryResolver::class);
 
-        self::assertSame($a, $b);
-    }
+    expect($a)->toBe($b);
+});
 
-    public function test_encrypted_blob_uses_default_encrypter_when_no_dedicated_key(): void
-    {
-        $blob = $this->app->make(EncryptedBlob::class);
+it('uses default encrypter when no dedicated key is set', function () {
+    $blob = $this->app->make(EncryptedBlob::class);
+    $plaintext = 'hello-gaze';
 
-        $plaintext = 'hello-gaze';
-        self::assertSame($plaintext, $blob->unwrap($blob->wrap($plaintext)));
-    }
+    expect($blob->unwrap($blob->wrap($plaintext)))->toBe($plaintext);
+});
 
-    public function test_facade_resolves_to_bound_singleton(): void
-    {
-        $direct = $this->app->make(Gaze::class);
-        GazeFacade::setFacadeApplication($this->app);
-        $resolved = GazeFacade::getFacadeRoot();
+it('wires the facade to the bound singleton', function () {
+    $direct = $this->app->make(Gaze::class);
+    GazeFacade::setFacadeApplication($this->app);
 
-        self::assertSame($direct, $resolved);
-    }
+    expect(GazeFacade::getFacadeRoot())->toBe($direct);
+});
 
-    public function test_config_is_merged(): void
-    {
-        self::assertSame(30, $this->app['config']->get('gaze.timeout_seconds'));
-        self::assertTrue($this->app['config']->get('gaze.fail_closed'));
-    }
+it('merges package config', function () {
+    expect($this->app['config']->get('gaze.timeout_seconds'))->toBe(30)
+        ->and($this->app['config']->get('gaze.fail_closed'))->toBeTrue();
+});
 
-    public function test_dedicated_encryption_key_uses_distinct_encrypter(): void
-    {
-        $this->app->forgetInstance('gaze.encrypter');
-        $this->app->forgetInstance(EncryptedBlob::class);
+it('uses a distinct encrypter when a dedicated key is configured', function () {
+    $this->app->forgetInstance('gaze.encrypter');
+    $this->app->forgetInstance(EncryptedBlob::class);
 
-        $this->app['config']->set(
-            'gaze.blob_encryption_key',
-            base64_encode(random_bytes(32)),
-        );
+    $this->app['config']->set(
+        'gaze.blob_encryption_key',
+        base64_encode(random_bytes(32)),
+    );
 
-        /** @var \Illuminate\Contracts\Encryption\Encrypter $default */
-        $default = $this->app->make('encrypter');
-        /** @var \Illuminate\Contracts\Encryption\Encrypter $dedicated */
-        $dedicated = $this->app->make('gaze.encrypter');
+    $default = $this->app->make('encrypter');
+    $dedicated = $this->app->make('gaze.encrypter');
 
-        self::assertNotSame($default, $dedicated);
+    expect($default)->not->toBe($dedicated);
 
-        $blob = $this->app->make(EncryptedBlob::class);
-        self::assertSame('x', $blob->unwrap($blob->wrap('x')));
-    }
+    $blob = $this->app->make(EncryptedBlob::class);
+    expect($blob->unwrap($blob->wrap('x')))->toBe('x');
+});
 
-    public function test_invalid_dedicated_key_fails_loud(): void
-    {
-        $this->app->forgetInstance('gaze.encrypter');
-        $this->app['config']->set('gaze.blob_encryption_key', 'not-base64-32-bytes');
+it('fails loudly on an invalid dedicated key', function () {
+    $this->app->forgetInstance('gaze.encrypter');
+    $this->app['config']->set('gaze.blob_encryption_key', 'not-base64-32-bytes');
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('base64-encoded 32 bytes');
-        $this->app->make('gaze.encrypter');
-    }
-}
+    $this->app->make('gaze.encrypter');
+})->throws(\RuntimeException::class, 'base64-encoded 32 bytes');

@@ -2,39 +2,30 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Tests\Unit;
-
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Encryption\Encrypter;
 use Naoray\GazeLaravel\EncryptedBlob;
-use PHPUnit\Framework\TestCase;
 
-final class EncryptedBlobTest extends TestCase
-{
-    public function test_round_trip_returns_original_plaintext(): void
-    {
-        $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
+it('round-trips plaintext unchanged', function () {
+    $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
 
-        $ciphertext = $blob->wrap('secret-session-blob');
+    $ciphertext = $blob->wrap('secret-session-blob');
 
-        self::assertNotSame('secret-session-blob', $ciphertext);
-        self::assertSame('secret-session-blob', $blob->unwrap($ciphertext));
-    }
+    expect($ciphertext)->not->toBe('secret-session-blob')
+        ->and($blob->unwrap($ciphertext))->toBe('secret-session-blob');
+});
 
-    public function test_each_wrap_produces_distinct_ciphertext(): void
-    {
-        $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
+it('produces distinct ciphertext each wrap', function () {
+    $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
 
-        self::assertNotSame($blob->wrap('x'), $blob->wrap('x'));
-    }
+    expect($blob->wrap('x'))->not->toBe($blob->wrap('x'));
+});
 
-    public function test_tamper_detection_via_laravel_aead(): void
-    {
-        $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
+it('detects tampering via Laravel AEAD envelope', function () {
+    $blob = new EncryptedBlob(new Encrypter(random_bytes(32), 'AES-256-CBC'));
 
-        $ciphertext = $blob->wrap('a');
-        $tampered = substr($ciphertext, 0, -4).'AAAA';
+    $ciphertext = $blob->wrap('a');
+    $tampered = substr($ciphertext, 0, -4).'AAAA';
 
-        $this->expectException(\Illuminate\Contracts\Encryption\DecryptException::class);
-        $blob->unwrap($tampered);
-    }
-}
+    $blob->unwrap($tampered);
+})->throws(DecryptException::class);
