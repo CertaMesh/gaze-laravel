@@ -2,49 +2,34 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Tests\Unit;
-
 use Naoray\GazeLaravel\Context;
-use PHPUnit\Framework\TestCase;
 
-final class ContextTest extends TestCase
-{
-    public function test_empty_context_serializes_to_empty_array(): void
-    {
-        self::assertSame([], (new Context())->toArray());
-    }
+it('serializes empty context to empty array', function () {
+    expect((new Context())->toArray())->toBe([]);
+});
 
-    public function test_it_emits_snake_case_keys(): void
-    {
-        $context = new Context(
-            customerName: 'Krishan Koenig',
-            customerEmail: 'k@example.com',
-            customerPhone: '+353 1 234 5678',
-        );
+it('emits snake_case keys', function () {
+    $context = new Context(
+        customerName: 'Krishan Koenig',
+        customerEmail: 'k@example.com',
+        customerPhone: '+353 1 234 5678',
+    );
 
-        self::assertSame(
-            [
-                'customer_name' => 'Krishan Koenig',
-                'customer_email' => 'k@example.com',
-                'customer_phone' => '+353 1 234 5678',
-            ],
-            $context->toArray(),
-        );
-    }
+    expect($context->toArray())->toBe([
+        'customer_name' => 'Krishan Koenig',
+        'customer_email' => 'k@example.com',
+        'customer_phone' => '+353 1 234 5678',
+    ]);
+});
 
-    public function test_null_values_are_stripped(): void
-    {
-        $context = new Context(customerEmail: 'k@example.com');
+it('strips null values', function () {
+    expect((new Context(customerEmail: 'k@example.com'))->toArray())
+        ->toBe(['customer_email' => 'k@example.com']);
+});
 
-        self::assertSame(['customer_email' => 'k@example.com'], $context->toArray());
-    }
+it('has readonly properties', function () {
+    $context = new Context(customerName: 'Krishan');
 
-    public function test_properties_are_readonly(): void
-    {
-        $context = new Context(customerName: 'Krishan');
-
-        $this->expectException(\Error::class);
-        /** @phpstan-ignore-next-line — intentional mutation test */
-        $context->customerName = 'Mallory';
-    }
-}
+    /** @phpstan-ignore-next-line — intentional mutation test */
+    $context->customerName = 'Mallory';
+})->throws(\Error::class);

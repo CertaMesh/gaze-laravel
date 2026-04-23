@@ -136,7 +136,7 @@ class DraftReply extends Component
 ## Testing
 
 ```bash
-composer test             # phpunit: Unit + Feature + Install suites
+composer test             # pest: Unit + Feature + Install suites
 composer analyse          # phpstan level 8
 composer format           # pint
 ```
@@ -145,7 +145,7 @@ Integration tests (`tests/Integration/`) skip when `GAZE_BINARY` is unset. To ru
 
 ```bash
 cargo build -p ghostwriter --manifest-path /path/to/gaze/Cargo.toml
-GAZE_BINARY=/path/to/gaze/target/debug/ghostwriter vendor/bin/phpunit --testsuite Integration
+GAZE_BINARY=/path/to/gaze/target/debug/ghostwriter vendor/bin/pest --testsuite Integration
 ```
 
 ### Faking in tests

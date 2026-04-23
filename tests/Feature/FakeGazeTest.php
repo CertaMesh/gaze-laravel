@@ -2,67 +2,55 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Tests\Feature;
-
 use Naoray\GazeLaravel\Context;
 use Naoray\GazeLaravel\Gaze;
 use Naoray\GazeLaravel\GazeSession;
 use Naoray\GazeLaravel\RestoredText;
 use Naoray\GazeLaravel\Testing\FakeGaze;
-use Naoray\GazeLaravel\Tests\TestCase;
 
-final class FakeGazeTest extends TestCase
-{
-    public function test_fake_satisfies_real_type_hints(): void
-    {
-        $fake = new FakeGaze();
-        $this->app->instance(Gaze::class, $fake);
+it('satisfies real Gaze type hints', function () {
+    $fake = new FakeGaze();
+    $this->app->instance(Gaze::class, $fake);
 
-        $resolved = $this->app->make(Gaze::class);
+    expect($this->app->make(Gaze::class))->toBeInstanceOf(Gaze::class)
+        ->and($this->app->make(Gaze::class))->toBe($fake);
+});
 
-        self::assertInstanceOf(Gaze::class, $resolved);
-        self::assertSame($fake, $resolved);
-    }
+it('swaps the customer name and records the call by default', function () {
+    $fake = new FakeGaze();
 
-    public function test_default_sanitize_swaps_customer_name_and_records_call(): void
-    {
-        $fake = new FakeGaze();
+    $session = $fake->sanitize('Hello Alice', new Context(customerName: 'Alice'));
 
-        $session = $fake->sanitize('Hello Alice', new Context(customerName: 'Alice'));
+    expect($session->cleanText)->toBe('Hello <CUSTOMER_NAME>')
+        ->and($session->placeholders)->toBe(['<CUSTOMER_NAME>'])
+        ->and($fake->sanitizeCalls())->toHaveCount(1)
+        ->and($fake->sanitizeCalls()[0]['text'])->toBe('Hello Alice');
+});
 
-        self::assertSame('Hello <CUSTOMER_NAME>', $session->cleanText);
-        self::assertSame(['<CUSTOMER_NAME>'], $session->placeholders);
-        self::assertCount(1, $fake->sanitizeCalls());
-        self::assertSame('Hello Alice', $fake->sanitizeCalls()[0]['text']);
-    }
+it('round-trips by default', function () {
+    $fake = new FakeGaze();
 
-    public function test_default_restore_round_trips(): void
-    {
-        $fake = new FakeGaze();
+    $session = $fake->sanitize('Hello Alice', new Context(customerName: 'Alice'));
+    $restored = $fake->restore($session->cleanText, $session->sessionBlob);
 
-        $session = $fake->sanitize('Hello Alice', new Context(customerName: 'Alice'));
-        $restored = $fake->restore($session->cleanText, $session->sessionBlob);
+    expect($restored->text)->toBe('Hello Alice')
+        ->and($fake->restoreCalls())->toHaveCount(1);
+});
 
-        self::assertSame('Hello Alice', $restored->text);
-        self::assertCount(1, $fake->restoreCalls());
-    }
+it('invokes custom handlers when provided', function () {
+    $fake = new FakeGaze(
+        sanitizeHandler: fn (string $text, ?Context $context) => new GazeSession(
+            cleanText: '[CLEAN]',
+            sessionBlob: 'b',
+            placeholders: [],
+            warnings: ['w'],
+        ),
+        restoreHandler: fn (string $text, string $blob) => new RestoredText(
+            text: '[RESTORED]',
+            warnings: [],
+        ),
+    );
 
-    public function test_custom_handlers_are_invoked(): void
-    {
-        $fake = new FakeGaze(
-            sanitizeHandler: fn (string $text, ?Context $context) => new GazeSession(
-                cleanText: '[CLEAN]',
-                sessionBlob: 'b',
-                placeholders: [],
-                warnings: ['w'],
-            ),
-            restoreHandler: fn (string $text, string $blob) => new RestoredText(
-                text: '[RESTORED]',
-                warnings: [],
-            ),
-        );
-
-        self::assertSame('[CLEAN]', $fake->sanitize('anything')->cleanText);
-        self::assertSame('[RESTORED]', $fake->restore('x', 'y')->text);
-    }
-}
+    expect($fake->sanitize('anything')->cleanText)->toBe('[CLEAN]')
+        ->and($fake->restore('x', 'y')->text)->toBe('[RESTORED]');
+});
