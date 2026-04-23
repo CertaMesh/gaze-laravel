@@ -11,6 +11,7 @@ use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\ServiceProvider;
 use Naoray\GazeLaravel\Console\CanaryCommand;
 use Naoray\GazeLaravel\Console\CheckCommand;
+use Naoray\GazeLaravel\Console\DoctorCommand;
 
 class GazeServiceProvider extends ServiceProvider
 {
@@ -83,6 +84,7 @@ class GazeServiceProvider extends ServiceProvider
 
             $this->commands([
                 CheckCommand::class,
+                DoctorCommand::class,
                 CanaryCommand::class,
             ]);
         }
