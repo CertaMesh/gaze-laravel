@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Naoray\GazeLaravel;
 
 use Illuminate\Contracts\Process\ProcessResult;
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\Facades\Log;
 use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
@@ -68,17 +69,44 @@ class Gaze
         $binary = $this->resolver->resolve();
         $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
-        $result = $this->process
-            ->newPendingProcess()
-            ->timeout($this->timeoutSeconds)
-            ->input($json)
-            ->run([$binary, $subcommand]);
+        try {
+            $result = $this->process
+                ->newPendingProcess()
+                ->timeout($this->timeoutSeconds)
+                ->input($json)
+                ->run([$binary, $subcommand]);
+        } catch (ProcessTimedOutException $e) {
+            throw $this->mapTimeout($subcommand, $e);
+        }
 
         if ($result->successful()) {
             return $result;
         }
 
         throw $this->mapFailure($subcommand, $result, $failureClass);
+    }
+
+    private function mapTimeout(string $stage, ProcessTimedOutException $e): GazeTimeoutException
+    {
+        $stderrHash = hash('sha256', '');
+        $exitCode = -1;
+
+        Log::warning("gaze {$stage} failed", [
+            'exit_code' => $exitCode,
+            'stderr_sha256' => $stderrHash,
+            'reason' => 'timeout',
+        ]);
+
+        // Intentionally do NOT include $e->getMessage() — the Symfony message
+        // may embed the command line, which starts with the resolved binary
+        // path. Construct a static message instead.
+        unset($e);
+
+        return new GazeTimeoutException(
+            "gaze {$stage} timed out (exit={$exitCode}, stderr_sha256={$stderrHash})",
+            $exitCode,
+            $stderrHash,
+        );
     }
 
     /**
