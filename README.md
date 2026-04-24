@@ -113,6 +113,29 @@ Dedicated subclasses include `GazeUnknownTokenException`, `GazeBlobExpiredExcept
 
 Exclude blob-carrying jobs from Telescope and Pulse. Keep ciphertext out of long-lived telemetry stores.
 
+```php
+// app/Providers/TelescopeServiceProvider.php
+use Laravel\Telescope\IncomingEntry;
+use Laravel\Telescope\Telescope;
+
+public function register(): void
+{
+    Telescope::filter(function (IncomingEntry $entry) {
+        if ($entry->type === 'job' && in_array(
+            $entry->content['name'] ?? '',
+            [DraftEmailReplyJob::class],
+            true,
+        )) {
+            return false;
+        }
+
+        return $this->shouldRecord($entry);
+    });
+}
+```
+
+Apply the same exclusion to Laravel Pulse and any audit-log or breadcrumb tooling that captures queued job payloads.
+
 Prune failed jobs on a cadence aligned with your session TTL:
 
 ```php
