@@ -1,0 +1,69 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Naoray\GazeLaravel;
+
+/**
+ * Exit 1 is a caller-bug bucket that can carry several shape errors. When the
+ * stderr envelope is missing, default to StdinParse as the most conservative
+ * tie-break because it preserves the "bad request to the CLI" semantics.
+ */
+enum Variant: string
+{
+    case StdinParse = 'StdinParse';
+    case EmptyInput = 'EmptyInput';
+    case InputTooLarge = 'InputTooLarge';
+    case InvalidEncoding = 'InvalidEncoding';
+    case PolicyConfig = 'PolicyConfig';
+    case UnknownToken = 'UnknownToken';
+    case InvalidSignature = 'InvalidSignature';
+    case InvalidBlobVersion = 'InvalidBlobVersion';
+    case BlobExpired = 'BlobExpired';
+    case Pipeline = 'Pipeline';
+    case Io = 'Io';
+    case PolicyOpen = 'PolicyOpen';
+
+    public static function tryFromStderr(string $stderr, int $actualExit): self
+    {
+        /** @var array{error?: mixed, exit?: mixed}|null $decoded */
+        $decoded = json_decode($stderr, true);
+
+        if (! is_array($decoded)) {
+            return self::unknownFor($actualExit);
+        }
+
+        $error = $decoded['error'] ?? null;
+        $embeddedExit = $decoded['exit'] ?? null;
+
+        if (! is_string($error) || ! is_int($embeddedExit) || $embeddedExit !== $actualExit) {
+            return self::unknownFor($actualExit);
+        }
+
+        return self::tryFrom($error) ?? self::unknownFor($actualExit);
+    }
+
+    public static function unknownFor(int $exit): self
+    {
+        return match ($exit) {
+            2 => self::PolicyConfig,
+            3 => self::UnknownToken,
+            4, 141 => self::Io,
+            default => self::StdinParse,
+        };
+    }
+
+    public function exitBucket(): int
+    {
+        return match ($this) {
+            self::StdinParse, self::EmptyInput, self::InputTooLarge, self::InvalidEncoding => 1,
+            self::PolicyConfig => 2,
+            self::UnknownToken,
+            self::InvalidSignature,
+            self::InvalidBlobVersion,
+            self::BlobExpired,
+            self::Pipeline => 3,
+            self::Io, self::PolicyOpen => 4,
+        };
+    }
+}

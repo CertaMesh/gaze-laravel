@@ -27,8 +27,8 @@ function gl_makeExecutable(string $dir, string $name): string
 }
 
 it('prefers explicit path over vendor bin', function () {
-    $explicit = '/usr/local/bin/custom-ghostwriter';
-    $vendor = gl_makeExecutable($this->tmpDir, 'ghostwriter');
+    $explicit = '/usr/local/bin/custom-gaze';
+    $vendor = gl_makeExecutable($this->tmpDir, 'gaze');
 
     $resolver = new BinaryResolver(explicitPath: $explicit, vendorBinPath: $vendor);
 
@@ -36,14 +36,14 @@ it('prefers explicit path over vendor bin', function () {
 });
 
 it('treats empty explicit path as unset', function () {
-    $vendor = gl_makeExecutable($this->tmpDir, 'ghostwriter');
+    $vendor = gl_makeExecutable($this->tmpDir, 'gaze');
 
     expect((new BinaryResolver(explicitPath: '', vendorBinPath: $vendor))->resolve())
         ->toBe($vendor);
 });
 
 it('uses vendor bin when executable', function () {
-    $vendor = gl_makeExecutable($this->tmpDir, 'ghostwriter');
+    $vendor = gl_makeExecutable($this->tmpDir, 'gaze');
 
     expect((new BinaryResolver(explicitPath: null, vendorBinPath: $vendor))->resolve())
         ->toBe($vendor);
@@ -59,7 +59,7 @@ it('falls through non-executable vendor path', function () {
         $resolved = $resolver->resolve();
         expect($resolved)->toBeString()->not->toBe($vendor);
     } catch (GazeBinaryMissingException $e) {
-        expect($e->getMessage())->toContain('ghostwriter binary not found');
+        expect($e->getMessage())->toContain('gaze binary not found');
     }
 });
 
