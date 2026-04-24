@@ -27,5 +27,6 @@
     </source>
     <php>
         <env name="APP_KEY" value="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="/>
+        <env name="CONTRACT_PIN_SHA" value="5cf114f3043e6b8a3ba3588a40e8661820f8021d"/>
     </php>
 </phpunit>

@@ -9,9 +9,9 @@ use Composer\Script\Event;
 final class BinaryInstaller
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
-    public const PINNED_VERSION = '0.1.0';
+    public const PINNED_VERSION = '0.3.0-rc.3';
 
-    private const RELEASE_BASE = 'https://github.com/worka-ai/gaze/releases/download';
+    private const RELEASE_BASE = 'https://github.com/Naoray/gaze/releases/download';
 
     public static function postInstall(Event $event): void
     {
@@ -21,7 +21,7 @@ final class BinaryInstaller
             return;
         }
 
-        $version = getenv('GAZE_BINARY_VERSION');
+        $version = getenv('GAZE_VERSION');
         if (! is_string($version) || $version === '') {
             $version = self::PINNED_VERSION;
         }
@@ -40,41 +40,47 @@ final class BinaryInstaller
 
         $target = self::detectTarget();
         if ($target === null) {
-            $event->getIO()->writeError('<error>gaze-laravel: unsupported platform, please install ghostwriter manually and set GAZE_BINARY</error>');
+            $event->getIO()->writeError('<error>gaze-laravel: unsupported platform, please install gaze manually and set GAZE_BINARY</error>');
 
             return; // do not fail composer install
         }
 
-        $binPath = $binDir.DIRECTORY_SEPARATOR.'ghostwriter';
-        if (self::alreadyInstalled($binPath, $version)) {
-            $event->getIO()->write("<info>gaze-laravel: ghostwriter v{$version} already installed</info>");
+        if ($target === 'x86_64-apple-darwin') {
+            $event->getIO()->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only; run `cargo install --git https://github.com/Naoray/gaze gaze` and set GAZE_BINARY.</error>');
 
             return;
         }
 
-        $tag = "ghostwriter-v{$version}";
-        $asset = "ghostwriter-v{$version}-{$target}.tar.gz";
+        $binPath = $binDir.DIRECTORY_SEPARATOR.'gaze';
+        if (self::alreadyInstalled($binPath, $version)) {
+            $event->getIO()->write("<info>gaze-laravel: gaze v{$version} already installed</info>");
+
+            return;
+        }
+
+        $tag = "v{$version}";
+        $asset = "gaze-{$target}";
         $assetUrl = "{$releaseBase}/{$tag}/{$asset}";
-        $sumsUrl = "{$releaseBase}/{$tag}/SHA256SUMS";
+        $sumsUrl = "{$releaseBase}/{$tag}/{$asset}.sha256";
 
         $tmpDir = sys_get_temp_dir();
-        $tarPath = $tmpDir.DIRECTORY_SEPARATOR.$asset;
-        $sumsPath = $tmpDir.DIRECTORY_SEPARATOR."SHA256SUMS-{$version}";
+        $assetPath = $tmpDir.DIRECTORY_SEPARATOR.$asset;
+        $sumsPath = $tmpDir.DIRECTORY_SEPARATOR."{$asset}.sha256";
 
         try {
-            self::download($assetUrl, $tarPath);
+            self::download($assetUrl, $assetPath);
             self::download($sumsUrl, $sumsPath);
-            self::verifyChecksum($tarPath, $sumsPath, $asset);
-            self::extract($tarPath, $binDir);
+            self::verifyChecksum($assetPath, $sumsPath, $asset);
+            self::installBinary($assetPath, $binPath);
             @chmod($binPath, 0755);
-            $event->getIO()->write("<info>gaze-laravel: installed ghostwriter v{$version} → {$binPath}</info>");
+            $event->getIO()->write("<info>gaze-laravel: installed gaze v{$version} → {$binPath}</info>");
         } catch (\Throwable $e) {
             $event->getIO()->writeError("<error>gaze-laravel: binary install failed — {$e->getMessage()}</error>");
             @unlink($binPath); // never leave partial artifact
             // Do NOT rethrow — composer install should succeed even if binary download fails.
             // Operator fixes GAZE_BINARY or runs composer install again.
         } finally {
-            @unlink($tarPath);
+            @unlink($assetPath);
             @unlink($sumsPath);
         }
     }
@@ -86,7 +92,6 @@ final class BinaryInstaller
 
         return match (true) {
             $os === 'darwin' && in_array($arch, ['arm64', 'aarch64'], true) => 'aarch64-apple-darwin',
-            $os === 'darwin' && $arch === 'x86_64' => 'x86_64-apple-darwin',
             $os === 'linux' && $arch === 'x86_64' => 'x86_64-unknown-linux-gnu',
             $os === 'linux' && in_array($arch, ['arm64', 'aarch64'], true) => 'aarch64-unknown-linux-gnu',
             default => null,
@@ -138,6 +143,19 @@ final class BinaryInstaller
         $tar = new \PharData($gzPath);
         $tar->extractTo($binDir, null, true);
         @unlink($gzPath);
+    }
+
+    public static function installBinary(string $assetPath, string $binPath): void
+    {
+        if (str_ends_with($assetPath, '.tar.gz')) {
+            self::extract($assetPath, dirname($binPath));
+
+            return;
+        }
+
+        if (@copy($assetPath, $binPath) === false) {
+            throw new \RuntimeException("could not write {$binPath}");
+        }
     }
 
     private const MAX_REDIRECTS = 5;

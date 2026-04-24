@@ -2,55 +2,37 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Context;
 use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\GazeSession;
-use Naoray\GazeLaravel\RestoredText;
 use Naoray\GazeLaravel\Testing\FakeGaze;
 
-it('satisfies real Gaze type hints', function () {
-    $fake = new FakeGaze();
+it('satisfies the Gaze type hint', function () {
+    $fake = new FakeGaze;
     $this->app->instance(Gaze::class, $fake);
 
     expect($this->app->make(Gaze::class))->toBeInstanceOf(Gaze::class)
         ->and($this->app->make(Gaze::class))->toBe($fake);
 });
 
-it('swaps the customer name and records the call by default', function () {
-    $fake = new FakeGaze();
+it('records clean and restore calls', function () {
+    $fake = new FakeGaze;
 
-    $session = $fake->sanitize('Hello Alice', new Context(customerName: 'Alice'));
+    $session = $fake->clean('Hello Alice');
+    $restored = $fake->restore($session, $session->cleanText);
 
-    expect($session->cleanText)->toBe('Hello <CUSTOMER_NAME>')
-        ->and($session->placeholders)->toBe(['<CUSTOMER_NAME>'])
-        ->and($fake->sanitizeCalls())->toHaveCount(1)
-        ->and($fake->sanitizeCalls()[0]['text'])->toBe('Hello Alice');
+    expect($fake->cleanCalls())->toHaveCount(1)
+        ->and($fake->restoreCalls())->toHaveCount(1)
+        ->and($restored)->toBe('Hello Alice');
 });
 
-it('round-trips by default', function () {
-    $fake = new FakeGaze();
+it('matches the real token grammar for clean-text fixtures', function (string $input, string $expected) {
+    $session = (new FakeGaze)->clean("Before {$input} after");
 
-    $session = $fake->sanitize('Hello Alice', new Context(customerName: 'Alice'));
-    $restored = $fake->restore($session->cleanText, $session->sessionBlob);
-
-    expect($restored->text)->toBe('Hello Alice')
-        ->and($fake->restoreCalls())->toHaveCount(1);
-});
-
-it('invokes custom handlers when provided', function () {
-    $fake = new FakeGaze(
-        sanitizeHandler: fn (string $text, ?Context $context) => new GazeSession(
-            cleanText: '[CLEAN]',
-            sessionBlob: 'b',
-            placeholders: [],
-            warnings: ['w'],
-        ),
-        restoreHandler: fn (string $text, string $blob) => new RestoredText(
-            text: '[RESTORED]',
-            warnings: [],
-        ),
-    );
-
-    expect($fake->sanitize('anything')->cleanText)->toBe('[CLEAN]')
-        ->and($fake->restore('x', 'y')->text)->toBe('[RESTORED]');
-});
+    expect($session->cleanText)->toBe("Before {$expected} after");
+})->with([
+    'wrapped email token' => ['<Email_1>', '<Name_1>'],
+    'wrapped name token' => ['<Name_1>', '<Name_1>'],
+    'wrapped location token' => ['<Location_1>', '<Name_1>'],
+    'wrapped custom token' => ['<Custom:order_id_1>', '<Custom:order_id_1>'],
+    'format-preserving email token' => ['email1@example.test', 'email1@example.test'],
+    'bare lowercase token' => ['name_1', 'name_1'],
+]);

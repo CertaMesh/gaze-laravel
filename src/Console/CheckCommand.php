@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Naoray\GazeLaravel\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Process\Factory as ProcessFactory;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
@@ -13,7 +14,7 @@ final class CheckCommand extends Command
 {
     protected $signature = 'gaze:check';
 
-    protected $description = 'Verify the ghostwriter binary resolves and is runnable.';
+    protected $description = 'Verify the gaze binary resolves and is runnable.';
 
     public function handle(BinaryResolver $resolver, ProcessFactory $process): int
     {
@@ -33,7 +34,7 @@ final class CheckCommand extends Command
         if (! $result->successful()) {
             $this->components->twoColumnDetail('version', '<fg=red>unknown</>');
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
-            $this->line('ghostwriter --version exited non-zero');
+            $this->line('gaze --version exited non-zero');
 
             return self::FAILURE;
         }
@@ -67,7 +68,7 @@ final class CheckCommand extends Command
             return ['<fg=red>invalid</>', false];
         }
 
-        /** @var \Illuminate\Contracts\Config\Repository $config */
+        /** @var Repository $config */
         $config = $this->laravel->make('config');
         $raw = $config->get('gaze.blob_encryption_key');
 

@@ -1,32 +1,24 @@
 # gaze-laravel
 
-Laravel adapter for the [Gaze](https://github.com/Naoray/gaze) PII sanitization binary (`ghostwriter`).
+Laravel adapter for the [`gaze`](https://github.com/Naoray/gaze) v0.3 CLI contract.
 
-> **Status:** pre-release. The adapter scaffolding is complete and exercised by unit + feature tests. `v0.1.0` ships once the `ghostwriter` release pipeline produces signed, checksummed binaries — see [`docs/PLAN.md`](docs/PLAN.md) for the full design.
-
-`gaze-laravel` is a thin wrapper around the `ghostwriter` binary (Rust, pipe mode). It lets a Laravel app feed user-facing text through Gaze so PII is replaced by placeholders before an LLM sees it, and restored on the way back.
+`gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
 ## Requirements
 
-- PHP **^8.2** (readonly classes)
-- Laravel **^11.0 || ^12.0**
-- The `ghostwriter` binary — auto-downloaded on `composer install` (opt-in), or pointed at via `GAZE_BINARY`.
+- PHP `^8.2`
+- Laravel `^11.0 || ^12.0`
+- The `gaze` binary on `PATH`, in `vendor/bin/gaze`, or configured via `GAZE_BINARY`
 
 ## Install
 
 ```bash
 composer require naoray/gaze-laravel
-```
-
-Publish the config:
-
-```bash
 php artisan vendor:publish --tag=gaze-config
+php artisan vendor:publish --tag=gaze-policy
 ```
 
-### Auto-downloading the binary
-
-Wire the post-install hook into your **application's** `composer.json`:
+Optional composer hooks for binary download:
 
 ```json
 {
@@ -37,133 +29,129 @@ Wire the post-install hook into your **application's** `composer.json`:
 }
 ```
 
-The installer downloads `ghostwriter-v<ver>-<target>.tar.gz` from the canonical release over HTTPS and verifies the `sha256` against `SHA256SUMS` from the same tagged release. A mismatch aborts the install without leaving a partial artifact.
+The installer targets `v0.3.0-rc.3` during dev iteration and downloads the published `gaze-<target>` binary plus its `.sha256` checksum over HTTPS.
 
-Environment toggles:
-
-| Var | Meaning |
-|---|---|
-| `GAZE_SKIP_BINARY_DOWNLOAD=1` | Skip the download step. Use in air-gapped CI / Docker multi-stage builds that pre-copy the binary. |
-| `GAZE_BINARY_VERSION=x.y.z` | Pin a different version than the one shipped by this release. Unsupported — for upstream testing only. |
-| `GAZE_BINARY=/abs/path/to/ghostwriter` | Explicit absolute path. Wins over vendor-bin and `$PATH`. |
-
-## Configuration
-
-[`config/gaze.php`](config/gaze.php) exposes:
+## Config
 
 ```php
 return [
-    'binary' => env('GAZE_BINARY'),
+    'binary' => env('GAZE_BINARY', 'gaze'),
     'timeout_seconds' => (int) env('GAZE_TIMEOUT', 30),
-    'fail_closed' => filter_var(env('GAZE_FAIL_CLOSED', true), FILTER_VALIDATE_BOOL),
+    'policy_path' => env('GAZE_POLICY_PATH', base_path('policy.toml')),
+    'max_bytes' => env('GAZE_MAX_BYTES'),
+    'session_ttl_seconds' => env('GAZE_SESSION_TTL'),
     'blob_encryption_key' => env('GAZE_ENCRYPTION_KEY'),
 ];
 ```
 
-- `binary` — absolute path or name. Resolution order: `GAZE_BINARY` → `vendor/bin/ghostwriter` → `$PATH`.
-- `timeout_seconds` — hard ceiling per invocation. A hung `ghostwriter` is killed rather than blocking a worker.
-- `fail_closed` — when `true`, any failure raises a `GazeException` and the caller must treat it as "no LLM response produced". **Half-anonymized output is worse than no output.** Do not disable in production.
-- `blob_encryption_key` — optional base64 32-byte key dedicated to session-blob encryption. Unset falls back to `APP_KEY` via the default Crypt facade. Must be a valid 32-byte key or the container boot fails loudly.
+`GAZE_ENCRYPTION_KEY` may be unset to reuse `APP_KEY`, or set to a dedicated `base64:` 32-byte key.
 
 ## Usage
 
 ```php
-use Naoray\GazeLaravel\Context;
 use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\EncryptedBlob;
 
-public function draft(Gaze $gaze, EncryptedBlob $blob, Email $email): string
+public function draft(Gaze $gaze, string $body, string $llmReply): string
 {
-    $session = $gaze->sanitize(
-        $email->body,
-        new Context(
-            customerName: $email->customer_name,
-            customerEmail: $email->customer_email,
-        ),
-    );
+    $session = $gaze->clean($body);
 
-    // $session->cleanText   — safe to send to an LLM
-    // $session->sessionBlob — plaintext blob Ghostwriter returns
-    // $session->placeholders, $session->warnings
+    // $session->cleanText is safe for the model.
+    // $session->ciphertext keeps the session blob encrypted in serialized payloads.
+    // $session->detections is forwarded from the CLI stats block.
 
-    $cipher = $blob->wrap($session->sessionBlob); // encrypt before it travels
-
-    // ... call the LLM with $session->cleanText, receive $llmReply ...
-
-    $restored = $gaze->restore($llmReply, $blob->unwrap($cipher));
-
-    return $restored->text;
+    return $gaze->restore($session, $llmReply);
 }
 ```
 
-### Livewire note — do not ride the blob on the wire
+## Retry Discipline
+
+Consumer jobs must `use Queueable, InteractsWithQueue` traits.
 
 ```php
-class DraftReply extends Component
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use Naoray\GazeLaravel\Gaze;
+use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
+
+class DraftReplyJob implements ShouldQueue
 {
-    public int $emailId;                              // scalar only — safe to serialize to browser
+    use Queueable;
+    use InteractsWithQueue;
 
-    // DO NOT add public $sessionBlob. Livewire serializes public props to the
-    // client and back; the blob would ride the network in plaintext.
+    public int $tries = 3;
+    public int $backoff = 30;
 
-    public function generate(Gaze $gaze, EncryptedBlob $blob): void
+    public function handle(Gaze $gaze): void
     {
-        $session = $gaze->sanitize(
-            $this->email->body,
-            new Context(customerName: $this->email->customer_name),
-        );
-
-        DraftEmailReplyJob::dispatch(
-            emailId: $this->emailId,
-            cleanPrompt: $session->cleanText,
-            encryptedSessionBlob: $blob->wrap($session->sessionBlob),
-        );
-
-        unset($session);
+        try {
+            $session = $gaze->clean($this->payload);
+            $draft = $gaze->restore($session, $this->llmReply);
+        } catch (\Throwable $e) {
+            GazeRetryPolicy::dispatch($e, $this);
+        }
     }
 }
 ```
 
-**Rule:** the session blob lives only in a method scope or an encrypted job payload. Never a Livewire public property, never `Session::flash`, never a cookie.
+`PolicyOpen` is treated as alert-and-fail, not retryable. Unknown throwables are rethrown to Laravel.
 
-## Security posture
+## Exceptions
 
-- **Fail-closed by default.** Any `ghostwriter` failure raises a subclass of `GazeException`. The caller must treat this as "no LLM response produced". A half-anonymized prompt is worse than none.
-- **Stderr never leaves the wrapper.** Only the SHA-256 hash of stderr and the exit code are included in exception messages or log lines. The raw bytes are inspected inside `Gaze::mapFailure` for best-effort error-kind detection and then discarded, so a sanitizer bug that leaks PII into stderr cannot resurface in Telescope / Sentry / `failed_jobs.exception`.
-- **Binary integrity.** The installer downloads over HTTPS and verifies `sha256` against the `SHA256SUMS` from the same tagged release. Mismatch = abort.
-- **Encryption-in-flight.** The `EncryptedBlob` wrapper uses Laravel's AEAD envelope (`encryptString`/`decryptString`). Tampering is detected via HMAC — a tampered ciphertext throws `DecryptException` on `unwrap()`.
+- Exit bucket `1`: `GazeCallerBugException`
+- Exit bucket `2`: `GazeOpsConfigException`
+- Exit bucket `3`: `GazeIntegrityException`
+- Exit bucket `4`: `GazeInfraException`
+
+Dedicated subclasses include `GazeUnknownTokenException`, `GazeBlobExpiredException`, `GazeInvalidBlobVersionException`, `GazeIoException`, `GazePolicyOpenException`, and `GazeSigPipeException`.
+
+## Operations
+
+`php artisan gaze:check` verifies binary resolution and encrypter wiring.
+
+`php artisan gaze:doctor --deep` adds policy-file checks plus a clean/restore smoke test.
+
+Exclude blob-carrying jobs from Telescope and Pulse. Keep ciphertext out of long-lived telemetry stores.
+
+```php
+// app/Providers/TelescopeServiceProvider.php
+use Laravel\Telescope\IncomingEntry;
+use Laravel\Telescope\Telescope;
+
+public function register(): void
+{
+    Telescope::filter(function (IncomingEntry $entry) {
+        if ($entry->type === 'job' && in_array(
+            $entry->content['name'] ?? '',
+            [DraftEmailReplyJob::class],
+            true,
+        )) {
+            return false;
+        }
+
+        return $this->shouldRecord($entry);
+    });
+}
+```
+
+Apply the same exclusion to Laravel Pulse and any audit-log or breadcrumb tooling that captures queued job payloads.
+
+Prune failed jobs on a cadence aligned with your session TTL:
+
+```php
+Schedule::command('queue:prune-failed --hours=24')->daily();
+```
 
 ## Testing
 
 ```bash
-composer test             # pest: Unit + Feature + Install suites
-composer analyse          # phpstan level 8
-composer format           # pint
+./vendor/bin/pest
+./vendor/bin/phpstan analyse
+./vendor/bin/pint --test
 ```
 
-Integration tests (`tests/Integration/`) skip when `GAZE_BINARY` is unset. To run them, build `ghostwriter` locally and point at it:
+Integration tests require a real binary:
 
 ```bash
-cargo build -p ghostwriter --manifest-path /path/to/gaze/Cargo.toml
-GAZE_BINARY=/path/to/gaze/target/debug/ghostwriter vendor/bin/pest --testsuite Integration
+GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
-
-### Faking in tests
-
-```php
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Testing\FakeGaze;
-
-$this->app->instance(Gaze::class, new FakeGaze());
-```
-
-`FakeGaze` is a drop-in subclass of the real `Gaze` — type hints keep working without introducing an interface.
-
-## Artisan
-
-- `php artisan gaze:check` — verifies the binary resolves, runs `ghostwriter --version`, validates the optional dedicated encryption key, and prints a status block. Non-zero exit on failure.
-- `php artisan gaze:canary` — end-to-end round-trip canary against a fixed marker text. Fails loud if PII leaks into clean text or fails to reappear after `restore`.
-
-## License
-
-Apache-2.0 — matches the upstream `gaze` project.

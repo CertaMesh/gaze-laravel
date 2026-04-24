@@ -4,210 +4,290 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\Facades\Log;
 use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
+use Naoray\GazeLaravel\Exceptions\GazeCallerBugException;
+use Naoray\GazeLaravel\Exceptions\GazeEmptyInputException;
 use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Exceptions\GazeRestoreFailedException;
-use Naoray\GazeLaravel\Exceptions\GazeSanitizeFailedException;
+use Naoray\GazeLaravel\Exceptions\GazeInputTooLargeException;
+use Naoray\GazeLaravel\Exceptions\GazeIntegrityException;
+use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
+use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
+use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
+use Naoray\GazeLaravel\Exceptions\GazeIoException;
+use Naoray\GazeLaravel\Exceptions\GazeOpsConfigException;
+use Naoray\GazeLaravel\Exceptions\GazePipelineException;
+use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
+use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
+use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
+use Naoray\GazeLaravel\Exceptions\GazeStdinParseException;
 use Naoray\GazeLaravel\Exceptions\GazeTimeoutException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
 
 class Gaze
 {
+    private const DEFAULT_MAX_BYTES = 10485760;
+
     public function __construct(
         private readonly BinaryResolver $resolver,
         private readonly ProcessFactory $process,
         private readonly int $timeoutSeconds,
-        private readonly bool $failClosed = true,
+        private readonly ?string $policyPath = null,
+        private readonly ?int $maxBytes = null,
+        private readonly ?int $sessionTtlSeconds = null,
     ) {}
 
-    public function sanitize(string $text, ?Context $context = null): GazeSession
+    public function clean(string $text): GazeSession
     {
-        $payload = ['text' => $text];
-        if ($context !== null) {
-            $payload['context'] = $context->toArray();
+        $this->assertInput($text);
+
+        $command = [
+            $this->resolver->resolve(),
+            'clean',
+            '--policy='.$this->resolvedPolicyPath(),
+            '--format=json',
+        ];
+
+        if ($this->maxBytes !== null) {
+            $command[] = '--max-bytes='.$this->maxBytes;
         }
 
-        try {
-            $result = $this->run('sanitize', $payload, GazeSanitizeFailedException::class);
-        } catch (GazeException $e) {
-            if ($this->failClosed) {
-                throw $e;
-            }
-
-            return $this->sanitizeFailOpen($text, $e);
+        if ($this->sessionTtlSeconds !== null) {
+            $command[] = '--session-ttl='.$this->sessionTtlSeconds;
         }
 
-        /** @var array{clean_text: string, session_blob: string, metadata?: array{placeholders?: list<string>}, warnings?: list<string>} $decoded */
-        $decoded = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
+        $result = $this->run($command, $text, 'clean');
+
+        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int}} $decoded */
+        $decoded = $this->decodeResponse($result->output(), 'clean');
 
         return new GazeSession(
             cleanText: $decoded['clean_text'],
-            sessionBlob: $decoded['session_blob'],
-            placeholders: $decoded['metadata']['placeholders'] ?? [],
-            warnings: $decoded['warnings'] ?? [],
+            ciphertext: EncryptedBlob::wrap($decoded['session_blob']),
+            detections: (int) ($decoded['stats']['detections'] ?? 0),
         );
     }
 
-    public function restore(string $text, string $sessionBlob): RestoredText
+    public function restore(GazeSession $session, string $text): string
     {
-        try {
-            $result = $this->run(
-                'restore',
-                ['text' => $text, 'session_blob' => $sessionBlob],
-                GazeRestoreFailedException::class,
-            );
-        } catch (GazeException $e) {
-            if ($this->failClosed) {
-                throw $e;
-            }
+        $this->assertInput($text);
 
-            return $this->restoreFailOpen($text, $e);
+        try {
+            $sessionBlob = $session->ciphertext->decryptedBlob();
+        } catch (DecryptException $e) {
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeResponseDecodeException(
+                "gaze restore session blob could not be decrypted (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+                previous: $e,
+            );
+            Log::notice('gaze restore failed', $exception->toLogContext());
+
+            throw $exception;
         }
 
-        /** @var array{restored_text: string, warnings?: list<string>} $decoded */
-        $decoded = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
+        $payload = json_encode([
+            'session_blob' => $sessionBlob,
+            'text' => $text,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
-        return new RestoredText(
-            text: $decoded['restored_text'],
-            warnings: $decoded['warnings'] ?? [],
-        );
+        $command = [$this->resolver->resolve(), 'restore', '--format=json'];
+        $result = $this->run($command, $payload, 'restore');
+
+        /** @var array{text:string} $decoded */
+        $decoded = $this->decodeResponse($result->output(), 'restore');
+
+        return $decoded['text'];
     }
 
     /**
-     * fail_closed=false bypass for sanitize. Returns the ORIGINAL (unsanitized)
-     * text with a loud warning. Only usable in dev — production must keep
-     * fail_closed=true or PII leaks through on every ghostwriter failure.
+     * @return array<string, mixed>
      */
-    private function sanitizeFailOpen(string $originalText, GazeException $e): GazeSession
+    private function decodeResponse(string $output, string $stage): array
     {
-        Log::warning('gaze sanitize fail-open bypass', [
-            'exit_code' => $e->exitCode,
-            'stderr_sha256' => $e->stderrHash,
-            'reason' => 'fail_closed_disabled',
-        ]);
+        try {
+            /** @var array<string, mixed> $decoded */
+            $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeResponseDecodeException(
+                "gaze {$stage} response was not valid JSON (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+                previous: $e,
+            );
+            Log::notice("gaze {$stage} failed", $exception->toLogContext());
 
-        return new GazeSession(
-            cleanText: $originalText,
-            sessionBlob: '',
-            placeholders: [],
-            warnings: ['gaze-sanitize-failed-fail-open'],
-        );
-    }
+            throw $exception;
+        }
 
-    private function restoreFailOpen(string $originalText, GazeException $e): RestoredText
-    {
-        Log::warning('gaze restore fail-open bypass', [
-            'exit_code' => $e->exitCode,
-            'stderr_sha256' => $e->stderrHash,
-            'reason' => 'fail_closed_disabled',
-        ]);
+        if (! is_array($decoded)) {
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeResponseDecodeException(
+                "gaze {$stage} response was not a JSON object (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+            );
+            Log::notice("gaze {$stage} failed", $exception->toLogContext());
 
-        return new RestoredText(
-            text: $originalText,
-            warnings: ['gaze-restore-failed-fail-open'],
-        );
+            throw $exception;
+        }
+
+        return $decoded;
     }
 
     /**
-     * @param  array<string, mixed>  $payload
-     * @param  class-string<GazeException>  $failureClass
+     * @param  list<string>  $command
      */
-    private function run(string $subcommand, array $payload, string $failureClass): ProcessResult
+    private function run(array $command, string $input, string $stage): ProcessResult
     {
-        $binary = $this->resolver->resolve();
-        $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-
         try {
             $result = $this->process
                 ->newPendingProcess()
                 ->timeout($this->timeoutSeconds)
-                ->input($json)
-                ->run([$binary, $subcommand]);
+                ->input($input)
+                ->run($command);
         } catch (ProcessTimedOutException $e) {
-            throw $this->mapTimeout($subcommand, $e);
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeTimeoutException(
+                "gaze {$stage} timed out (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+                previous: $e,
+            );
+            Log::warning("gaze {$stage} failed", $exception->toLogContext());
+
+            throw $exception;
         }
 
         if ($result->successful()) {
             return $result;
         }
 
-        throw $this->mapFailure($subcommand, $result, $failureClass);
+        throw $this->buildException($stage, $result);
     }
 
-    private function mapTimeout(string $stage, ProcessTimedOutException $e): GazeTimeoutException
+    private function assertInput(string $text): void
     {
-        $stderrHash = hash('sha256', '');
-        $exitCode = -1;
-
-        Log::warning("gaze {$stage} failed", [
-            'exit_code' => $exitCode,
-            'stderr_sha256' => $stderrHash,
-            'reason' => 'timeout',
-        ]);
-
-        // Intentionally do NOT include $e->getMessage() — the Symfony message
-        // may embed the command line, which starts with the resolved binary
-        // path. Construct a static message instead.
-        unset($e);
-
-        return new GazeTimeoutException(
-            "gaze {$stage} timed out (exit={$exitCode}, stderr_sha256={$stderrHash})",
-            $exitCode,
-            $stderrHash,
-        );
-    }
-
-    /**
-     * @param  class-string<GazeException>  $fallbackClass
-     */
-    private function mapFailure(string $stage, ProcessResult $result, string $fallbackClass): \Throwable
-    {
-        $stderr = $result->errorOutput() ?: '';
-        $stderrHash = hash('sha256', $stderr);
-        $exitCode = $result->exitCode() ?? -1;
-
-        Log::warning("gaze {$stage} failed", [
-            'exit_code' => $exitCode,
-            'stderr_sha256' => $stderrHash,
-        ]);
-
-        // Map known error kinds by best-effort stderr tag inspection.
-        // The Rust side's stderr envelope is currently anyhow::Error text; this
-        // mapping is opportunistic until the binary emits structured errors.
-        // Raw stderr never leaves this function. Only the SHA-256 and exit code
-        // escape — see PLAN.md "Stderr rule (load-bearing)".
-        if (str_contains($stderr, 'UnknownToken')) {
-            return new GazeUnknownTokenException(
-                "gaze {$stage} unknown token (exit={$exitCode}, stderr_sha256={$stderrHash})",
-                $exitCode,
-                $stderrHash,
-            );
+        if (! mb_check_encoding($text, 'UTF-8')) {
+            throw new GazeInvalidEncodingException('gaze input is not valid UTF-8', 1, hash('sha256', ''));
         }
 
-        if (str_contains($stderr, 'BlobExpired')) {
-            return new GazeBlobExpiredException(
+        if (strlen($text) > ($this->maxBytes ?? self::DEFAULT_MAX_BYTES)) {
+            throw new GazeInputTooLargeException('gaze input exceeds max_bytes pre-flight', 1, hash('sha256', ''));
+        }
+
+        if ($text === '') {
+            throw new GazeEmptyInputException('gaze input must not be empty', 1, hash('sha256', ''));
+        }
+    }
+
+    private function resolvedPolicyPath(): string
+    {
+        $policyPath = $this->policyPath ?? base_path('policy.toml');
+
+        if ($policyPath === '') {
+            throw new \RuntimeException('gaze.policy_path must not be empty.');
+        }
+
+        return $policyPath;
+    }
+
+    private function buildException(string $stage, ProcessResult $result): GazeException
+    {
+        $stderr = $result->errorOutput() ?: '';
+        $exitCode = $result->exitCode() ?? -1;
+        $stderrHash = hash('sha256', $stderr);
+
+        if ($exitCode === 141 && $stderr === '') {
+            $exception = new GazeSigPipeException(
+                "gaze {$stage} terminated by SIGPIPE (exit=141, stderr_sha256={$stderrHash})",
+                141,
+                $stderrHash,
+            );
+            Log::debug("gaze {$stage} failed", $exception->toLogContext());
+
+            return $exception;
+        }
+
+        // Non-empty stderr on exit 141 still goes through the normal stderr
+        // safelist parser so upstream can surface a typed variant if it emits one.
+        $variant = Variant::tryFromStderr($stderr, $exitCode);
+        $exception = match ($variant) {
+            Variant::StdinParse => new GazeStdinParseException(
+                "gaze {$stage} stdin parse failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::EmptyInput => new GazeEmptyInputException(
+                "gaze {$stage} input was empty (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::InputTooLarge => new GazeInputTooLargeException(
+                "gaze {$stage} input exceeded max bytes (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::InvalidEncoding => new GazeInvalidEncodingException(
+                "gaze {$stage} input encoding invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::PolicyConfig => new GazePolicyConfigException(
+                "gaze {$stage} policy configuration invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::UnknownToken => new GazeUnknownTokenException(
+                "gaze {$stage} encountered unknown token (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::InvalidSignature => new GazeInvalidSignatureException(
+                "gaze {$stage} session signature invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::InvalidBlobVersion => new GazeInvalidBlobVersionException(
+                "gaze {$stage} blob version invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::BlobExpired => new GazeBlobExpiredException(
                 "gaze {$stage} blob expired (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
                 $stderrHash,
-            );
-        }
-
-        if (str_contains(strtolower($stderr), 'timed out')) {
-            return new GazeTimeoutException(
-                "gaze {$stage} timed out (exit={$exitCode}, stderr_sha256={$stderrHash})",
+            ),
+            Variant::Pipeline => new GazePipelineException(
+                "gaze {$stage} pipeline failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
                 $stderrHash,
-            );
-        }
+            ),
+            Variant::Io => new GazeIoException(
+                "gaze {$stage} I/O failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::PolicyOpen => new GazePolicyOpenException(
+                "gaze {$stage} policy open failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+        };
 
-        return new $fallbackClass(
-            "gaze {$stage} failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
-            $exitCode,
-            $stderrHash,
-        );
+        $logLevel = $exception instanceof GazeOpsConfigException || $exception instanceof GazeCallerBugException || $exception instanceof GazeIntegrityException
+            ? 'notice'
+            : 'warning';
+
+        Log::{$logLevel}("gaze {$stage} failed", $exception->toLogContext());
+
+        return $exception;
     }
 }

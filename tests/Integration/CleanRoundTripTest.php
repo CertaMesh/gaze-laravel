@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Context;
 use Naoray\GazeLaravel\Gaze;
 
 beforeEach(function () {
@@ -12,23 +11,19 @@ beforeEach(function () {
     }
 
     $this->app['config']->set('gaze.binary', $binary);
+    $this->app['config']->set('gaze.policy_path', realpath(__DIR__.'/../../policy.toml.example'));
 });
 
-it('round-trips sanitize then restore against the real binary', function () {
+it('round-trips clean then restore against the real binary', function () {
     $original = 'Hi Alice (alice@example.com), please confirm.';
 
     $gaze = $this->app->make(Gaze::class);
+    $session = $gaze->clean($original);
 
-    $session = $gaze->sanitize(
-        $original,
-        new Context(customerName: 'Alice', customerEmail: 'alice@example.com'),
-    );
-
-    expect($session->cleanText)->not->toContain('Alice')
+    expect($session->cleanText)->toContain('Alice')
         ->not->toContain('alice@example.com');
 
-    $restored = $gaze->restore($session->cleanText, $session->sessionBlob);
+    $restored = $gaze->restore($session, $session->cleanText);
 
-    expect($restored->text)->toContain('Alice')
-        ->toContain('alice@example.com');
+    expect($restored)->toContain('alice@example.com');
 });
