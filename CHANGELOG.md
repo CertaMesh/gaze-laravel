@@ -6,6 +6,7 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ### Changed
 
+- `BinaryInstaller::PINNED_VERSION` bumped from `0.3.0-rc.3` to `0.3.0` (stable).
 - **BREAKING.** Retargeted the adapter from `ghostwriter` to the `gaze v0.3` CLI contract.
 - **BREAKING.** Replaced `sanitize()` with `clean()` and removed the old `Context` envelope.
 - **BREAKING.** `restore()` now consumes `GazeSession` and returns the restored string directly.
