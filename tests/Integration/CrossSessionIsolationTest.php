@@ -14,7 +14,7 @@ beforeEach(function () {
     $this->app['config']->set('gaze.policy_path', realpath(__DIR__.'/../../policy.toml.example'));
 });
 
-it('documents the current rc.2 cross-session behavior for the pinned contract', function () {
+it('documents the current rc.3 cross-session behavior for the pinned contract', function () {
     $gaze = $this->app->make(Gaze::class);
 
     $sessionA = $gaze->clean('alice@example.com');

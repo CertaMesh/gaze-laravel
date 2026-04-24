@@ -29,7 +29,7 @@ Optional composer hooks for binary download:
 }
 ```
 
-The installer targets `v0.3.0-rc.2` during dev iteration and downloads the published `gaze-<target>` binary plus its `.sha256` checksum over HTTPS.
+The installer targets `v0.3.0-rc.3` during dev iteration and downloads the published `gaze-<target>` binary plus its `.sha256` checksum over HTTPS.
 
 ## Config
 

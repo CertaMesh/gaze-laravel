@@ -11,13 +11,13 @@ it('reports OK when binary and version succeed', function () {
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     Process::fake([
-        '*' => Process::result(output: "gaze 0.3.0-rc.2\n"),
+        '*' => Process::result(output: "gaze 0.3.0-rc.3\n"),
     ]);
 
     $this->artisan('gaze:check')
         ->assertExitCode(0)
         ->expectsOutputToContain('/fake/gaze')
-        ->expectsOutputToContain('gaze 0.3.0-rc.2')
+        ->expectsOutputToContain('gaze 0.3.0-rc.3')
         ->expectsOutputToContain('OK');
 });
 
@@ -62,7 +62,7 @@ it('fails when the dedicated encryption key is invalid', function () {
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     Process::fake([
-        '*' => Process::result(output: "gaze 0.3.0-rc.2\n"),
+        '*' => Process::result(output: "gaze 0.3.0-rc.3\n"),
     ]);
 
     $this->app->forgetInstance('gaze.encrypter');

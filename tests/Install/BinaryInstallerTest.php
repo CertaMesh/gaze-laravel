@@ -96,10 +96,10 @@ it('returns false from alreadyInstalled when binary is missing', function () {
 
 it('matches alreadyInstalled when version output contains the version', function () {
     $path = $this->tmpDir.'/gaze';
-    file_put_contents($path, "#!/bin/sh\necho 'gaze 0.3.0-rc.2'\n");
+    file_put_contents($path, "#!/bin/sh\necho 'gaze 0.3.0-rc.3'\n");
     chmod($path, 0755);
 
-    expect(BinaryInstaller::alreadyInstalled($path, '0.3.0-rc.2'))->toBeTrue()
+    expect(BinaryInstaller::alreadyInstalled($path, '0.3.0-rc.3'))->toBeTrue()
         ->and(BinaryInstaller::alreadyInstalled($path, '0.3.0'))->toBeTrue()
         ->and(BinaryInstaller::alreadyInstalled($path, '0.4.0'))->toBeFalse();
 });
@@ -151,7 +151,7 @@ it('extracts the gaze file into bin-dir', function () {
     $tar = gl_buildFixtureTarGz(
         $this->tmpDir,
         $this->tmpDir.'/pkg',
-        ['gaze' => "#!/bin/sh\necho gaze 0.3.0-rc.2\n"],
+        ['gaze' => "#!/bin/sh\necho gaze 0.3.0-rc.3\n"],
     );
 
     BinaryInstaller::extract($tar, $binDir);

@@ -15,7 +15,7 @@ it('reports doctor readiness without deep round-trip', function () {
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../policy.toml.example');
 
     Process::fake([
-        '*' => Process::result(output: "gaze 0.3.0-rc.2\n"),
+        '*' => Process::result(output: "gaze 0.3.0-rc.3\n"),
     ]);
 
     $this->artisan('gaze:doctor')
@@ -32,7 +32,7 @@ it('runs the deep round-trip check when requested', function () {
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../policy.toml.example');
 
     Process::fake([
-        '*' => Process::result(output: "gaze 0.3.0-rc.2\n"),
+        '*' => Process::result(output: "gaze 0.3.0-rc.3\n"),
     ]);
 
     $clean = new GazeSession(

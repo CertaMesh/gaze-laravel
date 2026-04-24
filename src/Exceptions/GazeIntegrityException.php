@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Exceptions;
 
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
 use Naoray\GazeLaravel\Variant;
 
-class GazeIntegrityException extends GazeException implements NonRetryable
+class GazeIntegrityException extends GazeException
 {
     public function __construct(
         string $message,
