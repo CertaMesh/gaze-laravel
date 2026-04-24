@@ -9,7 +9,7 @@ use Composer\Script\Event;
 final class BinaryInstaller
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
-    public const PINNED_VERSION = '0.3.0-rc.3';
+    public const PINNED_VERSION = '0.3.0';
 
     private const RELEASE_BASE = 'https://github.com/Naoray/gaze/releases/download';
 
