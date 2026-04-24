@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel;
 
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
@@ -22,6 +23,7 @@ use Naoray\GazeLaravel\Exceptions\GazeOpsConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeStdinParseException;
 use Naoray\GazeLaravel\Exceptions\GazeTimeoutException;
@@ -62,7 +64,7 @@ class Gaze
         $result = $this->run($command, $text, 'clean');
 
         /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int}} $decoded */
-        $decoded = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
+        $decoded = $this->decodeResponse($result->output(), 'clean');
 
         return new GazeSession(
             cleanText: $decoded['clean_text'],
@@ -75,8 +77,23 @@ class Gaze
     {
         $this->assertInput($text);
 
+        try {
+            $sessionBlob = $session->ciphertext->decryptedBlob();
+        } catch (DecryptException $e) {
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeResponseDecodeException(
+                "gaze restore session blob could not be decrypted (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+                previous: $e,
+            );
+            Log::notice('gaze restore failed', $exception->toLogContext());
+
+            throw $exception;
+        }
+
         $payload = json_encode([
-            'session_blob' => $session->ciphertext->decryptedBlob(),
+            'session_blob' => $sessionBlob,
             'text' => $text,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
@@ -84,9 +101,45 @@ class Gaze
         $result = $this->run($command, $payload, 'restore');
 
         /** @var array{text:string} $decoded */
-        $decoded = json_decode($result->output(), true, flags: JSON_THROW_ON_ERROR);
+        $decoded = $this->decodeResponse($result->output(), 'restore');
 
         return $decoded['text'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeResponse(string $output, string $stage): array
+    {
+        try {
+            /** @var array<string, mixed> $decoded */
+            $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeResponseDecodeException(
+                "gaze {$stage} response was not valid JSON (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+                previous: $e,
+            );
+            Log::notice("gaze {$stage} failed", $exception->toLogContext());
+
+            throw $exception;
+        }
+
+        if (! is_array($decoded)) {
+            $stderrHash = hash('sha256', '');
+            $exception = new GazeResponseDecodeException(
+                "gaze {$stage} response was not a JSON object (exit=-1, stderr_sha256={$stderrHash})",
+                exitCode: -1,
+                stderrHash: $stderrHash,
+            );
+            Log::notice("gaze {$stage} failed", $exception->toLogContext());
+
+            throw $exception;
+        }
+
+        return $decoded;
     }
 
     /**
