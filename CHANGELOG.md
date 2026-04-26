@@ -4,6 +4,10 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Production deployments now ignore `GAZE_RELEASE_BASE` env override and always fetch from the canonical release host. The override remains available for non-production (testing/staging) flows. Closes #194.
+
 ### Added
 
 - `upstream-watch` GitHub Actions workflow that checks the latest stable `piinuts/gaze` release daily, opens a guarded `bump/gaze-vX.Y.Z` PR when `BinaryInstaller::PINNED_VERSION` drifts, regenerates CLI help snapshots, and labels the PR for contract review.

@@ -195,14 +195,52 @@ it('honors GAZE_SKIP_BINARY_DOWNLOAD', function () {
 });
 
 it('refuses a non-HTTPS release base', function () {
+    putenv('APP_ENV=testing');
     putenv('GAZE_RELEASE_BASE=http://example.com/insecure');
     try {
         $io = new BufferIO;
         BinaryInstaller::postInstall(gl_makeEvent($io, $this->tmpDir));
 
         expect($io->getOutput())->toContain('non-HTTPS')
+            ->and($io->getOutput())->toContain('non-canonical GAZE_RELEASE_BASE override')
             ->and($this->tmpDir.'/gaze')->not->toBeFile();
     } finally {
+        putenv('APP_ENV');
+        putenv('GAZE_RELEASE_BASE');
+    }
+});
+
+it('ignores GAZE_RELEASE_BASE in production installs', function () {
+    $binPath = $this->tmpDir.'/gaze';
+    $version = BinaryInstaller::PINNED_VERSION;
+    file_put_contents($binPath, "#!/bin/sh\necho 'gaze {$version}'\n");
+    chmod($binPath, 0755);
+
+    putenv('APP_ENV=production');
+    putenv('GAZE_RELEASE_BASE=https://attacker.example/releases/download');
+    try {
+        $io = new BufferIO;
+        BinaryInstaller::postInstall(gl_makeEvent($io, $this->tmpDir));
+
+        expect(BinaryInstaller::resolveReleaseBase(new BufferIO))->toBe('https://github.com/piinuts/gaze/releases/download')
+            ->and($io->getOutput())->toContain("gaze v{$version} already installed")
+            ->and($io->getOutput())->not->toContain('non-canonical GAZE_RELEASE_BASE override');
+    } finally {
+        putenv('APP_ENV');
+        putenv('GAZE_RELEASE_BASE');
+    }
+});
+
+it('honors GAZE_RELEASE_BASE outside production and logs the override', function () {
+    putenv('APP_ENV=staging');
+    putenv('GAZE_RELEASE_BASE=https://fixtures.example/releases/download');
+    try {
+        $io = new BufferIO;
+
+        expect(BinaryInstaller::resolveReleaseBase($io))->toBe('https://fixtures.example/releases/download')
+            ->and($io->getOutput())->toContain('non-canonical GAZE_RELEASE_BASE override');
+    } finally {
+        putenv('APP_ENV');
         putenv('GAZE_RELEASE_BASE');
     }
 });
