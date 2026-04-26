@@ -49,6 +49,21 @@ it('uses vendor bin when executable', function () {
         ->toBe($vendor);
 });
 
+it('finds gaze on PATH via Symfony ExecutableFinder', function () {
+    $pathGaze = gl_makeExecutable($this->tmpDir, 'gaze');
+    $originalPath = getenv('PATH');
+    putenv('PATH='.$this->tmpDir);
+
+    try {
+        expect((new BinaryResolver(
+            explicitPath: null,
+            vendorBinPath: $this->tmpDir.'/does-not-exist',
+        ))->resolve())->toBe($pathGaze);
+    } finally {
+        putenv('PATH='.($originalPath === false ? '' : $originalPath));
+    }
+});
+
 it('falls through non-executable vendor path', function () {
     $vendor = $this->tmpDir.'/not-executable';
     file_put_contents($vendor, 'stub');
