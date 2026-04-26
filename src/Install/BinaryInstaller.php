@@ -7,6 +7,7 @@ namespace Naoray\GazeLaravel\Install;
 use Composer\Composer;
 use Composer\IO\IOInterface;
 use Composer\Script\Event;
+use Symfony\Component\Process\Process;
 
 final class BinaryInstaller
 {
@@ -131,7 +132,21 @@ final class BinaryInstaller
         if (! is_executable($binPath)) {
             return false;
         }
-        $output = @shell_exec(escapeshellarg($binPath).' --version 2>/dev/null');
+
+        $process = new Process([$binPath, '--version']);
+        $process->setTimeout(5);
+
+        try {
+            $process->run();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        if (! $process->isSuccessful()) {
+            return false;
+        }
+
+        $output = $process->getOutput();
 
         return is_string($output) && str_contains($output, $version);
     }
