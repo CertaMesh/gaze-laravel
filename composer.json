@@ -34,11 +34,13 @@
         }
     },
     "extra": {
+        "class": "Naoray\\GazeLaravel\\Install\\GazeInstallerPlugin",
         "laravel": {
             "providers": ["Naoray\\GazeLaravel\\GazeServiceProvider"],
             "aliases": {"Gaze": "Naoray\\GazeLaravel\\Facades\\Gaze"}
         }
     },
+    "type": "composer-plugin",
     "scripts": {
         "test": "pest",
         "analyse": "phpstan analyse",
@@ -48,7 +50,8 @@
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
-            "pestphp/pest-plugin": true
+            "pestphp/pest-plugin": true,
+            "naoray/gaze-laravel": true
         }
     }
 }
