@@ -16,6 +16,8 @@ enum Variant: string
     case InputTooLarge = 'InputTooLarge';
     case InvalidEncoding = 'InvalidEncoding';
     case PolicyConfig = 'PolicyConfig';
+    case PolicyConfigDetail = 'PolicyConfigDetail';
+    case AuditPurgeIso8601 = 'AuditPurgeIso8601';
     case UnknownToken = 'UnknownToken';
     case InvalidSignature = 'InvalidSignature';
     case InvalidBlobVersion = 'InvalidBlobVersion';
@@ -40,6 +42,14 @@ enum Variant: string
             return self::unknownFor($actualExit);
         }
 
+        // Upstream collapses PolicyConfig and PolicyConfigDetail under the same wire
+        // name (`crates/gaze-cli/src/error.rs:39-55`) and disambiguates only via the
+        // `detail` sidecar. The synthetic PolicyConfigDetail backing value never
+        // appears on stderr; this branch is the only path that resolves it.
+        if ($error === 'PolicyConfig' && array_key_exists('detail', $decoded)) {
+            return self::PolicyConfigDetail;
+        }
+
         return self::tryFrom($error) ?? self::unknownFor($actualExit);
     }
 
@@ -57,7 +67,7 @@ enum Variant: string
     {
         return match ($this) {
             self::StdinParse, self::EmptyInput, self::InputTooLarge, self::InvalidEncoding => 1,
-            self::PolicyConfig => 2,
+            self::PolicyConfig, self::PolicyConfigDetail, self::AuditPurgeIso8601 => 2,
             self::UnknownToken,
             self::InvalidSignature,
             self::InvalidBlobVersion,
