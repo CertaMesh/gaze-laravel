@@ -22,11 +22,12 @@ php artisan vendor:publish --tag=gaze-policy
 
 The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`.
 
-Three env overrides are honored:
+Installer env overrides:
 
 - `GAZE_SKIP_BINARY_DOWNLOAD=1` — skip the download entirely (use when you manage the binary out-of-band)
 - `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release (use cautiously; pinned version is contract-tested)
 - `GAZE_GITHUB_TOKEN=ghp_...` — GitHub PAT used to fetch release assets from the upstream `piinuts/gaze` repo (see below)
+- `GAZE_RELEASE_BASE=https://...` — non-production-only release base override for fixture or staging release hosts. Production installs (`APP_ENV` empty, `production`, or `prod`) ignore this override and always use the canonical `https://github.com/piinuts/gaze/releases/download` host.
 
 #### `GAZE_GITHUB_TOKEN` — private release access
 
