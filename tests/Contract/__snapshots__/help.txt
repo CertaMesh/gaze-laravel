@@ -1,0 +1,13 @@
+Channel-agnostic PII redaction for LLM pipes
+
+Usage: gaze <COMMAND>
+
+Commands:
+  clean    Read raw text from stdin; emit `{clean_text, session_blob, stats}` JSON to stdout
+  restore  Read `{session_blob, text}` JSON from stdin; emit `{text}` JSON to stdout
+  audit    Query, export, or maintain redaction-log metadata without reading raw PII payloads
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version

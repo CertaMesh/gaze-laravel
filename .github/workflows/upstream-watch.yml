@@ -1,0 +1,174 @@
+name: upstream-watch
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ secrets.GAZE_GITHUB_TOKEN || github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: json, phar
+          coverage: none
+          tools: composer:v2
+
+      - name: Detect latest stable gaze release
+        id: release
+        run: |
+          set -euo pipefail
+
+          latest="$(gh release list -R piinuts/gaze --exclude-pre-releases --limit 1 | awk 'NR == 1 { print $1 }')"
+          if [ -z "$latest" ]; then
+            echo "No stable piinuts/gaze release found" >&2
+            exit 1
+          fi
+
+          case "$latest" in
+            *-*)
+              echo "Refusing pre-release tag: $latest" >&2
+              exit 1
+              ;;
+            v*) version="${latest#v}" ;;
+            *) version="$latest" ;;
+          esac
+
+          current="$(php -r "require 'src/Install/BinaryInstaller.php'; echo Naoray\\\\GazeLaravel\\\\Install\\\\BinaryInstaller::PINNED_VERSION;")"
+
+          echo "tag=$latest" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+
+          if [ "$version" = "$current" ]; then
+            echo "Already pinned to $version"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Stop when already current
+        if: steps.release.outputs.changed == 'false'
+        run: echo "gaze-laravel already tracks ${{ steps.release.outputs.tag }}"
+
+      - name: Check release notes for breaking markers
+        if: steps.release.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+
+          gh release view "${{ steps.release.outputs.tag }}" -R piinuts/gaze --json body --jq '.body // ""' > /tmp/gaze-release-notes.md
+
+          if grep -Eiq '(^|[^a-z])(breaking|breaking_changes|adapter-rewrite|v0\.5\.0-rc)([^a-z]|$)' /tmp/gaze-release-notes.md; then
+            echo "Release ${{ steps.release.outputs.tag }} contains a breaking-change marker; refusing automated bump." >&2
+            exit 1
+          fi
+
+      - name: Create bump branch
+        if: steps.release.outputs.changed == 'true'
+        id: branch
+        run: |
+          set -euo pipefail
+
+          branch="bump/gaze-${{ steps.release.outputs.tag }}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            git fetch origin "$branch"
+            git switch -C "$branch" "origin/$branch"
+          else
+            git switch -c "$branch"
+          fi
+
+          perl -0pi -e "s/public const PINNED_VERSION = ['\"][^'\"]+['\"];/public const PINNED_VERSION = '${{ steps.release.outputs.version }}';/" src/Install/BinaryInstaller.php
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.release.outputs.changed == 'true'
+        env:
+          GAZE_SKIP_BINARY_DOWNLOAD: '1'
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Regenerate help snapshots
+        if: steps.release.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+
+          mkdir -p vendor/bin /tmp/gaze-download
+          gh release download "${{ steps.release.outputs.tag }}" \
+            -R piinuts/gaze \
+            -p gaze-x86_64-unknown-linux-gnu \
+            -p gaze-x86_64-unknown-linux-gnu.sha256 \
+            -D /tmp/gaze-download
+
+          cd /tmp/gaze-download
+          sha256sum --check gaze-x86_64-unknown-linux-gnu.sha256
+          cd "$GITHUB_WORKSPACE"
+
+          install -m 0755 /tmp/gaze-download/gaze-x86_64-unknown-linux-gnu vendor/bin/gaze
+
+          binary="vendor/bin/gaze"
+          test -x "$binary"
+
+          "$binary" --version > tests/Contract/__snapshots__/version.txt
+          "$binary" --help > tests/Contract/__snapshots__/help.txt
+          "$binary" clean --help > tests/Contract/__snapshots__/help-clean.txt
+          "$binary" restore --help > tests/Contract/__snapshots__/help-restore.txt
+          "$binary" audit --help > tests/Contract/__snapshots__/help-audit.txt
+          "$binary" audit purge --help > tests/Contract/__snapshots__/help-audit-purge.txt
+
+      - name: Run contract tests
+        if: steps.release.outputs.changed == 'true'
+        env:
+          GAZE_BINARY: vendor/bin/gaze
+        run: composer test -- tests/Contract/HelpSnapshotTest.php
+
+      - name: Open upstream bump PR
+        if: steps.release.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo "No diff after bump; nothing to open."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/Install/BinaryInstaller.php tests/Contract/__snapshots__
+          git commit -m "[agent] chore(upstream): bump gaze to ${{ steps.release.outputs.tag }}"
+          git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
+
+          gh label create upstream-bump --force --color 0E8A16 --description "Tracks a new upstream gaze release"
+          gh label create needs-contract-review --force --color FBCA04 --description "Requires manual contract snapshot review"
+
+          existing_pr="$(gh pr list --head "${{ steps.branch.outputs.branch }}" --state open --json url --jq '.[0].url // ""')"
+          if [ -n "$existing_pr" ]; then
+            echo "Updated existing upstream bump PR: $existing_pr"
+            exit 0
+          fi
+
+          gh pr create \
+            --base main \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --title "Bump gaze to ${{ steps.release.outputs.tag }}" \
+            --label upstream-bump \
+            --label needs-contract-review \
+            --body "Automated upstream-watch bump for piinuts/gaze ${{ steps.release.outputs.tag }}.\n\nThis PR updates BinaryInstaller::PINNED_VERSION and regenerates the help snapshots from the downloaded binary. Review the snapshot diff before merge."
