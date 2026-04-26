@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Install;
 
+use Closure;
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
-use Composer\IO\IOInterface;
 use Composer\Installer\PackageEvent;
 use Composer\Installer\PackageEvents;
+use Composer\IO\IOInterface;
 use Composer\Plugin\PluginInterface;
 
 /**
@@ -22,9 +23,19 @@ use Composer\Plugin\PluginInterface;
  * not executed during a consumer's `composer require`). The plugin fixes
  * the dead-code path so end users actually get the binary on install.
  */
-final class GazeInstallerPlugin implements PluginInterface, EventSubscriberInterface
+final class GazeInstallerPlugin implements EventSubscriberInterface, PluginInterface
 {
-    private const PACKAGE_NAME = 'naoray/gaze-laravel';
+    public const PACKAGE_NAME = 'naoray/gaze-laravel';
+
+    /**
+     * @var Closure(Composer, IOInterface): void
+     */
+    private Closure $installBinary;
+
+    public function __construct(?Closure $installBinary = null)
+    {
+        $this->installBinary = $installBinary ?? BinaryInstaller::install(...);
+    }
 
     public function activate(Composer $composer, IOInterface $io): void
     {
@@ -66,6 +77,6 @@ final class GazeInstallerPlugin implements PluginInterface, EventSubscriberInter
             return;
         }
 
-        BinaryInstaller::install($event->getComposer(), $event->getIO());
+        ($this->installBinary)($event->getComposer(), $event->getIO());
     }
 }
