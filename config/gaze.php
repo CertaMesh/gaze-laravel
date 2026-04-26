@@ -5,10 +5,16 @@ declare(strict_types=1);
 return [
     /*
      * Absolute path or executable name for the gaze binary.
-     * Defaults to the auto-downloaded copy in vendor/bin/gaze when present,
-     * otherwise falls back to the first "gaze" on $PATH.
+     *
+     * Resolution contract (BinaryResolver):
+     *   null / unset → auto-discover: prefer vendor/bin/gaze (auto-installed by
+     *                  the Composer plugin), then fall back to the first "gaze"
+     *                  on $PATH.
+     *   non-empty    → used as-is (treated as explicit override). Set to an
+     *                  absolute path for production; a bare name like "gaze"
+     *                  defeats the vendor/bin fallback and is discouraged.
      */
-    'binary' => env('GAZE_BINARY', 'gaze'),
+    'binary' => env('GAZE_BINARY'),
 
     /*
      * Hard ceiling on any single gaze invocation. A hung process must be

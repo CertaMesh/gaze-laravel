@@ -33,6 +33,23 @@ it('merges package config', function () {
         ->and($this->app['config']->get('gaze.policy_path'))->toBe(base_path('policy.toml'));
 });
 
+it('defaults gaze.binary to null so BinaryResolver auto-discovers vendor/bin', function () {
+    // Regression for #11 / todo #208: the previous default of literal 'gaze'
+    // caused BinaryResolver to short-circuit on explicitPath and never reach
+    // the vendor/bin/gaze fallback where the Composer plugin (PR #12) deposits
+    // the auto-installed binary. The default MUST be null.
+    expect(getenv('GAZE_BINARY'))->toBeFalse();
+    expect($this->app['config']->get('gaze.binary'))->toBeNull();
+});
+
+it('flows an explicit gaze.binary config through to BinaryResolver', function () {
+    $explicit = '/usr/local/bin/custom-gaze';
+    $this->app['config']->set('gaze.binary', $explicit);
+    $this->app->forgetInstance(BinaryResolver::class);
+
+    expect($this->app->make(BinaryResolver::class)->resolve())->toBe($explicit);
+});
+
 it('uses a distinct encrypter when a dedicated key is configured', function () {
     $this->app->forgetInstance('gaze.encrypter');
 
