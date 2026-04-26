@@ -47,9 +47,23 @@ final class GazeInstallerPlugin implements EventSubscriberInterface, PluginInter
         // Nothing to tear down.
     }
 
+    /**
+     * Remove binaries written by {@see BinaryInstaller::install()}.
+     *
+     * Composer does not track files this plugin places in the consumer's
+     * bin-dir at runtime, so package removal must clean them up explicitly.
+     */
     public function uninstall(Composer $composer, IOInterface $io): void
     {
-        // Composer removes vendor/bin/gaze with the package; no extra cleanup.
+        $binDir = (string) $composer->getConfig()->get('bin-dir');
+
+        foreach (['gaze', 'gaze.bat'] as $name) {
+            $path = $binDir.'/'.$name;
+
+            if (is_file($path) && is_writable($path) && @unlink($path)) {
+                $io->write("<info>gaze-laravel: removed {$path}</info>", true, IOInterface::VERBOSE);
+            }
+        }
     }
 
     /**
