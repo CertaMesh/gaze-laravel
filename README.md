@@ -18,18 +18,14 @@ php artisan vendor:publish --tag=gaze-config
 php artisan vendor:publish --tag=gaze-policy
 ```
 
-Optional composer hooks for binary download:
+### Binary install hook
 
-```json
-{
-    "scripts": {
-        "post-install-cmd": ["Naoray\\GazeLaravel\\Install\\BinaryInstaller::postInstall"],
-        "post-update-cmd": ["Naoray\\GazeLaravel\\Install\\BinaryInstaller::postInstall"]
-    }
-}
-```
+The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`.
 
-The installer targets `v0.3.0` and downloads the published `gaze-<target>` binary plus its `.sha256` checksum over HTTPS.
+Two env overrides are honored:
+
+- `GAZE_SKIP_BINARY_DOWNLOAD=1` — skip the download entirely (use when you manage the binary out-of-band)
+- `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release (use cautiously; pinned version is contract-tested)
 
 ## Config
 
