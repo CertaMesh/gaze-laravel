@@ -56,6 +56,14 @@ final class GazeInstallerPlugin implements EventSubscriberInterface, PluginInter
     public function uninstall(Composer $composer, IOInterface $io): void
     {
         $binDir = (string) $composer->getConfig()->get('bin-dir');
+        if (! str_starts_with($binDir, '/') && ! preg_match('/^[A-Z]:[\\\\\\/]/i', $binDir)) {
+            $vendorDir = (string) $composer->getConfig()->get('vendor-dir');
+            $projectRoot = $vendorDir !== ''
+                ? dirname($vendorDir)
+                : (getcwd() ?: dirname(__DIR__, 2));
+
+            $binDir = rtrim($projectRoot, '/').'/'.ltrim($binDir, './');
+        }
 
         foreach (['gaze', 'gaze.bat'] as $name) {
             $path = $binDir.'/'.$name;

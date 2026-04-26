@@ -20,11 +20,16 @@ use Naoray\GazeLaravel\Install\GazeInstallerPlugin;
 use Symfony\Component\Console\Output\OutputInterface;
 
 beforeEach(function () {
+    $this->originalCwd = getcwd();
     $this->tmpDir = sys_get_temp_dir().'/gaze-laravel-plugin-'.bin2hex(random_bytes(6));
     mkdir($this->tmpDir, 0755, true);
 });
 
 afterEach(function () {
+    if ($this->originalCwd !== false) {
+        chdir($this->originalCwd);
+    }
+
     glp_recursiveRemove($this->tmpDir);
 });
 
@@ -113,6 +118,30 @@ it('removes the gaze binary from Composer bin-dir on uninstall', function () {
         ->and($io->getOutput())->toContain('gaze-laravel: removed '.$binDir.'/gaze');
 });
 
+it('removes the gaze binary from a relative Composer bin-dir anchored to vendor-dir', function () {
+    $projectRoot = $this->tmpDir.'/project';
+    $binDir = $projectRoot.'/vendor/bin';
+    mkdir($binDir, 0755, true);
+    file_put_contents($binDir.'/gaze', "#!/bin/sh\necho gaze\n");
+    chmod($binDir.'/gaze', 0755);
+
+    $workingDir = $this->tmpDir.'/different-cwd';
+    $wrongBinDir = $workingDir.'/vendor/bin';
+    mkdir($wrongBinDir, 0755, true);
+    file_put_contents($wrongBinDir.'/gaze', 'wrong project binary');
+
+    chdir($workingDir);
+
+    $plugin = new GazeInstallerPlugin;
+    $io = new BufferIO('', OutputInterface::VERBOSITY_VERBOSE);
+
+    $plugin->uninstall(composerWithBinDir('vendor/bin', $projectRoot.'/vendor'), $io);
+
+    expect($binDir.'/gaze')->not->toBeFile()
+        ->and($wrongBinDir.'/gaze')->toBeFile()
+        ->and($io->getOutput())->toContain('gaze-laravel: removed '.$binDir.'/gaze');
+});
+
 it('removes a Windows gaze bat shim from Composer bin-dir on uninstall', function () {
     $binDir = $this->tmpDir.'/bin';
     mkdir($binDir, 0755, true);
@@ -169,10 +198,16 @@ function gazeInstallerPluginSpy(int &$installCalls): GazeInstallerPlugin
     });
 }
 
-function composerWithBinDir(string $binDir): Composer
+function composerWithBinDir(string $binDir, ?string $vendorDir = null): Composer
 {
     $config = new Config(false);
-    $config->merge(['config' => ['bin-dir' => $binDir]]);
+    $settings = ['bin-dir' => $binDir];
+
+    if ($vendorDir !== null) {
+        $settings['vendor-dir'] = $vendorDir;
+    }
+
+    $config->merge(['config' => $settings]);
 
     $composer = new Composer;
     $composer->setConfig($config);
