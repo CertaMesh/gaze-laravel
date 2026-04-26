@@ -20,6 +20,8 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 ### Fixed
 
 - GazeSigPipeException now classified as Retryable+alert instead of dead-lettering on first occurrence. Closes #210.
+- `GazeInstallerPlugin::uninstall()` now removes `vendor/bin/gaze` on `composer remove` instead of leaving it orphaned. Closes #213.
+- `GazeInstallerPlugin::uninstall()` now correctly handles relative `bin-dir` Composer configs by normalizing against `vendor-dir`.
 - Composer plugin install no longer uses `shell_exec` (#19, closes #197 + #217). `BinaryResolver` resolves the binary via Symfony `ExecutableFinder`; `BinaryInstaller::alreadyInstalled` invokes the binary via Symfony `Process`. The plugin now runs in container, Alpine, and `disable_functions=shell_exec` environments where the previous code path silently failed at install time.
 
 ### Documentation
