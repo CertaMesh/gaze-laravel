@@ -45,6 +45,15 @@ function gl_makeEvent(BufferIO $io, string $binDir): Event
     return new Event('post-install-cmd', $composer, $io);
 }
 
+function gl_makeProcessFixture(string $dir, string $name, string $phpBody): string
+{
+    $path = $dir.'/'.$name;
+    file_put_contents($path, "#!/usr/bin/env php\n<?php\n{$phpBody}\n");
+    chmod($path, 0755);
+
+    return $path;
+}
+
 /** @param  array<string, string>  $files */
 function gl_buildFixtureTarGz(string $tmpDir, string $stagingDir, array $files): string
 {
@@ -95,13 +104,25 @@ it('returns false from alreadyInstalled when binary is missing', function () {
 });
 
 it('matches alreadyInstalled when version output contains the version', function () {
-    $path = $this->tmpDir.'/gaze';
-    file_put_contents($path, "#!/bin/sh\necho 'gaze 0.3.0-rc.3'\n");
-    chmod($path, 0755);
+    $path = gl_makeProcessFixture(
+        $this->tmpDir,
+        'gaze',
+        "echo 'gaze 0.3.0-rc.3'.PHP_EOL;",
+    );
 
     expect(BinaryInstaller::alreadyInstalled($path, '0.3.0-rc.3'))->toBeTrue()
         ->and(BinaryInstaller::alreadyInstalled($path, '0.3.0'))->toBeTrue()
         ->and(BinaryInstaller::alreadyInstalled($path, '0.4.0'))->toBeFalse();
+});
+
+it('returns false from alreadyInstalled when version probe exits non-zero', function () {
+    $path = gl_makeProcessFixture(
+        $this->tmpDir,
+        'gaze',
+        "fwrite(STDERR, 'probe failed'.PHP_EOL);\nexit(1);",
+    );
+
+    expect(BinaryInstaller::alreadyInstalled($path, '0.3.0'))->toBeFalse();
 });
 
 it('accepts a matching sha256 in verifyChecksum', function () {
