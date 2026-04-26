@@ -234,6 +234,142 @@ it('resolves path-relative redirects against the current directory', function ()
     ))->toBe('https://example.com/a/b/d.tar.gz');
 });
 
+it('derives github owner/repo from the default release base', function () {
+    $base = 'https://github.com/piinuts/gaze/releases/download';
+
+    expect(BinaryInstaller::deriveGithubRepo($base))->toBe('piinuts/gaze');
+});
+
+it('derives github owner/repo when the base has a trailing path segment', function () {
+    $base = 'https://github.com/piinuts/gaze/releases/download/v0.3.0';
+
+    expect(BinaryInstaller::deriveGithubRepo($base))->toBe('piinuts/gaze');
+});
+
+it('returns null for non-github release bases', function () {
+    expect(BinaryInstaller::deriveGithubRepo('https://mirror.internal/gaze/releases/download'))->toBeNull()
+        ->and(BinaryInstaller::deriveGithubRepo('https://example.com/foo/bar'))->toBeNull()
+        ->and(BinaryInstaller::deriveGithubRepo('http://github.com/piinuts/gaze/releases/download'))->toBeNull();
+});
+
+it('builds unauthenticated request headers without an Authorization line', function () {
+    $headers = BinaryInstaller::buildRequestHeaders(null, 'application/octet-stream');
+
+    expect($headers)->toContain('Accept: application/octet-stream')
+        ->and($headers)->toContain('User-Agent: gaze-laravel/'.BinaryInstaller::PINNED_VERSION);
+
+    foreach ($headers as $line) {
+        expect(stripos($line, 'Authorization:'))->toBeFalse();
+        expect(stripos($line, 'X-GitHub-Api-Version:'))->toBeFalse();
+    }
+});
+
+it('builds authenticated request headers with Bearer auth and the api version pin', function () {
+    $headers = BinaryInstaller::buildRequestHeaders('ghp_testtoken123', 'application/vnd.github+json');
+
+    expect($headers)->toContain('Accept: application/vnd.github+json')
+        ->and($headers)->toContain('User-Agent: gaze-laravel/'.BinaryInstaller::PINNED_VERSION)
+        ->and($headers)->toContain('Authorization: Bearer ghp_testtoken123')
+        ->and($headers)->toContain('X-GitHub-Api-Version: 2022-11-28');
+
+    // GitHub deprecated `Authorization: token <pat>` — verify we are NOT using that form.
+    foreach ($headers as $line) {
+        expect(str_starts_with($line, 'Authorization: token '))->toBeFalse();
+    }
+});
+
+it('treats an empty token as unauthenticated when building headers', function () {
+    $headers = BinaryInstaller::buildRequestHeaders('', 'application/octet-stream');
+
+    foreach ($headers as $line) {
+        expect(stripos($line, 'Authorization:'))->toBeFalse();
+    }
+});
+
+it('keeps Authorization when redirect stays on the same host', function () {
+    $headers = [
+        'User-Agent: gaze-laravel/0.3.0',
+        'Authorization: Bearer ghp_secret',
+        'Accept: application/octet-stream',
+    ];
+
+    $result = BinaryInstaller::stripAuthOnCrossHost($headers, 'api.github.com', 'api.github.com');
+
+    expect($result)->toBe($headers);
+});
+
+it('strips Authorization when redirect crosses to a different host (S3)', function () {
+    $headers = [
+        'User-Agent: gaze-laravel/0.3.0',
+        'Authorization: Bearer ghp_secret',
+        'Accept: application/octet-stream',
+    ];
+
+    $result = BinaryInstaller::stripAuthOnCrossHost($headers, 'api.github.com', 'objects.githubusercontent.com');
+
+    expect($result)->toBe([
+        'User-Agent: gaze-laravel/0.3.0',
+        'Accept: application/octet-stream',
+    ]);
+});
+
+it('strips Authorization defensively when host parsing fails', function () {
+    $headers = [
+        'Authorization: Bearer ghp_secret',
+        'User-Agent: gaze-laravel/0.3.0',
+    ];
+
+    $result = BinaryInstaller::stripAuthOnCrossHost($headers, 'api.github.com', null);
+
+    expect($result)->toBe(['User-Agent: gaze-laravel/0.3.0']);
+});
+
+it('extracts asset id pair from a github releases tag JSON payload', function () {
+    $json = json_encode([
+        'tag_name' => 'v0.3.0',
+        'assets' => [
+            ['id' => 111, 'name' => 'other-thing'],
+            ['id' => 222, 'name' => 'gaze-aarch64-apple-darwin'],
+            ['id' => 333, 'name' => 'gaze-aarch64-apple-darwin.sha256'],
+            ['id' => 444, 'name' => 'gaze-x86_64-unknown-linux-gnu'],
+        ],
+    ]);
+
+    [$assetId, $sumsId] = BinaryInstaller::extractAssetIds(
+        (string) $json,
+        'gaze-aarch64-apple-darwin',
+        'v0.3.0',
+    );
+
+    expect($assetId)->toBe(222)
+        ->and($sumsId)->toBe(333);
+});
+
+it('throws when the github releases tag JSON has no assets array', function () {
+    BinaryInstaller::extractAssetIds('{"message":"Not Found"}', 'gaze-aarch64-apple-darwin', 'v0.3.0');
+})->throws(RuntimeException::class, 'invalid JSON or no assets[]');
+
+it('throws when the asset name is missing from the release', function () {
+    $json = (string) json_encode([
+        'assets' => [
+            ['id' => 1, 'name' => 'gaze-x86_64-unknown-linux-gnu'],
+            ['id' => 2, 'name' => 'gaze-x86_64-unknown-linux-gnu.sha256'],
+        ],
+    ]);
+
+    BinaryInstaller::extractAssetIds($json, 'gaze-aarch64-apple-darwin', 'v0.3.0');
+})->throws(RuntimeException::class, 'asset gaze-aarch64-apple-darwin not found');
+
+it('throws when the .sha256 sidecar asset is missing from the release', function () {
+    $json = (string) json_encode([
+        'assets' => [
+            ['id' => 1, 'name' => 'gaze-aarch64-apple-darwin'],
+        ],
+    ]);
+
+    BinaryInstaller::extractAssetIds($json, 'gaze-aarch64-apple-darwin', 'v0.3.0');
+})->throws(RuntimeException::class, 'asset gaze-aarch64-apple-darwin.sha256 not found');
+
 it('short-circuits when the binary is already at the pinned version', function () {
     $binPath = $this->tmpDir.'/gaze';
     $version = BinaryInstaller::PINNED_VERSION;
