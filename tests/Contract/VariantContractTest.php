@@ -34,6 +34,7 @@ const UPSTREAM_VARIANTS = [
     'BlobExpired' => ['BlobExpired', 3, ['error' => 'BlobExpired', 'exit' => 3]],
     'Pipeline' => ['Pipeline', 3, ['error' => 'Pipeline', 'exit' => 3]],
     'Io' => ['Io', 4, ['error' => 'Io', 'exit' => 4]],
+    'SigPipe' => ['SigPipe', 141, ['error' => 'SigPipe', 'exit' => 141]],
     'PolicyOpen' => ['PolicyOpen', 4, ['error' => 'PolicyOpen', 'exit' => 4]],
 ];
 

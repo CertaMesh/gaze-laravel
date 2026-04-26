@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Exceptions;
 
-class GazeSigPipeException extends GazeInfraException
+use Naoray\GazeLaravel\Queue\Contracts\RetryableWithAlert;
+use Naoray\GazeLaravel\Variant;
+
+class GazeSigPipeException extends GazeInfraException implements RetryableWithAlert
 {
     public function __construct(string $message, int $exitCode, string $stderrHash, ?\Throwable $previous = null)
     {
-        parent::__construct($message, $exitCode, $stderrHash, null, $previous);
+        parent::__construct($message, $exitCode, $stderrHash, Variant::SigPipe, $previous);
     }
 }

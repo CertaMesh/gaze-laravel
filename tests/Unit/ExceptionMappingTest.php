@@ -11,6 +11,7 @@ use Naoray\GazeLaravel\Exceptions\GazeIoException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
 
 it('maps variants to their dedicated exception classes', function (string $error, string $class) {
@@ -22,12 +23,14 @@ it('maps variants to their dedicated exception classes', function (string $error
                 'exit' => match ($error) {
                     'PolicyConfig' => 2,
                     'Io', 'PolicyOpen' => 4,
+                    'SigPipe' => 141,
                     default => 3,
                 },
             ], JSON_THROW_ON_ERROR),
             exitCode: match ($error) {
                 'PolicyConfig' => 2,
                 'Io', 'PolicyOpen' => 4,
+                'SigPipe' => 141,
                 default => 3,
             },
         ),
@@ -45,6 +48,7 @@ it('maps variants to their dedicated exception classes', function (string $error
     ['Pipeline', GazePipelineException::class],
     ['PolicyConfig', GazePolicyConfigException::class],
     ['Io', GazeIoException::class],
+    ['SigPipe', GazeSigPipeException::class],
     ['PolicyOpen', GazePolicyOpenException::class],
 ]);
 

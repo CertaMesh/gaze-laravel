@@ -287,6 +287,11 @@ class Gaze
                 $exitCode,
                 $stderrHash,
             ),
+            Variant::SigPipe => new GazeSigPipeException(
+                "gaze {$stage} terminated by SIGPIPE (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
             Variant::PolicyOpen => new GazePolicyOpenException(
                 "gaze {$stage} policy open failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
