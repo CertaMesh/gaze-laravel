@@ -13,7 +13,7 @@ final class BinaryInstaller
     /** Pinned per gaze-laravel release. Bumped intentionally. */
     public const PINNED_VERSION = '0.3.0';
 
-    private const RELEASE_BASE = 'https://github.com/Naoray/gaze/releases/download';
+    private const RELEASE_BASE = 'https://github.com/piinuts/gaze/releases/download';
 
     /**
      * Composer script handler kept as a thin shim so root composer.json
@@ -59,7 +59,7 @@ final class BinaryInstaller
         }
 
         if ($target === 'x86_64-apple-darwin') {
-            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only; run `cargo install --git https://github.com/Naoray/gaze gaze` and set GAZE_BINARY.</error>');
+            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only; run `cargo install --git https://github.com/piinuts/gaze gaze` and set GAZE_BINARY.</error>');
 
             return;
         }
