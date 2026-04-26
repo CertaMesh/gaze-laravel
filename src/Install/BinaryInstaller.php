@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Install;
 
+use Composer\Composer;
+use Composer\IO\IOInterface;
 use Composer\Script\Event;
 
 final class BinaryInstaller
@@ -13,10 +15,21 @@ final class BinaryInstaller
 
     private const RELEASE_BASE = 'https://github.com/Naoray/gaze/releases/download';
 
+    /**
+     * Composer script handler kept as a thin shim so root composer.json
+     * `post-install-cmd` / `post-update-cmd` entries that already reference
+     * this static keep working. New consumers get triggered via the
+     * GazeInstallerPlugin (extra.class) without any root config.
+     */
     public static function postInstall(Event $event): void
     {
+        self::install($event->getComposer(), $event->getIO());
+    }
+
+    public static function install(Composer $composer, IOInterface $io): void
+    {
         if (getenv('GAZE_SKIP_BINARY_DOWNLOAD') === '1') {
-            $event->getIO()->write('<comment>gaze-laravel: skipping binary download (GAZE_SKIP_BINARY_DOWNLOAD=1)</comment>');
+            $io->write('<comment>gaze-laravel: skipping binary download (GAZE_SKIP_BINARY_DOWNLOAD=1)</comment>');
 
             return;
         }
@@ -26,34 +39,34 @@ final class BinaryInstaller
             $version = self::PINNED_VERSION;
         }
 
-        $binDir = (string) $event->getComposer()->getConfig()->get('bin-dir');
+        $binDir = (string) $composer->getConfig()->get('bin-dir');
 
         $releaseBase = getenv('GAZE_RELEASE_BASE');
         if (! is_string($releaseBase) || $releaseBase === '') {
             $releaseBase = self::RELEASE_BASE;
         }
         if (! str_starts_with($releaseBase, 'https://')) {
-            $event->getIO()->writeError('<error>gaze-laravel: refusing non-HTTPS release base</error>');
+            $io->writeError('<error>gaze-laravel: refusing non-HTTPS release base</error>');
 
             return;
         }
 
         $target = self::detectTarget();
         if ($target === null) {
-            $event->getIO()->writeError('<error>gaze-laravel: unsupported platform, please install gaze manually and set GAZE_BINARY</error>');
+            $io->writeError('<error>gaze-laravel: unsupported platform, please install gaze manually and set GAZE_BINARY</error>');
 
             return; // do not fail composer install
         }
 
         if ($target === 'x86_64-apple-darwin') {
-            $event->getIO()->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only; run `cargo install --git https://github.com/Naoray/gaze gaze` and set GAZE_BINARY.</error>');
+            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only; run `cargo install --git https://github.com/Naoray/gaze gaze` and set GAZE_BINARY.</error>');
 
             return;
         }
 
         $binPath = $binDir.DIRECTORY_SEPARATOR.'gaze';
         if (self::alreadyInstalled($binPath, $version)) {
-            $event->getIO()->write("<info>gaze-laravel: gaze v{$version} already installed</info>");
+            $io->write("<info>gaze-laravel: gaze v{$version} already installed</info>");
 
             return;
         }
@@ -73,9 +86,9 @@ final class BinaryInstaller
             self::verifyChecksum($assetPath, $sumsPath, $asset);
             self::installBinary($assetPath, $binPath);
             @chmod($binPath, 0755);
-            $event->getIO()->write("<info>gaze-laravel: installed gaze v{$version} → {$binPath}</info>");
+            $io->write("<info>gaze-laravel: installed gaze v{$version} → {$binPath}</info>");
         } catch (\Throwable $e) {
-            $event->getIO()->writeError("<error>gaze-laravel: binary install failed — {$e->getMessage()}</error>");
+            $io->writeError("<error>gaze-laravel: binary install failed — {$e->getMessage()}</error>");
             @unlink($binPath); // never leave partial artifact
             // Do NOT rethrow — composer install should succeed even if binary download fails.
             // Operator fixes GAZE_BINARY or runs composer install again.
