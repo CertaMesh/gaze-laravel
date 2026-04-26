@@ -42,10 +42,7 @@ final class BinaryInstaller
 
         $binDir = (string) $composer->getConfig()->get('bin-dir');
 
-        $releaseBase = getenv('GAZE_RELEASE_BASE');
-        if (! is_string($releaseBase) || $releaseBase === '') {
-            $releaseBase = self::RELEASE_BASE;
-        }
+        $releaseBase = self::resolveReleaseBase($io);
         if (! str_starts_with($releaseBase, 'https://')) {
             $io->writeError('<error>gaze-laravel: refusing non-HTTPS release base</error>');
 
@@ -112,6 +109,34 @@ final class BinaryInstaller
             @unlink($assetPath);
             @unlink($sumsPath);
         }
+    }
+
+    /** @internal exposed for tests */
+    public static function resolveReleaseBase(IOInterface $io): string
+    {
+        $releaseBase = getenv('GAZE_RELEASE_BASE');
+        if (! is_string($releaseBase) || $releaseBase === '') {
+            return self::RELEASE_BASE;
+        }
+
+        if (self::isProductionEnvironment()) {
+            return self::RELEASE_BASE;
+        }
+
+        $io->writeError('<comment>gaze-laravel: using non-canonical GAZE_RELEASE_BASE override outside production</comment>');
+
+        return $releaseBase;
+    }
+
+    /** @internal exposed for tests */
+    public static function isProductionEnvironment(): bool
+    {
+        $appEnv = getenv('APP_ENV');
+        if (! is_string($appEnv) || trim($appEnv) === '') {
+            return true;
+        }
+
+        return in_array(strtolower(trim($appEnv)), ['production', 'prod'], true);
     }
 
     public static function detectTarget(): ?string
