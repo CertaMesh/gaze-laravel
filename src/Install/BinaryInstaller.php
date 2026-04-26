@@ -80,15 +80,30 @@ final class BinaryInstaller
         $assetPath = $tmpDir.DIRECTORY_SEPARATOR.$asset;
         $sumsPath = $tmpDir.DIRECTORY_SEPARATOR."{$asset}.sha256";
 
+        $tokenEnv = getenv('GAZE_GITHUB_TOKEN');
+        $token = (is_string($tokenEnv) && $tokenEnv !== '') ? $tokenEnv : null;
+        $githubRepo = self::deriveGithubRepo($releaseBase);
+
         try {
-            self::download($assetUrl, $assetPath);
-            self::download($sumsUrl, $sumsPath);
+            if ($token !== null && $githubRepo !== null) {
+                [$assetId, $sumsAssetId] = self::resolveReleaseAssetIds($githubRepo, $tag, $asset, $token);
+                self::downloadGithubAsset($githubRepo, $assetId, $assetPath, $token);
+                self::downloadGithubAsset($githubRepo, $sumsAssetId, $sumsPath, $token);
+            } else {
+                if ($token !== null && $githubRepo === null) {
+                    $io->writeError('<comment>gaze-laravel: GAZE_GITHUB_TOKEN set but GAZE_RELEASE_BASE is not a github.com release URL — token ignored</comment>');
+                }
+                self::download($assetUrl, $assetPath);
+                self::download($sumsUrl, $sumsPath);
+            }
             self::verifyChecksum($assetPath, $sumsPath, $asset);
             self::installBinary($assetPath, $binPath);
             @chmod($binPath, 0755);
             $io->write("<info>gaze-laravel: installed gaze v{$version} → {$binPath}</info>");
         } catch (\Throwable $e) {
-            $io->writeError("<error>gaze-laravel: binary install failed — {$e->getMessage()}</error>");
+            // Scrub the token if it ever ended up in an exception message.
+            $message = $token !== null ? str_replace($token, '[redacted]', $e->getMessage()) : $e->getMessage();
+            $io->writeError("<error>gaze-laravel: binary install failed — {$message}</error>");
             @unlink($binPath); // never leave partial artifact
             // Do NOT rethrow — composer install should succeed even if binary download fails.
             // Operator fixes GAZE_BINARY or runs composer install again.
@@ -176,28 +191,49 @@ final class BinaryInstaller
     /**
      * Download the URL to destPath. Redirects are followed manually so every
      * hop is re-checked for `https://`; PHP's native `follow_location` does
-     * not enforce this and would silently downgrade to plain HTTP.
+     * not enforce this and would silently downgrade to plain HTTP. The
+     * Authorization header is dropped on cross-host redirects (e.g. when
+     * api.github.com hands off to an S3 signed URL — adding our Bearer to
+     * that pre-signed URL would either leak the token or 400 the request).
+     *
+     * @param  list<string>  $headers
      */
-    private static function download(string $url, string $destPath): void
+    private static function download(string $url, string $destPath, array $headers = []): void
     {
+        $bytes = self::fetch($url, $headers);
+        if (file_put_contents($destPath, $bytes) === false) {
+            throw new \RuntimeException("could not write {$destPath}");
+        }
+    }
+
+    /**
+     * @param  list<string>  $headers
+     */
+    private static function fetch(string $url, array $headers = []): string
+    {
+        $originalHost = self::hostOf($url);
+
         for ($hop = 0; $hop <= self::MAX_REDIRECTS; $hop++) {
             if (! str_starts_with($url, 'https://')) {
                 throw new \RuntimeException('refusing non-HTTPS url');
             }
 
+            $currentHost = self::hostOf($url);
+            $effectiveHeaders = self::stripAuthOnCrossHost($headers, $originalHost, $currentHost);
+
+            $opts = [
+                'method' => 'GET',
+                'follow_location' => 0,
+                'ignore_errors' => true,
+                'timeout' => 60,
+            ];
+            if ($effectiveHeaders !== []) {
+                $opts['header'] = implode("\r\n", $effectiveHeaders);
+            }
+
             $ctx = stream_context_create([
-                'http' => [
-                    'method' => 'GET',
-                    'follow_location' => 0,
-                    'ignore_errors' => true,
-                    'timeout' => 60,
-                ],
-                'https' => [
-                    'method' => 'GET',
-                    'follow_location' => 0,
-                    'ignore_errors' => true,
-                    'timeout' => 60,
-                ],
+                'http' => $opts,
+                'https' => $opts,
             ]);
 
             $bytes = @file_get_contents($url, false, $ctx);
@@ -205,17 +241,13 @@ final class BinaryInstaller
                 throw new \RuntimeException("download failed: {$url}");
             }
 
-            /** @var list<string> $headers */
-            $headers = $http_response_header;
+            /** @var list<string> $responseHeaders */
+            $responseHeaders = $http_response_header;
 
-            [$status, $location] = self::parseStatusAndLocation($headers);
+            [$status, $location] = self::parseStatusAndLocation($responseHeaders);
 
             if ($status >= 200 && $status < 300) {
-                if (file_put_contents($destPath, $bytes) === false) {
-                    throw new \RuntimeException("could not write {$destPath}");
-                }
-
-                return;
+                return $bytes;
             }
 
             if ($status >= 300 && $status < 400 && $location !== null) {
@@ -228,6 +260,130 @@ final class BinaryInstaller
         }
 
         throw new \RuntimeException('too many redirects');
+    }
+
+    /**
+     * Derive `<owner>/<repo>` from a GitHub release-download base URL, or
+     * return null when the base is not a github.com release URL.
+     *
+     * @internal exposed for tests
+     */
+    public static function deriveGithubRepo(string $releaseBase): ?string
+    {
+        if (preg_match('~^https://github\.com/([^/]+)/([^/]+)/releases/download~', $releaseBase, $m)) {
+            return $m[1].'/'.$m[2];
+        }
+
+        return null;
+    }
+
+    /**
+     * Build the request headers for a GitHub API or asset call. The token is
+     * never logged; the Authorization line is only present when a token is
+     * supplied.
+     *
+     * @return list<string>
+     *
+     * @internal exposed for tests
+     */
+    public static function buildRequestHeaders(?string $token, string $accept): array
+    {
+        $headers = [
+            'User-Agent: gaze-laravel/'.self::PINNED_VERSION,
+            'Accept: '.$accept,
+        ];
+        if ($token !== null && $token !== '') {
+            $headers[] = 'Authorization: Bearer '.$token;
+            $headers[] = 'X-GitHub-Api-Version: 2022-11-28';
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Resolve the asset id pair (binary + .sha256) for a given release tag,
+     * via a single `releases/tags/{tag}` API call.
+     *
+     * @return array{0: int, 1: int}
+     */
+    private static function resolveReleaseAssetIds(string $repo, string $tag, string $asset, string $token): array
+    {
+        $url = "https://api.github.com/repos/{$repo}/releases/tags/{$tag}";
+        $body = self::fetch($url, self::buildRequestHeaders($token, 'application/vnd.github+json'));
+
+        return self::extractAssetIds($body, $asset, $tag);
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     *
+     * @internal exposed for tests
+     */
+    public static function extractAssetIds(string $jsonBody, string $asset, string $tag): array
+    {
+        $payload = json_decode($jsonBody, true);
+        if (! is_array($payload) || ! isset($payload['assets']) || ! is_array($payload['assets'])) {
+            throw new \RuntimeException("github release {$tag}: invalid JSON or no assets[]");
+        }
+
+        $byName = [];
+        foreach ($payload['assets'] as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+            $name = $entry['name'] ?? null;
+            $id = $entry['id'] ?? null;
+            if (is_string($name) && is_int($id)) {
+                $byName[$name] = $id;
+            }
+        }
+
+        $sumsName = $asset.'.sha256';
+        if (! isset($byName[$asset])) {
+            throw new \RuntimeException("github release {$tag}: asset {$asset} not found");
+        }
+        if (! isset($byName[$sumsName])) {
+            throw new \RuntimeException("github release {$tag}: asset {$sumsName} not found");
+        }
+
+        return [$byName[$asset], $byName[$sumsName]];
+    }
+
+    private static function downloadGithubAsset(string $repo, int $assetId, string $destPath, string $token): void
+    {
+        $url = "https://api.github.com/repos/{$repo}/releases/assets/{$assetId}";
+        self::download($url, $destPath, self::buildRequestHeaders($token, 'application/octet-stream'));
+    }
+
+    private static function hostOf(string $url): ?string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        return is_string($host) ? $host : null;
+    }
+
+    /**
+     * Drop the Authorization header when following a redirect to a different
+     * host. This is the same rule curl applies with `--location` (without
+     * `--location-trusted`) and what `gh` follows when fetching private
+     * release assets — the redirect target is a presigned S3 URL and our
+     * Bearer token has no business going there.
+     *
+     * @param  list<string>  $headers
+     * @return list<string>
+     *
+     * @internal exposed for tests
+     */
+    public static function stripAuthOnCrossHost(array $headers, ?string $originalHost, ?string $currentHost): array
+    {
+        if ($originalHost !== null && $currentHost !== null && $originalHost === $currentHost) {
+            return $headers;
+        }
+
+        return array_values(array_filter(
+            $headers,
+            static fn (string $h): bool => stripos($h, 'Authorization:') !== 0,
+        ));
     }
 
     /**

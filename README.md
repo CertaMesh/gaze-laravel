@@ -22,10 +22,30 @@ php artisan vendor:publish --tag=gaze-policy
 
 The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`.
 
-Two env overrides are honored:
+Three env overrides are honored:
 
 - `GAZE_SKIP_BINARY_DOWNLOAD=1` — skip the download entirely (use when you manage the binary out-of-band)
 - `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release (use cautiously; pinned version is contract-tested)
+- `GAZE_GITHUB_TOKEN=ghp_...` — GitHub PAT used to fetch release assets from the upstream `piinuts/gaze` repo (see below)
+
+#### `GAZE_GITHUB_TOKEN` — private release access
+
+`piinuts/gaze` is currently a private repository, which means the redirect from `releases/download/<tag>/<asset>` to the signed S3 URL returns `404` for unauthenticated requests. Set `GAZE_GITHUB_TOKEN` to a fine-scoped PAT with `contents:read` on `piinuts/gaze`, and the installer switches to the GitHub API path (`/repos/.../releases/assets/<id>` with `Accept: application/octet-stream`) which honors auth.
+
+```bash
+# .env (read by Composer at install time)
+GAZE_GITHUB_TOKEN=ghp_...
+
+composer require naoray/gaze-laravel
+```
+
+Important details:
+
+- The token is read by Composer at install time, so it must be set in the shell or `.env` **before** you run `composer require` / `composer install`. Adding it after the fact requires `composer install` to re-run.
+- For CI, store the PAT as a secret and export `GAZE_GITHUB_TOKEN` in the install step.
+- Required scopes: `contents:read` on the `piinuts/gaze` repo (fine-grained PAT) — equivalent to the legacy `repo` scope on classic PATs. No write scopes are needed.
+- The token is sent as `Authorization: Bearer …` to `api.github.com` only. It is dropped on the redirect to the signed S3 URL (same rule as `curl --location` and `gh`), so it never leaves GitHub.
+- If `GAZE_RELEASE_BASE` points at a non-github.com mirror, `GAZE_GITHUB_TOKEN` is ignored — that scenario implies you have your own auth on the mirror.
 
 ## Config
 
