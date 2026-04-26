@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Naoray\GazeLaravel;
 
 use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
+use Symfony\Component\Process\ExecutableFinder;
 
 final class BinaryResolver
 {
@@ -29,12 +30,9 @@ final class BinaryResolver
             return $this->resolved = $this->vendorBinPath;
         }
 
-        $out = [];
-        $rc = 0;
-        @exec('command -v gaze 2>/dev/null', $out, $rc);
-        $trimmed = trim(implode("\n", $out));
-        if ($rc === 0 && $trimmed !== '') {
-            return $this->resolved = $trimmed;
+        $path = (new ExecutableFinder)->find('gaze');
+        if ($path !== null) {
+            return $this->resolved = $path;
         }
 
         throw new GazeBinaryMissingException(
