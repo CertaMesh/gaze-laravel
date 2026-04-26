@@ -68,7 +68,12 @@ class GazeServiceProvider extends ServiceProvider
                 );
             }
 
-            return new Encrypter($decoded, 'AES-256-CBC');
+            $cipher = $config->get('app.cipher');
+            if (! is_string($cipher) || $cipher === '') {
+                $cipher = 'AES-256-CBC';
+            }
+
+            return new Encrypter($decoded, $cipher);
         });
     }
 
