@@ -15,7 +15,15 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ### Changed
 
-- Adapter Encrypter cipher now follows host `config('app.cipher')` instead of hardcoded AES-256-CBC. Aligns with Laravel 11+ AES-256-GCM default. Existing deployments unaffected unless they relied on the hardcode mismatching the host.
+- Adapter Encrypter cipher now follows host `config('app.cipher')` instead of hardcoded AES-256-CBC (#18, closes #209). Aligns with Laravel 11+ AES-256-GCM default. Existing deployments unaffected unless they relied on the hardcode mismatching the host. Cross-config regression test added.
+
+### Fixed
+
+- Composer plugin install no longer uses `shell_exec` (#19, closes #197 + #217). `BinaryResolver` resolves the binary via Symfony `ExecutableFinder`; `BinaryInstaller::alreadyInstalled` invokes the binary via Symfony `Process`. The plugin now runs in container, Alpine, and `disable_functions=shell_exec` environments where the previous code path silently failed at install time.
+
+### Documentation
+
+- `MIGRATION-v0.3.md` gap-fill (#20, closes #206). Expanded four under-documented v0.3 breaking changes: (1) `fail_closed` config + `GAZE_FAIL_CLOSED` env removal (fail-closed is now permanent), (2) `Context` / `ContextResolver` removal in favor of policy-file-driven detection, (3) `RestoredText` DTO removal — `restore()` now returns `string`, (4) full rename table for the exception hierarchy (`GazeSanitizeFailedException` / `GazeRestoreFailedException` + `Terminal*` / `Transient*` markers → variant-typed subclasses + `NonRetryable` / `Retryable` / `RetryableWithAlert`).
 
 ## [0.4.0] - 2026-04-26
 
