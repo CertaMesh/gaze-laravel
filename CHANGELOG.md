@@ -9,6 +9,10 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 - `upstream-watch` GitHub Actions workflow that checks the latest stable `piinuts/gaze` release daily, opens a guarded `bump/gaze-vX.Y.Z` PR when `BinaryInstaller::PINNED_VERSION` drifts, regenerates CLI help snapshots, and labels the PR for contract review.
 - Help snapshot contract covering the pinned `gaze` CLI surface (`--version`, top-level help, `clean`, `restore`, `audit`, and `audit purge`) so upstream command/help drift is visible in adapter tests.
 
+### Changed
+
+- Adapter Encrypter cipher now follows host `config('app.cipher')` instead of hardcoded AES-256-CBC. Aligns with Laravel 11+ AES-256-GCM default. Existing deployments unaffected unless they relied on the hardcode mismatching the host.
+
 ## [0.4.0] - 2026-04-26
 
 First stable adopter-facing release. Bundles the v0.3 retarget with full upstream `gaze` v0.4.5 lockstep, real Composer-plugin-driven binary install, `GAZE_GITHUB_TOKEN` auth for private upstream artifacts, and CI matrix coverage.
