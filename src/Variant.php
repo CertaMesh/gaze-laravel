@@ -24,6 +24,7 @@ enum Variant: string
     case BlobExpired = 'BlobExpired';
     case Pipeline = 'Pipeline';
     case Io = 'Io';
+    case SigPipe = 'SigPipe';
     case PolicyOpen = 'PolicyOpen';
 
     public static function tryFromStderr(string $stderr, int $actualExit): self
@@ -58,7 +59,8 @@ enum Variant: string
         return match ($exit) {
             2 => self::PolicyConfig,
             3 => self::UnknownToken,
-            4, 141 => self::Io,
+            4 => self::Io,
+            141 => self::SigPipe,
             default => self::StdinParse,
         };
     }
@@ -74,6 +76,7 @@ enum Variant: string
             self::BlobExpired,
             self::Pipeline => 3,
             self::Io, self::PolicyOpen => 4,
+            self::SigPipe => 141,
         };
     }
 }

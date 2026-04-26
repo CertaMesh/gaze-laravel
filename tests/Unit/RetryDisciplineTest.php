@@ -8,12 +8,18 @@ use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
 use Naoray\GazeLaravel\Exceptions\GazeIoException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
 use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
 use Naoray\GazeLaravel\Queue\RetryAction;
 
 it('classifies retryable infra failures with alerting', function () {
     expect(GazeRetryPolicy::classify(new GazeIoException('io', 4, hash('sha256', ''))))
+        ->toBe(RetryAction::ReleaseWithAlert);
+});
+
+it('classifies GazeSigPipeException as ReleaseWithAlert', function () {
+    expect(GazeRetryPolicy::classify(new GazeSigPipeException('sigpipe', 141, hash('sha256', ''))))
         ->toBe(RetryAction::ReleaseWithAlert);
 });
 

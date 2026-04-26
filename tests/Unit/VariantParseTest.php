@@ -23,6 +23,7 @@ it('parses known stderr variants', function (Variant $expected) {
     Variant::BlobExpired,
     Variant::Pipeline,
     Variant::Io,
+    Variant::SigPipe,
     Variant::PolicyOpen,
 ]);
 
