@@ -61,6 +61,8 @@ return [
 ```
 
 `GAZE_ENCRYPTION_KEY` may be unset to reuse `APP_KEY`, or set to a dedicated `base64:` 32-byte key.
+The adapter Encrypter cipher matches host `config('app.cipher')` (Laravel default).
+Pin the host cipher explicitly if you rotate keys across deploys.
 
 ## Usage
 
