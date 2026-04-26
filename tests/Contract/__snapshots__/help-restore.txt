@@ -1,0 +1,9 @@
+Read `{session_blob, text}` JSON from stdin; emit `{text}` JSON to stdout
+
+Usage: gaze restore [OPTIONS]
+
+Options:
+      --format <FORMAT>              Output format. Only `json` is supported today [default: json]
+      --restore-mode <RESTORE_MODE>  Unknown-token handling during restore [default: strict] [possible values: strict, tolerant]
+      --max-bytes <MAX_BYTES>        Max stdin size in bytes. stdin longer than this exits 1 InputTooLarge [default: 10485760]
+  -h, --help                         Print help
