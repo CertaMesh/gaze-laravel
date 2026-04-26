@@ -19,8 +19,10 @@ use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
 use Naoray\GazeLaravel\Exceptions\GazeIoException;
+use Naoray\GazeLaravel\Exceptions\GazeAuditPurgeIso8601Exception;
 use Naoray\GazeLaravel\Exceptions\GazeOpsConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
+use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
 use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
@@ -242,6 +244,16 @@ class Gaze
             ),
             Variant::PolicyConfig => new GazePolicyConfigException(
                 "gaze {$stage} policy configuration invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::PolicyConfigDetail => new GazePolicyConfigDetailException(
+                "gaze {$stage} policy configuration invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::AuditPurgeIso8601 => new GazeAuditPurgeIso8601Exception(
+                "gaze {$stage} audit purge timestamp not ISO8601 (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
                 $stderrHash,
             ),
