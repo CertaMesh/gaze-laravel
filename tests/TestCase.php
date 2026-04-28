@@ -11,6 +11,7 @@ use Naoray\GazeLaravel\EncryptedBlob;
 use Naoray\GazeLaravel\Gaze;
 use Naoray\GazeLaravel\GazeServiceProvider;
 use Naoray\GazeLaravel\GazeSession;
+use Naoray\GazeLaravel\Audit\AuditService;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class TestCase extends OrchestraTestCase
@@ -44,6 +45,7 @@ abstract class TestCase extends OrchestraTestCase
             maxBytes: $maxBytes,
             sessionTtlSeconds: $sessionTtlSeconds,
             auditDbPath: $auditDbPath,
+            container: $this->app,
         );
     }
 
@@ -68,6 +70,13 @@ abstract class TestCase extends OrchestraTestCase
             public function restore(GazeSession $session, string $text): string
             {
                 return $this->restore ?? $text;
+            }
+
+            public function audit(?string $auditDbPath = null): AuditService
+            {
+                throw new \LogicException(
+                    'Scripted Gaze stub: audit() is not implemented for this test fixture. Use Gaze::fake() if your test needs to exercise audit verbs.'
+                );
             }
         };
 

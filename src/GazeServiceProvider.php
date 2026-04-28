@@ -9,6 +9,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\ServiceProvider;
+use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Console\CanaryCommand;
 use Naoray\GazeLaravel\Console\CheckCommand;
 use Naoray\GazeLaravel\Console\DoctorCommand;
@@ -42,6 +43,19 @@ class GazeServiceProvider extends ServiceProvider
                 policyPath: (string) $config->get('gaze.policy_path', $app->basePath('policy.toml')),
                 maxBytes: is_numeric($config->get('gaze.max_bytes')) ? (int) $config->get('gaze.max_bytes') : null,
                 sessionTtlSeconds: is_numeric($config->get('gaze.session_ttl_seconds')) ? (int) $config->get('gaze.session_ttl_seconds') : null,
+                auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
+                container: $app,
+            );
+        });
+
+        $this->app->singleton(AuditService::class, function (Application $app): AuditService {
+            /** @var ConfigRepository $config */
+            $config = $app->make('config');
+            $rawAuditDbPath = $config->get('gaze.audit_db_path');
+
+            return new AuditService(
+                gaze: $app->make(Gaze::class),
+                resolver: $app->make(BinaryResolver::class),
                 auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
             );
         });
