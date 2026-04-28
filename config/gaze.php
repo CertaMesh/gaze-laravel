@@ -44,4 +44,23 @@ return [
      * (keyed on APP_KEY). When set, the key MUST be valid or boot fails loudly.
      */
     'blob_encryption_key' => env('GAZE_ENCRYPTION_KEY'),
+
+    /*
+     * Optional SQLite redaction-log database path.
+     *
+     * When set:
+     *   - `Gaze::clean()` forwards `--audit-db=<path>` so redaction events are
+     *     written to this DB.
+     *   - `Gaze::audit()->purge()` (and future query/export verbs) read from
+     *     this DB.
+     *
+     * When null, audit verbs throw GazeAuditDbNotConfiguredException at call
+     * time (never at boot). `Gaze::clean()` continues to work without audit.
+     *
+     * Per-call overrides ARE supported: `Gaze::audit($path)->purge()...` wins
+     * over this config value. The resolved value is passed verbatim to the
+     * binary which creates the file on first write (no Laravel-side
+     * file_exists pre-flight).
+     */
+    'audit_db_path' => env('GAZE_AUDIT_DB_PATH'),
 ];

@@ -12,6 +12,8 @@ const HELP_SNAPSHOTS = [
     'help-restore.txt' => ['help-restore.txt', ['restore', '--help']],
     'help-audit.txt' => ['help-audit.txt', ['audit', '--help']],
     'help-audit-purge.txt' => ['help-audit-purge.txt', ['audit', 'purge', '--help']],
+    'help-audit-query.txt' => ['help-audit-query.txt', ['audit', 'query', '--help']],
+    'help-audit-export.txt' => ['help-audit-export.txt', ['audit', 'export', '--help']],
 ];
 
 it('pins the installed gaze help surface for the pinned upstream version', function (string $snapshot, array $arguments) {

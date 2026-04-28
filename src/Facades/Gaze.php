@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Facades;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Facade;
 use Naoray\GazeLaravel\Gaze as GazeService;
 use Naoray\GazeLaravel\GazeSession;
@@ -13,6 +14,7 @@ use PHPUnit\Framework\Assert as PHPUnit;
 /**
  * @method static \Naoray\GazeLaravel\GazeSession clean(string $text)
  * @method static string restore(\Naoray\GazeLaravel\GazeSession $session, string $text)
+ * @method static \Naoray\GazeLaravel\Audit\AuditService audit(?string $auditDbPath = null)
  *
  * @see GazeService
  */
@@ -29,12 +31,14 @@ final class Gaze extends Facade
      *
      * @param  \Closure(string): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
+     * @param  \Closure(string, bool): \Naoray\GazeLaravel\Audit\AuditPurgeResult|null  $auditPurgeHandler
      */
     public static function fake(
         ?\Closure $cleanHandler = null,
         ?\Closure $restoreHandler = null,
+        ?\Closure $auditPurgeHandler = null,
     ): FakeGaze {
-        $fake = new FakeGaze($cleanHandler, $restoreHandler);
+        $fake = new FakeGaze($cleanHandler, $restoreHandler, $auditPurgeHandler);
         self::swap($fake);
 
         return $fake;
@@ -110,6 +114,44 @@ final class Gaze extends Facade
         );
     }
 
+    public static function assertAuditPurged(?CarbonInterface $before = null): void
+    {
+        $fake = self::requireFake();
+        $calls = $fake->audit()->purgeCalls();
+
+        if ($before === null) {
+            PHPUnit::assertNotEmpty(
+                $calls,
+                'Expected Gaze::audit()->purge() to be called at least once.',
+            );
+
+            return;
+        }
+
+        $expected = $before->utc()->toIso8601ZuluString();
+
+        foreach ($calls as $call) {
+            if ($call['before'] === $expected) {
+                PHPUnit::assertTrue(true);
+
+                return;
+            }
+        }
+
+        PHPUnit::fail('Expected Gaze::audit()->purge() to be called with given before timestamp, but it was not.');
+    }
+
+    public static function assertAuditPurgeCount(int $expected): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertCount(
+            $expected,
+            $fake->audit()->purgeCalls(),
+            "Expected Gaze::audit()->purge() to be called {$expected} time(s).",
+        );
+    }
+
     public static function assertNothingCleaned(): void
     {
         $fake = self::requireFake();
@@ -117,6 +159,16 @@ final class Gaze extends Facade
         PHPUnit::assertEmpty(
             $fake->cleanCalls(),
             'Expected Gaze::clean not to be called.',
+        );
+    }
+
+    public static function assertNothingAudited(): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertEmpty(
+            $fake->audit()->purgeCalls(),
+            'Expected Gaze audit verbs not to be called.',
         );
     }
 
