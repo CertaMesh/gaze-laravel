@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Audit;
 
-use Illuminate\Contracts\Process\ProcessResult;
+use Carbon\CarbonInterface;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Gaze;
 
@@ -18,24 +18,26 @@ class PurgeBuilder
         protected readonly string $auditDbPath,
     ) {}
 
-    public function before(string $timestamp): self
+    public function before(CarbonInterface|string $timestamp): self
     {
-        $this->before = $timestamp;
+        $this->before = $timestamp instanceof CarbonInterface
+            ? $timestamp->utc()->toIso8601ZuluString()
+            : $timestamp;
 
         return $this;
     }
 
-    public function dryRun(): ProcessResult
+    public function dryRun(): AuditPurgeResult
     {
         return $this->runPurge(dryRun: true);
     }
 
-    public function execute(): ProcessResult
+    public function execute(): AuditPurgeResult
     {
         return $this->runPurge(dryRun: false);
     }
 
-    protected function runPurge(bool $dryRun): ProcessResult
+    protected function runPurge(bool $dryRun): AuditPurgeResult
     {
         if ($this->before === null) {
             throw new \LogicException('PurgeBuilder::before() must be called before dryRun()/execute().');
@@ -53,6 +55,24 @@ class PurgeBuilder
             $command[] = '--dry-run';
         }
 
-        return $this->gaze->runForAuditPurge($command);
+        $result = $this->gaze->runForAuditPurge($command);
+        $rawOutput = $result->output();
+
+        return new AuditPurgeResult(
+            rawOutput: $rawOutput,
+            count: $this->parseRowCount($rawOutput),
+        );
+    }
+
+    private function parseRowCount(string $stdout): ?int
+    {
+        // TODO(PR B / pin stdout): once fixture audit DB snapshots exist,
+        // tighten this contract. For PR A, parse opportunistically and keep
+        // rawOutput available for callers when no count pattern is present.
+        if (preg_match('/(\d+)\s+rows?/', trim($stdout), $matches) === 1) {
+            return (int) $matches[1];
+        }
+
+        return null;
     }
 }
