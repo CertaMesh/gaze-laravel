@@ -33,6 +33,7 @@ class GazeServiceProvider extends ServiceProvider
         $this->app->singleton(Gaze::class, function (Application $app): Gaze {
             /** @var ConfigRepository $config */
             $config = $app->make('config');
+            $rawAuditDbPath = $config->get('gaze.audit_db_path');
 
             return new Gaze(
                 resolver: $app->make(BinaryResolver::class),
@@ -41,6 +42,7 @@ class GazeServiceProvider extends ServiceProvider
                 policyPath: (string) $config->get('gaze.policy_path', $app->basePath('policy.toml')),
                 maxBytes: is_numeric($config->get('gaze.max_bytes')) ? (int) $config->get('gaze.max_bytes') : null,
                 sessionTtlSeconds: is_numeric($config->get('gaze.session_ttl_seconds')) ? (int) $config->get('gaze.session_ttl_seconds') : null,
+                auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
             );
         });
 

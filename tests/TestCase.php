@@ -31,6 +31,7 @@ abstract class TestCase extends OrchestraTestCase
         string $policyPath = '/fake/policy.toml',
         ?int $maxBytes = null,
         ?int $sessionTtlSeconds = null,
+        ?string $auditDbPath = null,
     ): Gaze {
         return new Gaze(
             resolver: new BinaryResolver(
@@ -42,6 +43,7 @@ abstract class TestCase extends OrchestraTestCase
             policyPath: $policyPath,
             maxBytes: $maxBytes,
             sessionTtlSeconds: $sessionTtlSeconds,
+            auditDbPath: $auditDbPath,
         );
     }
 

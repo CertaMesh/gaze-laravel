@@ -42,6 +42,7 @@ class Gaze
         private readonly ?string $policyPath = null,
         private readonly ?int $maxBytes = null,
         private readonly ?int $sessionTtlSeconds = null,
+        private readonly ?string $auditDbPath = null,
     ) {}
 
     public function clean(string $text): GazeSession
@@ -61,6 +62,10 @@ class Gaze
 
         if ($this->sessionTtlSeconds !== null) {
             $command[] = '--session-ttl='.$this->sessionTtlSeconds;
+        }
+
+        if ($this->auditDbPath !== null && $this->auditDbPath !== '') {
+            $command[] = '--audit-db='.$this->auditDbPath;
         }
 
         $result = $this->run($command, $text, 'clean');
