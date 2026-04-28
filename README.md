@@ -1,6 +1,6 @@
 # gaze-laravel
 
-Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.4 CLI contract.
+Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.5 CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
@@ -20,7 +20,7 @@ php artisan vendor:publish --tag=gaze-policy
 
 ### Binary install hook
 
-The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream version is `gaze` v0.4.5; an `upstream-watch` workflow opens a guarded bump PR when a new stable is published.
+The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream version is `gaze` v0.5.0.
 
 Binary resolution and install probing both use Symfony `ExecutableFinder` and `Process` — no `shell_exec`. The plugin is therefore container-, Alpine-, and `disable_functions=shell_exec`-safe.
 
