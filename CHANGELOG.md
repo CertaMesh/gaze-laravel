@@ -10,7 +10,6 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ### Added
 
-- `upstream-watch` GitHub Actions workflow that checks the latest stable `piinuts/gaze` release daily, opens a guarded `bump/gaze-vX.Y.Z` PR when `BinaryInstaller::PINNED_VERSION` drifts, regenerates CLI help snapshots, and labels the PR for contract review.
 - Help snapshot contract covering the pinned `gaze` CLI surface (`--version`, top-level help, `clean`, `restore`, `audit`, and `audit purge`) so upstream command/help drift is visible in adapter tests.
 
 ### Changed
