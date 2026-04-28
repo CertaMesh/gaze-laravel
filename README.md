@@ -60,12 +60,15 @@ return [
     'max_bytes' => env('GAZE_MAX_BYTES'),
     'session_ttl_seconds' => env('GAZE_SESSION_TTL'),
     'blob_encryption_key' => env('GAZE_ENCRYPTION_KEY'),
+    'audit_db_path' => env('GAZE_AUDIT_DB_PATH'),
 ];
 ```
 
 `GAZE_ENCRYPTION_KEY` may be unset to reuse `APP_KEY`, or set to a dedicated `base64:` 32-byte key.
 The adapter Encrypter cipher matches host `config('app.cipher')` (Laravel default).
 Pin the host cipher explicitly if you rotate keys across deploys.
+
+`GAZE_AUDIT_DB_PATH` enables the audit-log SQLite trail: write side via `Gaze::clean()`, read side via `Gaze::audit()->purge()` and the upcoming `query` / `export` verbs. See [docs/audit.md](docs/audit.md).
 
 ## Usage
 

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel;
 
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\Facades\Log;
+use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
 use Naoray\GazeLaravel\Exceptions\GazeCallerBugException;
 use Naoray\GazeLaravel\Exceptions\GazeEmptyInputException;
@@ -39,9 +41,11 @@ class Gaze
         private readonly BinaryResolver $resolver,
         private readonly ProcessFactory $process,
         private readonly int $timeoutSeconds,
+        private readonly Container $container,
         private readonly ?string $policyPath = null,
         private readonly ?int $maxBytes = null,
         private readonly ?int $sessionTtlSeconds = null,
+        private readonly ?string $auditDbPath = null,
     ) {}
 
     public function clean(string $text): GazeSession
@@ -61,6 +65,10 @@ class Gaze
 
         if ($this->sessionTtlSeconds !== null) {
             $command[] = '--session-ttl='.$this->sessionTtlSeconds;
+        }
+
+        if ($this->auditDbPath !== null && $this->auditDbPath !== '') {
+            $command[] = '--audit-db='.$this->auditDbPath;
         }
 
         $result = $this->run($command, $text, 'clean');
@@ -106,6 +114,30 @@ class Gaze
         $decoded = $this->decodeResponse($result->output(), 'restore');
 
         return $decoded['text'];
+    }
+
+    public function audit(?string $auditDbPath = null): AuditService
+    {
+        if ($auditDbPath !== null && $auditDbPath !== '') {
+            return new AuditService(
+                gaze: $this,
+                resolver: $this->resolver,
+                auditDbPath: $auditDbPath,
+            );
+        }
+
+        return $this->container->make(AuditService::class);
+    }
+
+    /**
+     * @internal Audit-purge process invocation. Not a generic command runner;
+     * hard-scoped to the `audit purge` stage.
+     *
+     * @param  list<string>  $command
+     */
+    public function runForAuditPurge(array $command): ProcessResult
+    {
+        return $this->run($command, '', 'audit purge');
     }
 
     /**
