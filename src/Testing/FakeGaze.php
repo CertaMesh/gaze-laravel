@@ -18,15 +18,20 @@ final class FakeGaze extends Gaze
     /** @var list<array{text: string, clean_text: string}> */
     private array $restoreCalls = [];
 
+    private readonly FakeAuditService $auditService;
+
     /**
      * @param  \Closure(string): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
+     * @param  \Closure(string, bool): \Naoray\GazeLaravel\Audit\AuditPurgeResult|null  $auditPurgeHandler
      */
     public function __construct(
         private readonly ?\Closure $cleanHandler = null,
         private readonly ?\Closure $restoreHandler = null,
+        ?\Closure $auditPurgeHandler = null,
     ) {
         // Deliberately skip parent constructor — fake never invokes process.
+        $this->auditService = new FakeAuditService($auditPurgeHandler);
     }
 
     public function clean(string $text): GazeSession
@@ -56,6 +61,11 @@ final class FakeGaze extends Gaze
         $map = json_decode((string) base64_decode($session->ciphertext->decryptedBlob(), true), true);
 
         return is_array($map) ? (string) ($map['text'] ?? $text) : $text;
+    }
+
+    public function audit(?string $auditDbPath = null): FakeAuditService
+    {
+        return $this->auditService;
     }
 
     /**
