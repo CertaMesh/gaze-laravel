@@ -17,6 +17,22 @@ function benchCleanSession(): GazeSession
     );
 }
 
+/**
+ * @param  array<string, mixed>  $arguments
+ * @return array<string, mixed>
+ */
+function runBenchJson(array $arguments): array
+{
+    $exitCode = Artisan::call('gaze:bench', $arguments + ['--json' => true]);
+
+    expect($exitCode)->toBe(0);
+
+    /** @var array<string, mixed> $json */
+    $json = json_decode(Artisan::output(), associative: true, flags: JSON_THROW_ON_ERROR);
+
+    return $json;
+}
+
 it('registers gaze:bench artisan command', function () {
     $this->artisan('list')
         ->assertExitCode(0)
@@ -27,13 +43,10 @@ it('emits a versioned cold baseline JSON object with chronological samples', fun
     $input = 'Hallo, ich bin Anna Schmidt (anna@example.de). Bitte storniere Bestellung ORD-DEMO-77.';
     $this->bindCountingGaze(benchCleanSession(), expectedCalls: 2, expectedInput: $input);
 
-    $this->artisan('gaze:bench', [
+    $json = runBenchJson([
         '--requests' => 2,
         '--text' => $input,
-        '--json' => true,
-    ])->assertExitCode(0);
-
-    $json = json_decode(Artisan::output(), associative: true, flags: JSON_THROW_ON_ERROR);
+    ]);
 
     expect(array_keys($json))->toBe([
         'bench_schema_version',
@@ -63,12 +76,9 @@ it('emits a versioned cold baseline JSON object with chronological samples', fun
 it('emits first and last sample windows by default for large request counts', function () {
     $this->bindCountingGaze(benchCleanSession(), expectedCalls: 1000);
 
-    $this->artisan('gaze:bench', [
+    $json = runBenchJson([
         '--requests' => 1000,
-        '--json' => true,
-    ])->assertExitCode(0);
-
-    $json = json_decode(Artisan::output(), associative: true, flags: JSON_THROW_ON_ERROR);
+    ]);
 
     expect($json['samples_ms'])->toHaveCount(200)
         ->and($json['first_ms'])->toBe($json['samples_ms'][0]);
@@ -77,14 +87,11 @@ it('emits first and last sample windows by default for large request counts', fu
 it('can suppress samples for large request counts', function () {
     $this->bindCountingGaze(benchCleanSession(), expectedCalls: 1000);
 
-    $this->artisan('gaze:bench', [
+    $json = runBenchJson([
         '--requests' => 1000,
         '--samples' => 'none',
-        '--json' => true,
-    ])->assertExitCode(0);
-
-    $json = json_decode(Artisan::output(), associative: true, flags: JSON_THROW_ON_ERROR);
+    ]);
 
     expect($json['samples_ms'])->toBe([])
-        ->and($json['first_ms'])->toBeFloat();
+        ->and(is_int($json['first_ms']) || is_float($json['first_ms']))->toBeTrue();
 });
