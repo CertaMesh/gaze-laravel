@@ -40,4 +40,13 @@ final class BinaryResolver
             .'or add the naoray/gaze-laravel post-install-cmd to composer.json.'
         );
     }
+
+    public function resolveOrNull(): ?string
+    {
+        try {
+            return $this->resolve();
+        } catch (GazeBinaryMissingException) {
+            return null;
+        }
+    }
 }

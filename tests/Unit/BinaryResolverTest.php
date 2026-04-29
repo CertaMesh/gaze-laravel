@@ -93,3 +93,18 @@ it('raises when binary missing everywhere', function () {
         putenv('PATH='.($originalPath === false ? '' : $originalPath));
     }
 });
+
+it('returns null from resolveOrNull when binary missing everywhere', function () {
+    $resolver = new BinaryResolver(
+        explicitPath: null,
+        vendorBinPath: $this->tmpDir.'/does-not-exist',
+    );
+
+    $originalPath = getenv('PATH');
+    putenv('PATH='.$this->tmpDir);
+    try {
+        expect($resolver->resolveOrNull())->toBeNull();
+    } finally {
+        putenv('PATH='.($originalPath === false ? '' : $originalPath));
+    }
+});
