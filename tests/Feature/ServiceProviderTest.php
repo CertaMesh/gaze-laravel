@@ -70,3 +70,22 @@ it('fails loudly on an invalid dedicated key', function () {
 
     $this->app->make('gaze.encrypter');
 })->throws(RuntimeException::class, 'base64-encoded 32 bytes');
+
+it('binds NerInstaller as a singleton', function () {
+    $a = $this->app->make(\Naoray\GazeLaravel\Install\NerInstaller::class);
+    $b = $this->app->make(\Naoray\GazeLaravel\Install\NerInstaller::class);
+
+    expect($a)->toBe($b);
+});
+
+it('binds LaravelNerFetcher as the v0 NerFetcher implementation', function () {
+    $fetcher = $this->app->make(\Naoray\GazeLaravel\Install\NerFetcher::class);
+
+    expect($fetcher)->toBeInstanceOf(\Naoray\GazeLaravel\Install\LaravelNerFetcher::class);
+});
+
+it('registers gaze:install-ner', function () {
+    $this->artisan('list')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('gaze:install-ner');
+});
