@@ -1,20 +1,30 @@
 #!/usr/bin/env bash
-# Pre-push hook: run tests + static analysis before push.
-# Mirrors .github/workflows/test.yml so failures surface locally, not on CI.
-# Bypass with: git push --no-verify
+# gaze-laravel pre-push gate.
+#
+# Replaces the killed .github/workflows/test.yml. Catches Pest + PHPStan
+# regressions locally before push, without burning GitHub Actions minutes.
+#
+# Activate per clone (one-time):
+#   git config core.hooksPath .githooks
+#
+# Emergency bypass (WIP backups only):
+#   SKIP_HOOK=1 git push ...
+
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
-
-if [ ! -f vendor/autoload.php ]; then
-    echo "==> pre-push: vendor/ missing — running composer install" >&2
-    composer install --no-interaction --no-progress
+if [[ "${SKIP_HOOK:-0}" == "1" ]]; then
+  echo "⚠  SKIP_HOOK=1 set — pre-push gate bypassed."
+  echo "   You are pushing without running tests/analyse locally."
+  echo "   Only do this for WIP-branch backups; never for shared branches or tags."
+  exit 0
 fi
 
-echo "==> pre-push: composer test" >&2
-composer test
+export GAZE_SKIP_BINARY_DOWNLOAD=1
 
-echo "==> pre-push: composer analyse" >&2
-composer analyse
+echo "▶  pre-push gate: composer test (Pest)"
+composer test || { echo; echo "✗  Pest failed. Fix and push again. Bypass with SKIP_HOOK=1."; exit 1; }
 
-echo "==> pre-push: all checks passed" >&2
+echo "▶  pre-push gate: composer analyse (PHPStan)"
+composer analyse || { echo; echo "✗  PHPStan failed. Fix and push again."; exit 1; }
+
+echo "✓  pre-push gate clean. Pushing."

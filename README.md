@@ -225,8 +225,20 @@ Integration tests require a real binary:
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
 
-### Pre-push hook
+### Local pre-push hook
 
-`composer install` / `composer update` automatically points `core.hooksPath` at `.githooks`. The shipped `pre-push` hook runs `composer test` + `composer analyse` and blocks pushes on failure — so CI failures surface locally first.
+The repo ships `.githooks/pre-push` running `composer test` (Pest) + `composer analyse` (PHPStan) before any `git push`. Replaces the previous cloud test workflow; runs locally without consuming GitHub Actions minutes.
 
-Bypass with `git push --no-verify` when you really need to (rebase WIPs, drafts, etc.).
+Activate once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+Emergency bypass for WIP-branch backups:
+
+```sh
+SKIP_HOOK=1 git push ...
+```
+
+Note: cross-version (php × laravel) matrix coverage from the previous CI workflow is dropped. Cross-version regressions will surface on next dependency bump.
