@@ -6,6 +6,72 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# --- docs-only fast-path -----------------------------------------------------
+# Skip composer test/analyse when every changed file in this push matches a
+# documentation/text allowlist. Saves several minutes on doc-only pushes
+# (README tweaks, .claude/ skill updates, CHANGELOG additions, etc.).
+#
+# Allowlist is conservative: any unrecognized path triggers the full gate.
+# Override with FORCE_FULL_GATE=1 git push to run gates anyway.
+
+zero="0000000000000000000000000000000000000000"
+push_has_refs=0
+changed_files=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    push_has_refs=1
+    if [ "$local_sha" = "$zero" ]; then
+        continue
+    fi
+    if [ "$remote_sha" = "$zero" ]; then
+        base=$(git merge-base "$local_sha" origin/main 2>/dev/null || echo "")
+        if [ -n "$base" ]; then
+            range_files=$(git diff --name-only "$base" "$local_sha")
+        else
+            range_files=$(git diff-tree --no-commit-id --name-only -r "$local_sha")
+        fi
+    else
+        range_files=$(git diff --name-only "$remote_sha" "$local_sha")
+    fi
+    if [ -n "$range_files" ]; then
+        changed_files="${changed_files}${range_files}
+"
+    fi
+done
+
+if [ "$push_has_refs" = "1" ] && [ "${FORCE_FULL_GATE:-0}" != "1" ] && [ -n "$changed_files" ]; then
+    is_docs_only=1
+    non_doc_sample=""
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        case "$f" in
+            *.md|*.txt|*.rst|*.adoc) ;;
+            *.png|*.jpg|*.jpeg|*.gif|*.svg|*.webp|*.ico) ;;
+            LICENSE|LICENSE-*|COPYING|NOTICE|AUTHORS|CODEOWNERS) ;;
+            docs/*) ;;
+            .claude/*|.ai/*) ;;
+            AGENTS.md|CLAUDE.md|CHANGELOG.md|README.md|ROADMAP.md|CONTRIBUTING.md|SECURITY.md|GOVERNANCE.md) ;;
+            .github/ISSUE_TEMPLATE/*|.github/PULL_REQUEST_TEMPLATE.md|.github/FUNDING.yml) ;;
+            *)
+                is_docs_only=0
+                non_doc_sample="$f"
+                break
+                ;;
+        esac
+    done <<EOF
+$changed_files
+EOF
+
+    if [ "$is_docs_only" = "1" ]; then
+        echo "==> pre-push: docs-only push detected — skipping composer test/analyse" >&2
+        echo "    Override with FORCE_FULL_GATE=1 git push to run gates anyway." >&2
+        exit 0
+    else
+        echo "==> pre-push: code change detected ($non_doc_sample) — running full gate" >&2
+    fi
+fi
+# --- end docs-only fast-path -------------------------------------------------
+
 if [ ! -f vendor/autoload.php ]; then
     echo "==> pre-push: vendor/ missing — running composer install" >&2
     composer install --no-interaction --no-progress
