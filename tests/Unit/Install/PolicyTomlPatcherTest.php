@@ -6,6 +6,20 @@ use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
 
 beforeEach(function () {
     $this->fixtures = __DIR__.'/../../Fixtures/policy';
+    $this->tmp = sys_get_temp_dir().'/gaze-policy-'.bin2hex(random_bytes(6));
+    mkdir($this->tmp);
+});
+
+afterEach(function () {
+    if (! is_dir($this->tmp)) {
+        return;
+    }
+
+    foreach (glob($this->tmp.'/*') ?: [] as $file) {
+        @unlink($file);
+    }
+
+    @rmdir($this->tmp);
 });
 
 it('detects [ner] block when present', function () {
@@ -113,4 +127,29 @@ it('produces unified diff on conflict', function () {
         expect($e->diff)->toContain('-model_dir = "/some/other/path"');
         expect($e->diff)->toContain('+model_dir = "/new/dest"');
     }
+});
+
+it('applies an appended [ner] block to disk and writes a backup', function () {
+    $patcher = new PolicyTomlPatcher;
+    $policy = $this->tmp.'/policy.toml';
+    copy($this->fixtures.'/policy-no-ner.toml', $policy);
+
+    $patched = $patcher->apply($policy, '/abs/dest/path', 'de', force: false);
+
+    expect(file_get_contents($policy))->toBe($patched);
+    expect(file_get_contents($policy.'.bak'))->toBe(file_get_contents($this->fixtures.'/policy-no-ner.toml'));
+    expect($patcher->readModelDir($patched))->toBe('/abs/dest/path');
+});
+
+it('does not overwrite an existing policy backup on repeat apply', function () {
+    $patcher = new PolicyTomlPatcher;
+    $policy = $this->tmp.'/policy.toml';
+    copy($this->fixtures.'/policy-no-ner.toml', $policy);
+
+    $patcher->apply($policy, '/first/dest', null, force: false);
+    $firstBackup = file_get_contents($policy.'.bak');
+    $patcher->apply($policy, '/second/dest', null, force: true);
+
+    expect(file_get_contents($policy.'.bak'))->toBe($firstBackup);
+    expect($patcher->readModelDir((string) file_get_contents($policy)))->toBe('/second/dest');
 });

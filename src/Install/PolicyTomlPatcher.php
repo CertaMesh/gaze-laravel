@@ -76,6 +76,33 @@ final class PolicyTomlPatcher
         return $patched;
     }
 
+    public function apply(string $policyPath, string $modelDir, ?string $locale, bool $force): string
+    {
+        $body = file_get_contents($policyPath);
+        if ($body === false) {
+            throw new NerManifestInvalidException("could not read policy file: {$policyPath}");
+        }
+
+        $patched = $this->hasNerBlock($body)
+            ? $this->buildReplaced($body, $modelDir, $locale, $force)
+            : $this->buildAppended($body, $modelDir, $locale);
+
+        if ($patched === $body) {
+            return $patched;
+        }
+
+        $backupPath = $policyPath.'.bak';
+        if (! is_file($backupPath) && ! copy($policyPath, $backupPath)) {
+            throw new NerManifestInvalidException("could not write policy backup: {$backupPath}");
+        }
+
+        if (file_put_contents($policyPath, $patched, LOCK_EX) === false) {
+            throw new NerManifestInvalidException("could not write policy file: {$policyPath}");
+        }
+
+        return $patched;
+    }
+
     /**
      * @return array<string, mixed>
      */
