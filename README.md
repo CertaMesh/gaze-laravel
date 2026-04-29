@@ -94,6 +94,115 @@ public function draft(Gaze $gaze, string $body, string $llmReply): string
 }
 ```
 
+## Blob lifecycle
+
+The session blob (`$session->ciphertext`) is the only thing that lets `restore()` reverse the tokens. Treat it as sensitive: anyone who can read both the blob and a clean LLM response can derive the original PII.
+
+**Where the blob lives between `clean()` and `restore()`:**
+
+- **Default — same request, method scope.** Sync HTTP requests should call `clean()` and `restore()` in the same controller/service method. The `GazeSession` lives on the stack and is GC'd when the request ends.
+- **Permitted — encrypted job payload.** Dispatching a queued job that carries the `GazeSession` is fine: the blob is already AES-encrypted under your `GAZE_ENCRYPTION_KEY` (or `APP_KEY`) before serialization. Combine with the Telescope/Pulse exclusion below so the encrypted payload does not get re-logged in plaintext-adjacent telemetry.
+- **NOT permitted — cross-request persistence without a threat model.** Do not store `$session->ciphertext` in the user session, request cache, durable cache (Redis/Memcached without TTL alignment), or your application database. Doing so widens the blast radius of any cache/DB compromise from "ciphertext only" to "ciphertext plus the matching clean text it was generated against".
+
+**Threat model:**
+
+- The blob is **request-scoped by default**. It is never serialized to the Laravel session store, the framework cache, or the database by this package.
+- The blob is **never written to logs**. Adapter exceptions deliberately omit ciphertext in their `getMessage()` and context arrays.
+- The blob is **never shared across tenant boundaries**. If your app is multi-tenant, scope the queue connection and audit DB per tenant; the package does not enforce tenant isolation on your behalf.
+- Any persistence layer you add (e.g. resumable wizards, draft autosave) must document why the extended lifetime is safe in your environment and align the cache TTL with `GAZE_SESSION_TTL`.
+
+If you find yourself needing to round-trip a blob through a long-lived store, that is a strong signal you want the upstream persistent-token mode (tracked upstream); raise an issue rather than rolling your own cross-request persistence.
+
+## Livewire — bad vs good
+
+Livewire serializes public component properties to the client between updates. Putting raw PII or the session blob on a public property leaks both surfaces. Here is the same flow shown wrong-then-right.
+
+**~~DO NOT~~ — leaks PII to the wire and persists the blob across updates:**
+
+```php
+class DraftReply extends Component
+{
+    public string $rawEmailBody = '';   // raw PII serialized to client on every update
+    public ?GazeSession $session = null; // blob persisted across Livewire round-trips
+    public string $reply = '';
+
+    public function generate(Gaze $gaze, Llm $llm): void
+    {
+        $this->session = $gaze->clean($this->rawEmailBody);
+        $this->reply = $llm->complete($this->session->cleanText);
+    }
+
+    public function mount(Gaze $gaze): void
+    {
+        // worse: restoring on mount echoes restored PII back into a public property
+        $this->reply = $gaze->restore($this->session, $this->reply);
+    }
+}
+```
+
+**Good — clean/restore inside one action, nothing PII-shaped on the component:**
+
+```php
+class DraftReply extends Component
+{
+    public string $reply = '';
+
+    public function generate(string $rawEmailBody, Gaze $gaze, Llm $llm): void
+    {
+        $session = $gaze->clean($rawEmailBody);          // method-scoped
+        $tokenized = $llm->complete($session->cleanText); // model sees tokens only
+        $this->reply = $gaze->restore($session, $tokenized); // restored once, returned
+        // $session goes out of scope here; nothing PII-shaped survives the action
+    }
+
+    public function render()
+    {
+        return view('livewire.draft-reply');
+    }
+}
+```
+
+Rules of thumb:
+
+- Raw PII enters as a method argument or comes from an Eloquent relation resolved inside the action — never as a public property.
+- `GazeSession` lives on the stack inside the action. It does not become a `public ?GazeSession`.
+- Restored output is rendered once. If the user re-edits and re-submits, you call `clean()` + `restore()` again with a fresh blob.
+
+## Conversational-loop guidance
+
+Multi-turn agents (chat UIs, tool-calling loops, planner-executor agents) do not get persistent tokens in the current adapter contract. Each turn produces its own blob. Two patterns work; pick one and stick with it per conversation.
+
+**Pattern A — list of blobs, restore in reverse order on render.**
+
+Each turn appends a `GazeSession` to a per-conversation list. When you render the final assistant message to the user, walk the list newest-to-oldest and restore the surface text against each blob in turn. This handles the case where a token minted in turn 1 reappears verbatim in turn 4's assistant message.
+
+```php
+$blobs = []; // ordered, newest-last; encrypted at rest if persisted
+foreach ($turns as $turn) {
+    $session = $gaze->clean($turn->userInput);
+    $blobs[] = $session;
+    $turn->modelResponse = $llm->complete($session->cleanText, history: $tokenizedHistory);
+}
+
+// On user-visible render of the final assistant message:
+$rendered = end($turns)->modelResponse;
+foreach (array_reverse($blobs) as $session) {
+    $rendered = $gaze->restore($session, $rendered); // most-recent tokens first
+}
+```
+
+**Pattern B — restore only the final user-visible message.**
+
+Tool-call payloads, intermediate planner thoughts, and any token-shaped text that is fed back into the next LLM turn stay tokenized. You only call `restore()` on the assistant text that is about to render to the human. This keeps the model's context window token-clean and prevents PII from leaking into tool arguments.
+
+**Sharp edges (read these):**
+
+- **Never restore intermediate tool-call payloads to user-visible surfaces.** A tool that takes `customer_email` will get the token; restore inside the tool only if the tool itself is the trust boundary (e.g. it is the email send action). Otherwise restore on the way out, not on the way in.
+- **Never `sanitize once, trust forever`.** Each new user input is a new clean call. Reusing an old blob across turns silently misses PII added later in the conversation.
+- **Cross-turn token drift.** Token IDs are not guaranteed stable across separate `clean()` invocations. If turn 4 needs to reference an entity from turn 1, prefer Pattern A over manual ID stitching.
+
+If your conversational shape needs persistent tokens (stable across turns, restorable from any later turn), that is upstream tracked work — open an issue describing the shape so adopter friction is captured.
+
 ## Enabling NER
 
 By default gaze-laravel runs in regex/rulepack mode. Enable named-entity recognition with:
@@ -243,6 +352,40 @@ Integration tests require a real binary:
 
 ```bash
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
+```
+
+### Boundary enforcement with Pest `arch()`
+
+If your app routes all LLM traffic through `Gaze`, you probably want a Pest architecture test that prevents adopters (or future-you) from instantiating a model client outside the Gaze-boundary path. Drop this in `tests/Architecture/GazeBoundaryTest.php`:
+
+```php
+<?php
+
+// tests/Architecture/GazeBoundaryTest.php
+
+arch('LLM clients only used inside the Gaze-aware boundary')
+    ->expect(['Prism\\Prism', 'OpenAI\\Client', 'Anthropic\\Anthropic'])
+    ->toOnlyBeUsedIn('App\\Support\\Ai'); // narrow to your actual boundary namespace
+
+arch('app code never bypasses Gaze::clean')
+    ->expect('App')
+    ->not->toUse([
+        'Prism\\Prism\\Facades\\Prism', // bypasses tokenization
+        'OpenAI\\Laravel\\Facades\\OpenAI',
+    ])
+    ->ignoring('App\\Support\\Ai'); // boundary path is the only allowed caller
+
+arch('GazeSession does not leak into HTTP responses')
+    ->expect('Naoray\\GazeLaravel\\GazeSession')
+    ->not->toBeUsedIn('App\\Http\\Resources');
+```
+
+Tune the namespaces to match your boundary path (`App\Support\Ai`, `App\Services\Llm`, etc.). The third rule guards against accidentally serializing the session ciphertext through an API resource — adjust the target to whatever HTTP-output layer you use (Inertia props, Blade view composers, JSON resources).
+
+Run with the rest of your suite:
+
+```bash
+./vendor/bin/pest --filter=Architecture
 ```
 
 ### Pre-push hook
