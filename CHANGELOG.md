@@ -18,6 +18,7 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 - Bump pinned upstream `piinuts/gaze` from v0.4.5 to v0.5.0. v0.5.0 is a workspace-shape refactor (extracted `gaze-types` + `gaze-audit` crates, Dylint-based audit-isolation gate); CLI binary contract is unchanged so the adapter does not need behaviour changes. Help snapshots regenerated against the v0.5.0 binary.
 - Adapter Encrypter cipher now follows host `config('app.cipher')` instead of hardcoded AES-256-CBC (#18, closes #209). Aligns with Laravel 11+ AES-256-GCM default. Existing deployments unaffected unless they relied on the hardcode mismatching the host. Cross-config regression test added.
+- `policy.toml.example` rewritten as a multi-class v0.4 default. Activates `core` + `core-extended` rulepacks, ships 4 custom recognizers (money amount, invoice/order number, street address, org with legal suffix), uses BCP47 locales (`de-DE` + `en-US`) so postal recognizers actually fire, and keeps `[ner]` commented (opt-in via #32's `php artisan gaze:install-ner`). Migrates from the retired `[[detector]]` v0.3 surface to v0.4 `[[policy.custom_recognizers]]`. Money-amount regex is bounded to prevent partial matches inside identifiers and fixes the `\d{1,3}` thousand-separator bug from #31. Schema-shape test plus real-binary integration round-trip locks the contract. Closes #31.
 
 ### Fixed
 
