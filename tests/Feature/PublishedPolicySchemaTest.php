@@ -7,6 +7,10 @@ it('publishes a v0.4 multi-class policy with bundled rulepacks', function () {
     expect($sourcePath)->toBeFile();
 
     $body = file_get_contents($sourcePath);
+    if (! is_string($body)) {
+        throw new RuntimeException('could not read policy.toml.example');
+    }
+
     expect($body)->toBeString()->not->toBe('');
 
     // Schema surface: v0.4 - retired [[detector]] MUST NOT appear.

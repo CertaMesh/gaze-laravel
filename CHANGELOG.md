@@ -7,6 +7,25 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 ### Added
 
 - `php artisan gaze:install-ner` — opt-in command to download and verify the pinned Davlan mBERT NER int8 ONNX artifact set and optionally wire `[ner]` into `policy.toml`. Includes packaged upstream NER labels/policy contracts, SHA256SUMS validation, idempotent installs, dry-run/check modes, policy backups, and fail-closed mismatch handling. Closes #32.
+- `RequiresFreshClean` marker contract for blob-expired / invalid-blob-version exceptions so queue consumers can branch on the recovery path without duplicating subclass lists.
+
+### Changed
+
+- Bump pinned upstream `piinuts/gaze` from v0.5.0 to v0.5.2 (docs/scripts/assets refresh; CLI surface unchanged).
+- `GazeServiceProvider` now defers container bindings until first use, and `GazeException` subclasses own their log-level classification.
+- PHPStan now analyzes `tests/` as well as `src/`; shared test helpers live in `tests/Helpers.php` and the direct PHPUnit dev constraint is removed in favor of Pest's transitive PHPUnit dependency.
+- `GazeRetryPolicy` now supports Laravel-style `array<int>` backoff schedules and reports the missing queue method (`fail` / `release`) when a consumer job lacks the expected queue traits.
+
+### Fixed
+
+- Help snapshot version text now matches the pinned upstream `gaze 0.5.2` binary.
+- `NerInstaller` now fails closed when writing destination `.gitignore` fails and only removes a destination directory during rollback after the new staged directory was actually placed.
+- `Gaze::restore()` now forwards `--max-bytes` and pre-flights the wrapped `{session_blob, text}` JSON payload, not only the caller-supplied text.
+- Cross-session isolation integration coverage now asserts ciphertext divergence before documenting the current upstream legacy behavior.
+
+### Documentation
+
+- `GazeException` documents that inherited `getCode()` values are upstream process exit codes, not HTTP or app-domain status codes.
 
 ## [0.5.0] - 2026-04-29
 

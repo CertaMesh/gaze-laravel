@@ -19,7 +19,6 @@
     },
     "require-dev": {
         "orchestra/testbench": "^9.0|^10.0",
-        "phpunit/phpunit": "^11.0",
         "phpstan/phpstan": "^1.11",
         "laravel/pint": "^1.17",
         "composer/composer": "^2.0",
@@ -34,7 +33,10 @@
     "autoload-dev": {
         "psr-4": {
             "Naoray\\GazeLaravel\\Tests\\": "tests/"
-        }
+        },
+        "files": [
+            "tests/Helpers.php"
+        ]
     },
     "extra": {
         "class": "Naoray\\GazeLaravel\\Install\\GazeInstallerPlugin",

@@ -13,16 +13,13 @@ use Illuminate\Support\Facades\Log;
 use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Exceptions\GazeAuditPurgeIso8601Exception;
 use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
-use Naoray\GazeLaravel\Exceptions\GazeCallerBugException;
 use Naoray\GazeLaravel\Exceptions\GazeEmptyInputException;
 use Naoray\GazeLaravel\Exceptions\GazeException;
 use Naoray\GazeLaravel\Exceptions\GazeInputTooLargeException;
-use Naoray\GazeLaravel\Exceptions\GazeIntegrityException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
 use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazeOpsConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
@@ -107,7 +104,13 @@ class Gaze
             'text' => $text,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
+        $this->assertInputSize($payload);
+
         $command = [$this->resolver->resolve(), 'restore', '--format=json'];
+        if ($this->maxBytes !== null) {
+            $command[] = '--max-bytes='.$this->maxBytes;
+        }
+
         $result = $this->run($command, $payload, 'restore');
 
         /** @var array{text:string} $decoded */
@@ -213,12 +216,17 @@ class Gaze
             throw new GazeInvalidEncodingException('gaze input is not valid UTF-8', 1, hash('sha256', ''));
         }
 
-        if (strlen($text) > ($this->maxBytes ?? self::DEFAULT_MAX_BYTES)) {
-            throw new GazeInputTooLargeException('gaze input exceeds max_bytes pre-flight', 1, hash('sha256', ''));
-        }
+        $this->assertInputSize($text);
 
         if ($text === '') {
             throw new GazeEmptyInputException('gaze input must not be empty', 1, hash('sha256', ''));
+        }
+    }
+
+    private function assertInputSize(string $input): void
+    {
+        if (strlen($input) > ($this->maxBytes ?? self::DEFAULT_MAX_BYTES)) {
+            throw new GazeInputTooLargeException('gaze input exceeds max_bytes pre-flight', 1, hash('sha256', ''));
         }
     }
 
@@ -331,11 +339,7 @@ class Gaze
             ),
         };
 
-        $logLevel = $exception instanceof GazeOpsConfigException || $exception instanceof GazeCallerBugException || $exception instanceof GazeIntegrityException
-            ? 'notice'
-            : 'warning';
-
-        Log::{$logLevel}("gaze {$stage} failed", $exception->toLogContext());
+        Log::{$exception->logLevel()}("gaze {$stage} failed", $exception->toLogContext());
 
         return $exception;
     }

@@ -36,7 +36,7 @@ afterEach(function () {
     @rmdir($this->tmp);
 });
 
-function gi_installer(object $fetcher, string $resources, ?Closure $diskFreeSpace = null): NerInstaller
+function gi_installer(NerFetcher $fetcher, string $resources, ?Closure $diskFreeSpace = null): NerInstaller
 {
     return new NerInstaller(
         fetcher: $fetcher,
@@ -46,6 +46,7 @@ function gi_installer(object $fetcher, string $resources, ?Closure $diskFreeSpac
     );
 }
 
+/** @param array{variant?:string,force?:bool,check?:bool,dryRun?:bool,locale?:string|null,policyPath?:string|null,policyForce?:bool} $overrides */
 function gi_options(string $dest, array $overrides = []): NerInstallerOptions
 {
     return new NerInstallerOptions(

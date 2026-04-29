@@ -18,4 +18,9 @@ class GazeOpsConfigException extends GazeException implements NonRetryable
     ) {
         parent::__construct($message, $exitCode, $stderrHash, $variant, $previous);
     }
+
+    public function logLevel(): string
+    {
+        return 'notice';
+    }
 }

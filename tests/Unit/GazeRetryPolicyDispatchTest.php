@@ -97,3 +97,41 @@ it('releases pipeline failures with backoff and without an infra alert', functio
 
     Event::assertNotDispatched(GazeInfraAlert::class);
 });
+
+it('names missing queue symbols in the dispatch guard', function () {
+    $job = new class
+    {
+        public function fail(Throwable $e): void {}
+    };
+
+    expect(fn () => GazeRetryPolicy::dispatch(new GazePipelineException('pipeline', 3, hash('sha256', '')), $job))
+        ->toThrow(InvalidArgumentException::class, 'release');
+});
+
+it('uses Laravel array backoff schedules by attempt number', function () {
+    Event::fake();
+
+    $job = new class
+    {
+        public mixed $released = null;
+
+        /** @var list<int> */
+        public array $backoff = [30, 60, 120];
+
+        public function attempts(): int
+        {
+            return 2;
+        }
+
+        public function fail(Throwable $e): void {}
+
+        public function release(int $delay): void
+        {
+            $this->released = $delay;
+        }
+    };
+
+    GazeRetryPolicy::dispatch(new GazePipelineException('pipeline', 3, hash('sha256', '')), $job);
+
+    expect($job->released)->toBe(60);
+});

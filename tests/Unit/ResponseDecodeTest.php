@@ -51,6 +51,10 @@ it('maps malformed clean JSON output to a non-retryable decode exception', funct
         $thrown = $e;
     }
 
+    if (! $thrown instanceof GazeResponseDecodeException) {
+        $this->fail('expected GazeResponseDecodeException');
+    }
+
     expect($thrown)->toBeInstanceOf(GazeResponseDecodeException::class)
         ->and($thrown)->toBeInstanceOf(NonRetryable::class)
         ->and($thrown->getPrevious())->toBeInstanceOf(JsonException::class);
@@ -102,11 +106,13 @@ it('maps corrupted session ciphertext to a non-retryable decode exception', func
             return str_repeat("\0", 32);
         }
 
+        /** @return list<string> */
         public function getAllKeys(): array
         {
             return [];
         }
 
+        /** @return list<string> */
         public function getPreviousKeys(): array
         {
             return [];
@@ -121,6 +127,10 @@ it('maps corrupted session ciphertext to a non-retryable decode exception', func
         $this->makeGaze()->restore($session, 'Hello Name_1');
     } catch (Throwable $e) {
         $thrown = $e;
+    }
+
+    if (! $thrown instanceof GazeResponseDecodeException) {
+        $this->fail('expected GazeResponseDecodeException');
     }
 
     expect($thrown)->toBeInstanceOf(GazeResponseDecodeException::class)
