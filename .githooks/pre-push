@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Pre-push hook: run tests + static analysis before push.
+# Mirrors .github/workflows/test.yml so failures surface locally, not on CI.
+# Bypass with: git push --no-verify
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+if [ ! -f vendor/autoload.php ]; then
+    echo "==> pre-push: vendor/ missing — running composer install" >&2
+    composer install --no-interaction --no-progress
+fi
+
+echo "==> pre-push: composer test" >&2
+composer test
+
+echo "==> pre-push: composer analyse" >&2
+composer analyse
+
+echo "==> pre-push: all checks passed" >&2

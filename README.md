@@ -196,3 +196,9 @@ Integration tests require a real binary:
 ```bash
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
+
+### Pre-push hook
+
+`composer install` / `composer update` automatically points `core.hooksPath` at `.githooks`. The shipped `pre-push` hook runs `composer test` + `composer analyse` and blocks pushes on failure — so CI failures surface locally first.
+
+Bypass with `git push --no-verify` when you really need to (rebase WIPs, drafts, etc.).
