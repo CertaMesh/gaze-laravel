@@ -27,8 +27,8 @@ it('assembles audit purge --dry-run argv with ISO8601 string before', function (
     });
 
     expect($result)->toBeInstanceOf(AuditPurgeResult::class);
-    expect($result->rawOutput())->toBe("0 rows would be purged\n");
-    expect($result->count())->toBe(0);
+    expect($result->rawOutput)->toBe("0 rows would be purged\n");
+    expect($result->count)->toBe(0);
 });
 
 it('assembles audit purge execute argv (no --dry-run flag)', function () {
@@ -51,8 +51,8 @@ it('assembles audit purge execute argv (no --dry-run flag)', function () {
         return true;
     });
 
-    expect($result->rawOutput())->toBe("5 rows purged\n");
-    expect($result->count())->toBe(5);
+    expect($result->rawOutput)->toBe("5 rows purged\n");
+    expect($result->count)->toBe(5);
 });
 
 it('rawOutput is always populated; count is null when stdout has no row pattern', function () {
@@ -62,8 +62,8 @@ it('rawOutput is always populated; count is null when stdout has no row pattern'
 
     $result = $this->makeGaze()->audit('/tmp/audit.sqlite')->purge()->before('2026-01-01T00:00:00Z')->execute();
 
-    expect($result->rawOutput())->toBe("completed without count\n");
-    expect($result->count())->toBeNull();
+    expect($result->rawOutput)->toBe("completed without count\n");
+    expect($result->count)->toBeNull();
 });
 
 it('accepts a Carbon instance for before() and serializes to ISO8601', function () {
