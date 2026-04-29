@@ -81,10 +81,10 @@ it('accepts a Carbon instance for before() and serializes to ISO8601', function 
 
 it('throws when execute()/dryRun() called without before()', function () {
     expect(fn () => $this->makeGaze()->audit('/tmp/audit.sqlite')->purge()->dryRun())
-        ->toThrow(\LogicException::class, 'PurgeBuilder::before()');
+        ->toThrow(LogicException::class, 'PurgeBuilder::before()');
 });
 
 it('rejects a non-Carbon, non-string before() argument', function () {
     expect(fn () => $this->makeGaze()->audit('/tmp/audit.sqlite')->purge()->before(1234567890))
-        ->toThrow(\TypeError::class);
+        ->toThrow(TypeError::class);
 });

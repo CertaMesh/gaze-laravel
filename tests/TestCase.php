@@ -6,12 +6,12 @@ namespace Naoray\GazeLaravel\Tests;
 
 use Illuminate\Foundation\Application;
 use Illuminate\Process\Factory as ProcessFactory;
+use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\EncryptedBlob;
 use Naoray\GazeLaravel\Gaze;
 use Naoray\GazeLaravel\GazeServiceProvider;
 use Naoray\GazeLaravel\GazeSession;
-use Naoray\GazeLaravel\Audit\AuditService;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class TestCase extends OrchestraTestCase
@@ -81,6 +81,52 @@ abstract class TestCase extends OrchestraTestCase
         };
 
         $this->app->instance(Gaze::class, $stub);
+    }
+
+    public function bindCountingGaze(
+        GazeSession $clean,
+        int $expectedCalls,
+        ?string $expectedInput = null,
+    ): void {
+        $stub = new class($clean, $expectedInput) extends Gaze
+        {
+            public int $calls = 0;
+
+            public function __construct(
+                private readonly GazeSession $clean,
+                private readonly ?string $expectedInput,
+            ) {
+                // Skip parent constructor — no process invocations occur.
+            }
+
+            public function clean(string $text): GazeSession
+            {
+                $this->calls++;
+
+                if ($this->expectedInput !== null) {
+                    expect($text)->toBe($this->expectedInput);
+                }
+
+                return $this->clean;
+            }
+
+            public function restore(GazeSession $session, string $text): string
+            {
+                return $text;
+            }
+
+            public function audit(?string $auditDbPath = null): AuditService
+            {
+                throw new \LogicException(
+                    'Counting Gaze stub: audit() is not implemented for this test fixture. Use Gaze::fake() if your test needs to exercise audit verbs.'
+                );
+            }
+        };
+
+        $this->app->instance(Gaze::class, $stub);
+        $this->beforeApplicationDestroyed(function () use ($stub, $expectedCalls): void {
+            expect($stub->calls)->toBe($expectedCalls);
+        });
     }
 
     public function bindAndReturnCleanSession(string $cleanText, string $blob, int $detections): GazeSession

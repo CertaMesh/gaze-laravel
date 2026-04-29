@@ -10,6 +10,7 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ### Added
 
+- `php artisan gaze:bench --requests=N [--json]` for adopter latency baselines under the current cold, one-shot `gaze clean` contract. Refs #33.
 - Help snapshot contract covering the pinned `gaze` CLI surface (`--version`, top-level help, `clean`, `restore`, `audit`, and `audit purge`) so upstream command/help drift is visible in adapter tests.
 - Audit purge foundation: `gaze.audit_db_path` / `GAZE_AUDIT_DB_PATH`, clean-side `--audit-db` forwarding, `Gaze::audit()->purge()->before(...)->dryRun()` / `execute()`, fake audit assertions, and audit docs.
 
