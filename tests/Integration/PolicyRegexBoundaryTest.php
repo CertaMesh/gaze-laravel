@@ -13,7 +13,7 @@ beforeEach(function () {
         if (is_executable($vendor)) {
             $binary = $vendor;
         } else {
-            $path = (new ExecutableFinder())->find('gaze');
+            $path = (new ExecutableFinder)->find('gaze');
             $binary = $path !== null ? $path : '';
         }
     }
