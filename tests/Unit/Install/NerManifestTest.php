@@ -20,10 +20,10 @@ it('resolves the pinned int8 artifact set from SHA256SUMS', function () {
         'labels.json',
     ]);
     expect($set->files['model.onnx']['sha'])->toBe('1213fdd405d295768b0d41d8214062f2f278f0e3acff6af67d8fd47360d2be0f');
-    expect($set->files['model.onnx']['sourceName'])->toBe('onnx/model_int8.onnx');
+    expect($set->files['model.onnx']['sourceName'] ?? null)->toBe('onnx/model_int8.onnx');
     expect($set->files['model.onnx']['size'])->toBe(178451275);
-    expect($set->files['labels.json']['source'])->toBe('package');
-    expect($set->files['labels.json']['sourceName'])->toBe('labels.davlan-mbert.json');
+    expect($set->files['labels.json']['source'] ?? null)->toBe('package');
+    expect($set->files['labels.json']['sourceName'] ?? null)->toBe('labels.davlan-mbert.json');
     expect($set->totalSize())->toBeGreaterThan(180_000_000);
 });
 

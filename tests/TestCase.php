@@ -34,18 +34,20 @@ abstract class TestCase extends OrchestraTestCase
         ?int $sessionTtlSeconds = null,
         ?string $auditDbPath = null,
     ): Gaze {
+        $app = $this->applicationInstance();
+
         return new Gaze(
             resolver: new BinaryResolver(
                 explicitPath: $explicitPath,
                 vendorBinPath: $vendorBinPath,
             ),
-            process: $this->app->make(ProcessFactory::class),
+            process: $app->make(ProcessFactory::class),
             timeoutSeconds: $timeoutSeconds,
             policyPath: $policyPath,
             maxBytes: $maxBytes,
             sessionTtlSeconds: $sessionTtlSeconds,
             auditDbPath: $auditDbPath,
-            container: $this->app,
+            container: $app,
         );
     }
 
@@ -80,7 +82,7 @@ abstract class TestCase extends OrchestraTestCase
             }
         };
 
-        $this->app->instance(Gaze::class, $stub);
+        $this->applicationInstance()->instance(Gaze::class, $stub);
     }
 
     public function bindCountingGaze(
@@ -123,7 +125,7 @@ abstract class TestCase extends OrchestraTestCase
             }
         };
 
-        $this->app->instance(Gaze::class, $stub);
+        $this->applicationInstance()->instance(Gaze::class, $stub);
         $this->beforeApplicationDestroyed(function () use ($stub, $expectedCalls): void {
             expect($stub->calls)->toBe($expectedCalls);
         });
@@ -136,5 +138,14 @@ abstract class TestCase extends OrchestraTestCase
             ciphertext: EncryptedBlob::wrap($blob),
             detections: $detections,
         );
+    }
+
+    private function applicationInstance(): Application
+    {
+        if (! $this->app instanceof Application) {
+            throw new \LogicException('Test application is not initialized.');
+        }
+
+        return $this->app;
     }
 }

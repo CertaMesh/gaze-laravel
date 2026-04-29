@@ -20,6 +20,12 @@ it('documents the current rc.3 cross-session behavior for the pinned contract', 
     $sessionA = $gaze->clean('alice@example.com');
     $sessionB = $gaze->clean('bob@example.com');
 
+    expect($sessionA->ciphertext->ciphertext())->not->toBe($sessionB->ciphertext->ciphertext());
+
+    // When upstream fixes cross-session token isolation, this legacy behavior
+    // should fail in one of three acceptable ways: the foreign token remains
+    // unchanged, restore returns an empty string, or GazeUnknownTokenException
+    // is thrown. Flip this to a positive assertion once that fix lands.
     $restored = $gaze->restore($sessionA, $sessionB->cleanText);
 
     expect($restored)->toBe('alice@example.com');

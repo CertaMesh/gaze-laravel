@@ -17,15 +17,6 @@ afterEach(function () {
     @rmdir($this->tmpDir);
 });
 
-function gl_makeExecutable(string $dir, string $name): string
-{
-    $path = $dir.'/'.$name;
-    file_put_contents($path, "#!/bin/sh\necho stub\n");
-    chmod($path, 0755);
-
-    return $path;
-}
-
 it('prefers explicit path over vendor bin', function () {
     $explicit = '/usr/local/bin/custom-gaze';
     $vendor = gl_makeExecutable($this->tmpDir, 'gaze');

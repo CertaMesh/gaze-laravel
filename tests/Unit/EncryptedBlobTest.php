@@ -20,6 +20,6 @@ it('round-trips from existing ciphertext', function () {
 });
 
 it('stays a minimal value object', function () {
-    expect(method_exists(EncryptedBlob::class, '__toString'))->toBeFalse()
-        ->and(method_exists(EncryptedBlob::class, 'toArray'))->toBeFalse();
+    expect(get_class_methods(EncryptedBlob::class))->not->toContain('__toString')
+        ->and(get_class_methods(EncryptedBlob::class))->not->toContain('toArray');
 });

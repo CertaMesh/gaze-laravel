@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Naoray\GazeLaravel\Exceptions;
 
 use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
+use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
 use Naoray\GazeLaravel\Variant;
 
-class GazeBlobExpiredException extends GazeIntegrityException implements NonRetryable
+class GazeBlobExpiredException extends GazeIntegrityException implements NonRetryable, RequiresFreshClean
 {
     public function __construct(string $message, int $exitCode, string $stderrHash, ?\Throwable $previous = null)
     {

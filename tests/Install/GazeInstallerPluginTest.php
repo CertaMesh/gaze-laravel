@@ -47,6 +47,10 @@ it('maps both subscribed events to the onPackageEvent handler', function () {
 
     foreach ([PackageEvents::POST_PACKAGE_INSTALL, PackageEvents::POST_PACKAGE_UPDATE] as $key) {
         $handler = $events[$key];
+        if (! is_string($handler)) {
+            throw new RuntimeException('expected plugin event handler name');
+        }
+
         expect($handler)->toBeString();
         expect(method_exists($plugin, $handler))->toBeTrue();
         expect((new ReflectionMethod($plugin, $handler))->isPublic())->toBeTrue();
