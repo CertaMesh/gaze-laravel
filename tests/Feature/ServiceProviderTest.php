@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Facades\Gaze as GazeFacade;
 use Naoray\GazeLaravel\Gaze;
+use Naoray\GazeLaravel\Install\LaravelNerFetcher;
+use Naoray\GazeLaravel\Install\NerFetcher;
+use Naoray\GazeLaravel\Install\NerInstaller;
 
 it('resolves Gaze as a singleton', function () {
     $a = $this->app->make(Gaze::class);
@@ -72,16 +75,16 @@ it('fails loudly on an invalid dedicated key', function () {
 })->throws(RuntimeException::class, 'base64-encoded 32 bytes');
 
 it('binds NerInstaller as a singleton', function () {
-    $a = $this->app->make(\Naoray\GazeLaravel\Install\NerInstaller::class);
-    $b = $this->app->make(\Naoray\GazeLaravel\Install\NerInstaller::class);
+    $a = $this->app->make(NerInstaller::class);
+    $b = $this->app->make(NerInstaller::class);
 
     expect($a)->toBe($b);
 });
 
 it('binds LaravelNerFetcher as the v0 NerFetcher implementation', function () {
-    $fetcher = $this->app->make(\Naoray\GazeLaravel\Install\NerFetcher::class);
+    $fetcher = $this->app->make(NerFetcher::class);
 
-    expect($fetcher)->toBeInstanceOf(\Naoray\GazeLaravel\Install\LaravelNerFetcher::class);
+    expect($fetcher)->toBeInstanceOf(LaravelNerFetcher::class);
 });
 
 it('registers gaze:install-ner', function () {

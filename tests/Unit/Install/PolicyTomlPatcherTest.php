@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Naoray\GazeLaravel\Install\NerPolicyConflictException;
 use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
 
 beforeEach(function () {
@@ -83,7 +84,7 @@ it('refuses to replace existing [ner] with different model_dir without force', f
     $body = file_get_contents($this->fixtures.'/policy-with-ner-different-dir.toml');
 
     expect(fn () => $patcher->buildReplaced($body, '/new/dest', null, force: false))
-        ->toThrow(\Naoray\GazeLaravel\Install\NerPolicyConflictException::class);
+        ->toThrow(NerPolicyConflictException::class);
 });
 
 it('replaces [ner].model_dir when force is true', function () {
@@ -123,7 +124,7 @@ it('produces unified diff on conflict', function () {
     try {
         $patcher->buildReplaced($body, '/new/dest', null, force: false);
         $this->fail('expected NerPolicyConflictException');
-    } catch (\Naoray\GazeLaravel\Install\NerPolicyConflictException $e) {
+    } catch (NerPolicyConflictException $e) {
         expect($e->diff)->toContain('-model_dir = "/some/other/path"');
         expect($e->diff)->toContain('+model_dir = "/new/dest"');
     }

@@ -5,12 +5,12 @@ declare(strict_types=1);
 use Naoray\GazeLaravel\Console\InstallNerCommand;
 use Naoray\GazeLaravel\Install\NerArtifactSet;
 use Naoray\GazeLaravel\Install\NerFetcher;
-use Naoray\GazeLaravel\Install\NerInstallStatus;
 use Naoray\GazeLaravel\Install\NerInstaller;
+use Naoray\GazeLaravel\Install\NerInstallStatus;
 use Naoray\GazeLaravel\Install\NerManifest;
 use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
-use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Tester\CommandTester;
 
 function gin_command_tester(NerFetcher $fetcher): CommandTester
 {
@@ -40,7 +40,8 @@ it('gaze:install-ner exposes the patched flag surface', function () {
 });
 
 it('--variant=bogus exits 2', function () {
-    $tester = gin_command_tester(new class implements NerFetcher {
+    $tester = gin_command_tester(new class implements NerFetcher
+    {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void {}
 
         public function verify(NerArtifactSet $set, string $dir): bool
@@ -55,7 +56,8 @@ it('--variant=bogus exits 2', function () {
 });
 
 it('--check returns failure when artifacts do not verify', function () {
-    $tester = gin_command_tester(new class implements NerFetcher {
+    $tester = gin_command_tester(new class implements NerFetcher
+    {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void {}
 
         public function verify(NerArtifactSet $set, string $dir): bool
@@ -71,7 +73,8 @@ it('--check returns failure when artifacts do not verify', function () {
 });
 
 it('prints policy snippet after a successful install when policy is not updated', function () {
-    $tester = gin_command_tester(new class implements NerFetcher {
+    $tester = gin_command_tester(new class implements NerFetcher
+    {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
         {
             mkdir($stagingDir, 0755, true);
@@ -108,7 +111,8 @@ it('prints policy snippet after a successful install when policy is not updated'
 });
 
 it('--update-policy writes the configured policy path', function () {
-    $tester = gin_command_tester(new class implements NerFetcher {
+    $tester = gin_command_tester(new class implements NerFetcher
+    {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
         {
             mkdir($stagingDir, 0755, true);
@@ -151,7 +155,8 @@ it('--update-policy writes the configured policy path', function () {
 });
 
 it('fails non-interactive install without --yes before fetching', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public int $fetches = 0;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -174,7 +179,8 @@ it('fails non-interactive install without --yes before fetching', function () {
 });
 
 it('--force fetches even when existing destination verifies', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public int $fetches = 0;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void

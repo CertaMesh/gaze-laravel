@@ -186,7 +186,7 @@ final class PolicyTomlPatcher
     {
         $beforeLines = explode("\n", $before);
         $afterLines = explode("\n", $after);
-        $lines = ["--- current", "+++ proposed"];
+        $lines = ['--- current', '+++ proposed'];
         $max = max(count($beforeLines), count($afterLines));
 
         for ($i = 0; $i < $max; $i++) {

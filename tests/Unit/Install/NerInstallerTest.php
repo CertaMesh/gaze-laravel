@@ -5,10 +5,11 @@ declare(strict_types=1);
 use Naoray\GazeLaravel\Install\NerArtifactSet;
 use Naoray\GazeLaravel\Install\NerDiskSpaceException;
 use Naoray\GazeLaravel\Install\NerFetcher;
-use Naoray\GazeLaravel\Install\NerInstallStatus;
 use Naoray\GazeLaravel\Install\NerInstaller;
 use Naoray\GazeLaravel\Install\NerInstallerOptions;
+use Naoray\GazeLaravel\Install\NerInstallStatus;
 use Naoray\GazeLaravel\Install\NerManifest;
+use Naoray\GazeLaravel\Install\NerPolicyConflictException;
 use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -60,8 +61,10 @@ function gi_options(string $dest, array $overrides = []): NerInstallerOptions
 }
 
 it('returns check-passed or check-failed without fetching', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public int $fetches = 0;
+
         public bool $verifyResult = true;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -86,7 +89,8 @@ it('returns check-passed or check-failed without fetching', function () {
 });
 
 it('installs into a staging dir then places artifacts and gitignore at dest', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public ?string $stagingDir = null;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -117,7 +121,8 @@ it('installs into a staging dir then places artifacts and gitignore at dest', fu
 });
 
 it('does not fetch again when destination already verifies', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public int $fetches = 0;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -139,7 +144,8 @@ it('does not fetch again when destination already verifies', function () {
 });
 
 it('returns dry-run without writing or fetching', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public int $fetches = 0;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -165,7 +171,8 @@ it('returns dry-run without writing or fetching', function () {
 });
 
 it('fails before fetch when disk space is insufficient', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public int $fetches = 0;
 
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -186,7 +193,8 @@ it('fails before fetch when disk space is insufficient', function () {
 });
 
 it('restores previous destination when policy patching fails after placement', function () {
-    $fetcher = new class implements NerFetcher {
+    $fetcher = new class implements NerFetcher
+    {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
         {
             mkdir($stagingDir, 0755, true);
@@ -210,7 +218,7 @@ it('restores previous destination when policy patching fails after placement', f
     expect(fn () => $installer->install(gi_options($dest, [
         'policyPath' => $policy,
         'policyForce' => false,
-    ])))->toThrow(\Naoray\GazeLaravel\Install\NerPolicyConflictException::class);
+    ])))->toThrow(NerPolicyConflictException::class);
 
     expect(file_get_contents($dest.'/model.onnx'))->toBe('old-model');
 });

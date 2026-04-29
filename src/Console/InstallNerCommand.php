@@ -7,10 +7,10 @@ namespace Naoray\GazeLaravel\Console;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
-use Naoray\GazeLaravel\Install\NerInstallException;
 use Naoray\GazeLaravel\Install\NerInstaller;
 use Naoray\GazeLaravel\Install\NerInstallerOptions;
 use Naoray\GazeLaravel\Install\NerInstallerResult;
+use Naoray\GazeLaravel\Install\NerInstallException;
 use Naoray\GazeLaravel\Install\NerInstallStatus;
 
 final class InstallNerCommand extends Command
