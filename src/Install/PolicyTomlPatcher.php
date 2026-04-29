@@ -112,7 +112,7 @@ final class PolicyTomlPatcher
             /** @var array<string, mixed> $parsed */
             $parsed = Toml::parse($body);
 
-            return $parsed;
+            return is_array($parsed) ? $parsed : [];
         } catch (ParseException $e) {
             throw new NerManifestInvalidException('invalid policy TOML: '.$e->getMessage(), previous: $e);
         }
