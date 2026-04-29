@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Process;
 use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Exceptions\GazeAuditDbNotConfiguredException;
 use Naoray\GazeLaravel\Exceptions\GazeCallerBugException;
+use Naoray\GazeLaravel\Gaze;
 use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
 
 it('throws GazeAuditDbNotConfiguredException when audit_db_path is null and no override', function () {
@@ -55,9 +56,9 @@ it('GazeAuditDbNotConfiguredException is a caller bug AND NonRetryable', functio
 it('Gaze::audit() with no override returns the bound AuditService singleton', function () {
     config(['gaze.audit_db_path' => '/tmp/identity.sqlite']);
     $this->app->forgetInstance(AuditService::class);
-    $this->app->forgetInstance(\Naoray\GazeLaravel\Gaze::class);
+    $this->app->forgetInstance(Gaze::class);
 
-    $gaze = $this->app->make(\Naoray\GazeLaravel\Gaze::class);
+    $gaze = $this->app->make(Gaze::class);
     $a = $gaze->audit();
     $b = $gaze->audit();
 
@@ -67,9 +68,9 @@ it('Gaze::audit() with no override returns the bound AuditService singleton', fu
 it('Gaze::audit($override) returns a fresh AuditService per call', function () {
     config(['gaze.audit_db_path' => '/tmp/identity.sqlite']);
     $this->app->forgetInstance(AuditService::class);
-    $this->app->forgetInstance(\Naoray\GazeLaravel\Gaze::class);
+    $this->app->forgetInstance(Gaze::class);
 
-    $gaze = $this->app->make(\Naoray\GazeLaravel\Gaze::class);
+    $gaze = $this->app->make(Gaze::class);
     $singleton = $gaze->audit();
     $override = $gaze->audit('/tmp/override.sqlite');
 
@@ -79,9 +80,9 @@ it('Gaze::audit($override) returns a fresh AuditService per call', function () {
 it('per-call override does not persist into the next no-override call', function () {
     config(['gaze.audit_db_path' => '/tmp/identity.sqlite']);
     $this->app->forgetInstance(AuditService::class);
-    $this->app->forgetInstance(\Naoray\GazeLaravel\Gaze::class);
+    $this->app->forgetInstance(Gaze::class);
 
-    $gaze = $this->app->make(\Naoray\GazeLaravel\Gaze::class);
+    $gaze = $this->app->make(Gaze::class);
     $singleton1 = $gaze->audit();
     $gaze->audit('/tmp/override.sqlite');
     $singleton2 = $gaze->audit();

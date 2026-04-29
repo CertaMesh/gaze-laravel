@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Testing;
 
+use Naoray\GazeLaravel\Audit\AuditPurgeResult;
 use Naoray\GazeLaravel\EncryptedBlob;
 use Naoray\GazeLaravel\Gaze;
 use Naoray\GazeLaravel\GazeSession;
@@ -23,7 +24,7 @@ final class FakeGaze extends Gaze
     /**
      * @param  \Closure(string): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
-     * @param  \Closure(string, bool): \Naoray\GazeLaravel\Audit\AuditPurgeResult|null  $auditPurgeHandler
+     * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      */
     public function __construct(
         private readonly ?\Closure $cleanHandler = null,
