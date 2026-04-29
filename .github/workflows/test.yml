@@ -1,9 +1,14 @@
 name: tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  # Auto-triggers temporarily disabled while GitHub Actions billing on the
+  # PIInuts org is being resolved. Re-enable by uncommenting the two blocks
+  # below. Local enforcement runs via the `.githooks/pre-push` hook —
+  # `composer install` / `composer update` auto-wires `core.hooksPath`.
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
