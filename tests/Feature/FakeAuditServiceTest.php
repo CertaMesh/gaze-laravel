@@ -68,6 +68,6 @@ it('lets the fake purge handler customize the AuditPurgeResult', function () {
 
     $result = Gaze::audit()->purge()->before('2026-01-01T00:00:00Z')->dryRun();
 
-    expect($result->rawOutput())->toBe('custom 2026-01-01T00:00:00Z dry')
-        ->and($result->count())->toBe(42);
+    expect($result->rawOutput)->toBe('custom 2026-01-01T00:00:00Z dry')
+        ->and($result->count)->toBe(42);
 });
