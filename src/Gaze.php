@@ -13,16 +13,13 @@ use Illuminate\Support\Facades\Log;
 use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Exceptions\GazeAuditPurgeIso8601Exception;
 use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
-use Naoray\GazeLaravel\Exceptions\GazeCallerBugException;
 use Naoray\GazeLaravel\Exceptions\GazeEmptyInputException;
 use Naoray\GazeLaravel\Exceptions\GazeException;
 use Naoray\GazeLaravel\Exceptions\GazeInputTooLargeException;
-use Naoray\GazeLaravel\Exceptions\GazeIntegrityException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
 use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazeOpsConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
@@ -342,11 +339,7 @@ class Gaze
             ),
         };
 
-        $logLevel = $exception instanceof GazeOpsConfigException || $exception instanceof GazeCallerBugException || $exception instanceof GazeIntegrityException
-            ? 'notice'
-            : 'warning';
-
-        Log::{$logLevel}("gaze {$stage} failed", $exception->toLogContext());
+        Log::{$exception->logLevel()}("gaze {$stage} failed", $exception->toLogContext());
 
         return $exception;
     }

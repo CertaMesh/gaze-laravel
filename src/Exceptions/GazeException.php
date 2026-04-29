@@ -29,6 +29,11 @@ class GazeException extends \RuntimeException
         return $this->variant?->exitBucket() === 1;
     }
 
+    public function logLevel(): string
+    {
+        return 'warning';
+    }
+
     /**
      * @return array{exit_code:int,error_variant:?string,stderr_sha256:string}
      */

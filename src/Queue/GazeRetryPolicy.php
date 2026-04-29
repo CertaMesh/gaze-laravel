@@ -35,13 +35,22 @@ final class GazeRetryPolicy
             throw $e;
         }
 
-        if (! method_exists($job, 'fail') || ! method_exists($job, 'release')) {
+        $missing = [];
+        if (! method_exists($job, 'fail')) {
+            $missing[] = 'fail';
+        }
+        if (! method_exists($job, 'release')) {
+            $missing[] = 'release';
+        }
+
+        if ($missing !== []) {
             throw new \InvalidArgumentException(
-                'Consumer jobs must use Queueable and InteractsWithQueue before calling GazeRetryPolicy::dispatch().',
+                'Consumer job is missing required queue method(s): '.implode(', ', $missing).'. Use Queueable and InteractsWithQueue before calling GazeRetryPolicy::dispatch().',
             );
         }
 
         if ($action === RetryAction::Fail) {
+            /** @phpstan-ignore-next-line Method presence is checked above for queue jobs. */
             $job->fail($e);
 
             return;
@@ -51,7 +60,26 @@ final class GazeRetryPolicy
             Event::dispatch(new GazeInfraAlert($e));
         }
 
+        /** @phpstan-ignore-next-line Method presence is checked above for queue jobs. */
+        $job->release(self::releaseDelay($job));
+    }
+
+    private static function releaseDelay(object $job): int
+    {
         $backoff = property_exists($job, 'backoff') ? $job->backoff : null;
-        $job->release(is_int($backoff) ? $backoff : 30);
+
+        if (is_int($backoff)) {
+            return $backoff;
+        }
+
+        if (is_array($backoff)) {
+            $attempts = method_exists($job, 'attempts') ? $job->attempts() : 1;
+            $index = max(0, is_int($attempts) ? $attempts - 1 : 0);
+            $delay = $backoff[$index] ?? end($backoff);
+
+            return is_int($delay) ? $delay : 30;
+        }
+
+        return 30;
     }
 }

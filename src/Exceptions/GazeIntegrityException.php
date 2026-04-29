@@ -22,4 +22,9 @@ class GazeIntegrityException extends GazeException
     {
         return false;
     }
+
+    public function logLevel(): string
+    {
+        return 'notice';
+    }
 }

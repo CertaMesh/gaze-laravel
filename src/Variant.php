@@ -4,11 +4,6 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel;
 
-/**
- * Exit 1 is a caller-bug bucket that can carry several shape errors. When the
- * stderr envelope is missing, default to StdinParse as the most conservative
- * tie-break because it preserves the "bad request to the CLI" semantics.
- */
 enum Variant: string
 {
     case StdinParse = 'StdinParse';
@@ -61,6 +56,8 @@ enum Variant: string
             3 => self::UnknownToken,
             4 => self::Io,
             141 => self::SigPipe,
+            // Exit 1 is a caller-bug bucket that can carry several shape errors.
+            // When stderr is missing, StdinParse is the most conservative tie-break.
             default => self::StdinParse,
         };
     }

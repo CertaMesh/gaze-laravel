@@ -14,6 +14,7 @@ use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
+use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
 
 /** @param class-string<GazeException> $class */
 it('maps variants to their dedicated exception classes', function (string $error, string $class) {
@@ -72,13 +73,25 @@ it('maps variants to their dedicated exception classes', function (string $error
 it('marks blob-expired variants as requiring a fresh clean', function () {
     $exception = new GazeBlobExpiredException('expired', 3, hash('sha256', ''));
 
-    expect($exception->requiresFreshClean())->toBeTrue();
+    expect($exception)->toBeInstanceOf(RequiresFreshClean::class)
+        ->and($exception->requiresFreshClean())->toBeTrue();
 });
 
 it('marks invalid-blob-version variants as requiring a fresh clean', function () {
     $exception = new GazeInvalidBlobVersionException('expired', 3, hash('sha256', ''));
 
-    expect($exception->requiresFreshClean())->toBeTrue();
+    expect($exception)->toBeInstanceOf(RequiresFreshClean::class)
+        ->and($exception->requiresFreshClean())->toBeTrue();
+});
+
+it('keeps exception log levels next to exception classes', function () {
+    $io = new GazeIoException('io', 4, hash('sha256', ''));
+    $unknown = new GazeUnknownTokenException('unknown', 3, hash('sha256', ''));
+    $policy = new GazePolicyConfigException('policy', 2, hash('sha256', ''));
+
+    expect($io->logLevel())->toBe('warning')
+        ->and($unknown->logLevel())->toBe('notice')
+        ->and($policy->logLevel())->toBe('notice');
 });
 
 it('throws invalid encoding before starting a subprocess', function () {
