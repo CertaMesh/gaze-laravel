@@ -14,6 +14,15 @@ use Naoray\GazeLaravel\Console\BenchCommand;
 use Naoray\GazeLaravel\Console\CanaryCommand;
 use Naoray\GazeLaravel\Console\CheckCommand;
 use Naoray\GazeLaravel\Console\DoctorCommand;
+use Naoray\GazeLaravel\Console\InstallNerCommand;
+use Naoray\GazeLaravel\Install\LaravelNerFetcher;
+use Naoray\GazeLaravel\Install\NerFetcher;
+use Naoray\GazeLaravel\Install\NerInstaller;
+use Naoray\GazeLaravel\Install\NerManifest;
+use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\RetryableHttpClient;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class GazeServiceProvider extends ServiceProvider
 {
@@ -58,6 +67,33 @@ class GazeServiceProvider extends ServiceProvider
                 gaze: $app->make(Gaze::class),
                 resolver: $app->make(BinaryResolver::class),
                 auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
+            );
+        });
+
+        $this->app->singleton(HttpClientInterface::class, function (): HttpClientInterface {
+            return new RetryableHttpClient(HttpClient::create(), maxRetries: 2);
+        });
+
+        $this->app->singleton(LaravelNerFetcher::class, function (Application $app): LaravelNerFetcher {
+            return new LaravelNerFetcher(
+                client: $app->make(HttpClientInterface::class),
+                resourcesDir: __DIR__.'/../resources/ner',
+            );
+        });
+
+        $this->app->singleton(NerFetcher::class, LaravelNerFetcher::class);
+
+        $this->app->singleton(NerManifest::class, fn (): NerManifest => NerManifest::fromFile(
+            __DIR__.'/../resources/ner/SHA256SUMS',
+        ));
+
+        $this->app->singleton(PolicyTomlPatcher::class);
+
+        $this->app->singleton(NerInstaller::class, function (Application $app): NerInstaller {
+            return new NerInstaller(
+                fetcher: $app->make(NerFetcher::class),
+                patcher: $app->make(PolicyTomlPatcher::class),
+                manifest: $app->make(NerManifest::class),
             );
         });
 
@@ -109,6 +145,7 @@ class GazeServiceProvider extends ServiceProvider
                 DoctorCommand::class,
                 CanaryCommand::class,
                 BenchCommand::class,
+                InstallNerCommand::class,
             ]);
         }
     }
