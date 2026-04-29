@@ -8,6 +8,10 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 - `php artisan gaze:install-ner` — opt-in command to download and verify the pinned Davlan mBERT NER int8 ONNX artifact set and optionally wire `[ner]` into `policy.toml`. Includes packaged upstream NER labels/policy contracts, SHA256SUMS validation, idempotent installs, dry-run/check modes, policy backups, and fail-closed mismatch handling. Closes #32.
 
+### Changed
+
+- Bump pinned upstream `piinuts/gaze` from v0.5.0 to v0.5.2 (docs/scripts/assets refresh; CLI surface unchanged).
+
 ## [0.5.0] - 2026-04-29
 
 Adopter ergonomics wave: ships a real multi-class default policy, a cold-latency diagnostic command, contributor-side test enforcement, and consolidates several v0.4.5+v0.5.0 lockstep changes that accumulated post-v0.4.0.

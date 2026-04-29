@@ -61,6 +61,7 @@ final class NerInstaller
         $lock = LockGuard::acquire($parent.DIRECTORY_SEPARATOR.'.gaze-install-ner.lock');
         $staging = $parent.DIRECTORY_SEPARATOR.basename($options->dest).'.staging.'.bin2hex(random_bytes(4));
         $backup = null;
+        $placedNewDest = false;
 
         try {
             $this->fetcher->fetch($set, $staging, $output);
@@ -75,8 +76,11 @@ final class NerInstaller
             if (! rename($staging, $options->dest)) {
                 throw new NerTransportException("could not place NER destination: {$options->dest}");
             }
+            $placedNewDest = true;
 
-            file_put_contents($options->dest.DIRECTORY_SEPARATOR.'.gitignore', "*\n!.gitignore\n");
+            if (file_put_contents($options->dest.DIRECTORY_SEPARATOR.'.gitignore', "*\n!.gitignore\n") === false) {
+                throw new NerTransportException("could not write NER destination .gitignore: {$options->dest}");
+            }
             $policyWritten = $this->applyPolicyIfRequested($options);
 
             if ($backup !== null && is_dir($backup)) {
@@ -90,7 +94,7 @@ final class NerInstaller
                 policyWritten: $policyWritten,
             );
         } catch (\Throwable $e) {
-            if (is_dir($options->dest)) {
+            if ($placedNewDest && is_dir($options->dest)) {
                 $this->removeDirectory($options->dest);
             }
 
