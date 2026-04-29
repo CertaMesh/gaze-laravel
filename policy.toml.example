@@ -1,16 +1,138 @@
+# Gaze policy - Laravel adapter default
+#
+# Schema: v0.4 ([[policy.custom_recognizers]]). Compatible with pinned
+# upstream binary v0.5.0. Verify with `vendor/bin/gaze --version`.
+#
+# Activates rulepacks `core` (email + email-header names) and `core-extended`
+# (phone, IBAN, credit card, IP, postal codes). Adds custom recognizers for
+# money amounts, invoice/order numbers, street addresses, and orgs with
+# legal suffix. Person-name detection is delegated to the optional NER
+# model (see commented [ner] block + issue #32: php artisan gaze:install-ner).
+#
+# Locale-gating note: under `en-US`, bare 5-digit numbers tokenize as
+# postal codes (US ZIP). If your app emits 5-digit order IDs, ticket numbers,
+# or year-fragments in user-visible text, drop "en-US" from [locale].active
+# below to disable postal.us. The DE postal recognizer (`postal.de`) is
+# bound to "de-DE".
+#
+# Extending: append [[policy.custom_recognizers]] blocks for adopter-specific
+# regexes. See https://github.com/PIInuts/gaze/blob/main/docs/policy.md
+# for the full schema reference.
+
 [session]
 scope = "persistent"
 ttl_secs = 86400
 
-[[detector]]
+[locale]
+active = ["de-DE", "en-US"]
+
+[policy.rulepacks]
+bundled = ["core", "core-extended"]
+
+# [ner]
+# # Optional named-entity recognition for person/org/location detection.
+# # Set `model_dir` to a directory containing a HuggingFace token-classification
+# # model (e.g. davlan/distilbert-base-multilingual-cased-ner-hrl). NOTE: TOML
+# # does NOT expand env() or ${VAR} - uncomment and edit the path literally,
+# # or wait for `php artisan gaze:install-ner` (#32) to manage it.
+# model_dir = "storage/app/gaze-ner/davlan-mbert-ner-hrl"
+# locale = "de"
+# threshold = 0.7
+
+# Money amounts. Currency token (€/$/£/EUR/USD/GBP) on either side of digits
+# with optional thousand-separator + decimal groups. Word boundaries (\b) prevent
+# matching inside identifiers (e.g. abc5000EURdef stays preserved because c↔5 has no \b).
+# Fixes the `\d{1,3}` thousand-separator bug - `5000€` tokenizes whole.
+[[policy.custom_recognizers]]
 kind = "regex"
-name = "emails"
-pattern = '(?i)\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b'
-class = "email"
+name = "money_amount"
+class = "custom:amount"
+pattern = '(?i)\b(?:(?:€|\$|£|EUR|USD|GBP)\s?\d+(?:[.,]\d+)*|\d+(?:[.,]\d+)*\s?(?:€|\$|£|EUR|USD|GBP))\b'
+
+# Invoice / order / purchase-order numbers. Context-anchored: requires a
+# trigger word (Rechnung/Rg/Invoice/INV/Order/PO/Auftrag/Bestellung) before
+# digits >=3 or alpha-prefix-dash-digits. Bare integers stay safe.
+[[policy.custom_recognizers]]
+kind = "regex"
+name = "invoice_order_number_de_en"
+class = "custom:reference_number"
+pattern = '(?i)\b(?:Rechnung(?:s?[-\s.]?(?:Nummer|Nr\.?))?|Rech\.?[-\s]?Nr\.?|R[Gg]?\.?[-\s]?Nr\.?|RNR\.?|Auftrag(?:s?[-\s.]?(?:Nummer|Nr\.?))?|Bestellung(?:s?[-\s.]?(?:Nummer|Nr\.?))?|Invoice(?:[-\s.]?(?:No\.?|Number|#))?|Inv\.?(?:[-\s.]?(?:No\.?|Number|#))?|Order(?:[-\s.]?(?:No\.?|Number|#))?|Purchase\s+Order|PO\.?|INV)[\s:\-#.]+#?(?:\d{3,}[\dA-Z\-]*|[A-Z]+-\d{2,}[\dA-Z\-]*)\b'
+
+# Street addresses (DE + EN). DE: street-name + suffix (straße/strasse/gasse/
+# platz/weg/allee/ring/damm) + house-number. EN: house-number + Title-Case
+# word(s) + suffix (Street/St/Road/Rd/Avenue/Ave/Drive/Dr/Lane/Ln/Way).
+# Maps to built-in `location` class.
+[[policy.custom_recognizers]]
+kind = "regex"
+name = "street_address_de_en"
+class = "location"
+pattern = '(?:[A-ZÄÖÜ][a-zäöüß]+(?:straße|strasse|gasse|platz|weg|allee|ring|damm)\s+\d+[a-z]?|\d+\s+(?:[A-Z][a-z]+\s+){1,3}(?:Street|St\.?|Road|Rd\.?|Avenue|Ave\.?|Drive|Dr\.?|Lane|Ln\.?|Way))'
+
+# Organizations with legal suffix. Title-Case run + GmbH/AG/UG/KG/OHG/SE/
+# Inc/LLC/Ltd/Corp/Co./S.A./B.V./N.V. Note: greedy run can absorb a leading
+# proper noun (e.g. "Berlin GmbH" eats "Berlin"); detection-order resolution
+# usually picks longer span first.
+[[policy.custom_recognizers]]
+kind = "regex"
+name = "org_with_legal_suffix"
+class = "organization"
+pattern = '(?:[A-Z][A-Za-zÄÖÜäöüß&.\-]+)(?:\s+[A-Z][A-Za-zÄÖÜäöüß&.\-]+){0,3}\s+(?:GmbH|AG|UG|KG|OHG|SE|Inc\.?|LLC|Ltd\.?|Corp\.?|Co\.?|S\.A\.|B\.V\.|N\.V\.)'
+
+# Rules - declaration order is tiebreak when classes overlap.
 
 [[rule]]
 kind = "class"
 class = "email"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "name"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "location"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "organization"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:phone"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:iban"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:credit_card"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:ip_address"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:postal_code"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:amount"
+action = "tokenize"
+
+[[rule]]
+kind = "class"
+class = "custom:reference_number"
 action = "tokenize"
 
 [[rule]]
