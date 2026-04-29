@@ -4,6 +4,10 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-29
+
+NER opt-in wave: ships `gaze:install-ner` for one-command Davlan mBERT NER int8 ONNX setup, lockstep with upstream gaze v0.5.2 (canonical NER asset contracts), and bundles the polish PR follow-ups from PR #40 review nits + GH issues #1/#2/#8/#9.
+
 ### Added
 
 - `php artisan gaze:install-ner` — opt-in command to download and verify the pinned Davlan mBERT NER int8 ONNX artifact set and optionally wire `[ner]` into `policy.toml`. Includes packaged upstream NER labels/policy contracts, SHA256SUMS validation, idempotent installs, dry-run/check modes, policy backups, and fail-closed mismatch handling. Closes #32.
