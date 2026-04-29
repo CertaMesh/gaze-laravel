@@ -6,6 +6,7 @@ namespace Naoray\GazeLaravel;
 
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\ServiceProvider;
@@ -24,7 +25,7 @@ use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpClient\RetryableHttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class GazeServiceProvider extends ServiceProvider
+class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
 {
     public function register(): void
     {
@@ -148,5 +149,24 @@ class GazeServiceProvider extends ServiceProvider
                 InstallNerCommand::class,
             ]);
         }
+    }
+
+    /**
+     * @return list<class-string|string>
+     */
+    public function provides(): array
+    {
+        return [
+            BinaryResolver::class,
+            Gaze::class,
+            AuditService::class,
+            HttpClientInterface::class,
+            LaravelNerFetcher::class,
+            NerFetcher::class,
+            NerManifest::class,
+            NerInstaller::class,
+            PolicyTomlPatcher::class,
+            'gaze.encrypter',
+        ];
     }
 }

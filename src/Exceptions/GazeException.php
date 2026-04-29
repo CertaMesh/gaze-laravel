@@ -6,6 +6,12 @@ namespace Naoray\GazeLaravel\Exceptions;
 
 use Naoray\GazeLaravel\Variant;
 
+/**
+ * Base exception for `gaze` subprocess failures.
+ *
+ * The inherited `getCode()` value is the upstream process exit code, not an
+ * HTTP status or application-domain status. Use `$exitCode` for explicit reads.
+ */
 class GazeException extends \RuntimeException
 {
     public function __construct(
