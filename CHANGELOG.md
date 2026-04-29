@@ -4,21 +4,31 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `php artisan gaze:install-ner` — opt-in command to download and verify the pinned Davlan mBERT NER int8 ONNX artifact set and optionally wire `[ner]` into `policy.toml`. Includes packaged upstream NER labels/policy contracts, SHA256SUMS validation, idempotent installs, dry-run/check modes, policy backups, and fail-closed mismatch handling. Closes #32.
+
+## [0.5.0] - 2026-04-29
+
+Adopter ergonomics wave: ships a real multi-class default policy, a cold-latency diagnostic command, contributor-side test enforcement, and consolidates several v0.4.5+v0.5.0 lockstep changes that accumulated post-v0.4.0.
+
 ### Security
 
 - Production deployments now ignore `GAZE_RELEASE_BASE` env override and always fetch from the canonical release host. The override remains available for non-production (testing/staging) flows. Closes #194.
 
 ### Added
 
-- `php artisan gaze:bench --requests=N [--json]` for adopter latency baselines under the current cold, one-shot `gaze clean` contract. Refs #33.
+- `php artisan gaze:bench --requests=N [--json]` for adopter latency baselines under the current cold, one-shot `gaze clean` contract. Output includes `bench_schema_version`, `mode`, `first_ms`, chronological `samples_ms`, percentiles, and an env fingerprint. Refs #33.
 - Help snapshot contract covering the pinned `gaze` CLI surface (`--version`, top-level help, `clean`, `restore`, `audit`, and `audit purge`) so upstream command/help drift is visible in adapter tests.
 - Audit purge foundation: `gaze.audit_db_path` / `GAZE_AUDIT_DB_PATH`, clean-side `--audit-db` forwarding, `Gaze::audit()->purge()->before(...)->dryRun()` / `execute()`, fake audit assertions, and audit docs.
+- Pre-push git hook (`.githooks/pre-push`) that runs `composer test` + `composer analyse` before every push. `composer install` / `composer update` auto-wires `core.hooksPath` to `.githooks` so contributors get local enforcement without manual setup. Bypass with `git push --no-verify`.
 
 ### Changed
 
 - Bump pinned upstream `piinuts/gaze` from v0.4.5 to v0.5.0. v0.5.0 is a workspace-shape refactor (extracted `gaze-types` + `gaze-audit` crates, Dylint-based audit-isolation gate); CLI binary contract is unchanged so the adapter does not need behaviour changes. Help snapshots regenerated against the v0.5.0 binary.
 - Adapter Encrypter cipher now follows host `config('app.cipher')` instead of hardcoded AES-256-CBC (#18, closes #209). Aligns with Laravel 11+ AES-256-GCM default. Existing deployments unaffected unless they relied on the hardcode mismatching the host. Cross-config regression test added.
 - `policy.toml.example` rewritten as a multi-class v0.4 default. Activates `core` + `core-extended` rulepacks, ships 4 custom recognizers (money amount, invoice/order number, street address, org with legal suffix), uses BCP47 locales (`de-DE` + `en-US`) so postal recognizers actually fire, and keeps `[ner]` commented (opt-in via #32's `php artisan gaze:install-ner`). Migrates from the retired `[[detector]]` v0.3 surface to v0.4 `[[policy.custom_recognizers]]`. Money-amount regex is bounded to prevent partial matches inside identifiers and fixes the `\d{1,3}` thousand-separator bug from #31. Schema-shape test plus real-binary integration round-trip locks the contract. Closes #31.
+- `.github/workflows/test.yml` auto-triggers (`push: main`, `pull_request`) temporarily disabled while GitHub Actions billing on the PIInuts org is being resolved. Workflow stays present and is invokable via `workflow_dispatch` (manual run from the Actions tab). Local enforcement via the new pre-push hook covers the same `composer test` + `composer analyse` checks. Re-enable by uncommenting the two trigger blocks in the workflow file.
 
 ### Fixed
 

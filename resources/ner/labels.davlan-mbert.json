@@ -1,0 +1,11 @@
+{
+  "B-DATE": "drop",
+  "I-DATE": "drop",
+  "B-PER": "Name",
+  "I-PER": "Name",
+  "B-ORG": "Organization",
+  "I-ORG": "Organization",
+  "B-LOC": "Location",
+  "I-LOC": "Location",
+  "O": "drop"
+}

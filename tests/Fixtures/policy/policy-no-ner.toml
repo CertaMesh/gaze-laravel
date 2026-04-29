@@ -1,0 +1,13 @@
+[session]
+scope = "persistent"
+ttl_secs = 86400
+
+[[detector]]
+kind = "regex"
+name = "emails"
+pattern = '(?i)\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b'
+class = "email"
+
+[[rule]]
+kind = "default"
+action = "preserve"

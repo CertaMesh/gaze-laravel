@@ -138,3 +138,9 @@ action = "tokenize"
 [[rule]]
 kind = "default"
 action = "preserve"
+
+# [ner]
+# Uncomment after running `php artisan gaze:install-ner` or pass --update-policy.
+# model_dir = "storage/app/gaze-ner/davlan-mbert-ner-hrl-int8"
+# locale = "de"          # optional BCP47 (single string)
+# threshold = 0.4        # optional 0.0..=1.0

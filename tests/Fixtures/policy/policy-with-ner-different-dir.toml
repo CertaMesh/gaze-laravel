@@ -1,0 +1,7 @@
+[session]
+scope = "persistent"
+
+[ner]
+model_dir = "/some/other/path"
+locale = "fr"
+threshold = 0.5

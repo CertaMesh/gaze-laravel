@@ -13,7 +13,9 @@
         "illuminate/process": "^11.0|^12.0",
         "illuminate/support": "^11.0|^12.0",
         "composer-plugin-api": "^2.0",
-        "symfony/process": "^7.0 || ^8.0"
+        "symfony/process": "^7.0 || ^8.0",
+        "yosymfony/toml": "^1.0",
+        "symfony/http-client": "^7.0"
     },
     "require-dev": {
         "orchestra/testbench": "^9.0|^10.0",
@@ -43,6 +45,9 @@
     },
     "type": "composer-plugin",
     "scripts": {
+        "post-install-cmd": ["@install-git-hooks"],
+        "post-update-cmd": ["@install-git-hooks"],
+        "install-git-hooks": "git config core.hooksPath .githooks 2>/dev/null || true",
         "test": "pest",
         "analyse": "phpstan analyse",
         "format": "pint"

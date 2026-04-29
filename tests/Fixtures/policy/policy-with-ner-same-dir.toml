@@ -1,0 +1,13 @@
+[session]
+scope = "persistent"
+
+[ner]
+model_dir = "/abs/storage/app/gaze-ner/davlan-mbert-ner-hrl-int8"
+locale = "de"
+threshold = 0.4
+
+[[detector]]
+kind = "regex"
+name = "emails"
+pattern = '(?i)\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b'
+class = "email"
