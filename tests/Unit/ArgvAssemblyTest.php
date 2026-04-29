@@ -37,13 +37,14 @@ it('assembles restore argv and sends the session envelope', function () {
 
     $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
 
-    $this->makeGaze()->restore($session, 'Hello Name_1');
+    $this->makeGaze(maxBytes: 1024)->restore($session, 'Hello Name_1');
 
     Process::assertRan(function ($process): bool {
         expect($process->command)->toBe([
             '/fake/gaze',
             'restore',
             '--format=json',
+            '--max-bytes=1024',
         ]);
 
         $payload = json_decode($process->input ?? '', true, flags: JSON_THROW_ON_ERROR);
