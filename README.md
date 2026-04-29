@@ -87,6 +87,21 @@ public function draft(Gaze $gaze, string $body, string $llmReply): string
 }
 ```
 
+## Latency baseline / Diagnostic
+
+`Gaze::clean()` currently invokes the upstream `gaze clean` command as a one-shot subprocess for every call. With NER enabled, every invocation loads the NER model from disk before it can return a response. This is the current CLI contract, so repeated calls are not a warm-up run: every `gaze:bench --requests=N` sample pays the full model-load cost.
+
+Use `gaze:bench` to measure your own cold baseline:
+
+```bash
+php artisan gaze:bench --requests=10
+php artisan gaze:bench --requests=10 --json
+```
+
+JSON output includes `bench_schema_version`, `mode: "cold"`, `first_ms`, percentile fields, chronological `samples_ms`, and a small environment fingerprint. For `--requests >= 1000`, samples default to `head` mode (first 100 plus last 100); use `--samples=full` or `--samples=none` when you need a different payload size.
+
+Daemon mode is tracked upstream. Once it ships, this package will gain warm worker-pool support in a follow-up release. Until then, this command is diagnostic only: it establishes a cold-start baseline you can compare across machines, releases, or issue reports.
+
 ## Retry Discipline
 
 Consumer jobs must `use Queueable, InteractsWithQueue` traits.
@@ -134,6 +149,8 @@ Dedicated subclasses include `GazeUnknownTokenException`, `GazeBlobExpiredExcept
 `php artisan gaze:check` verifies binary resolution and encrypter wiring.
 
 `php artisan gaze:doctor --deep` adds policy-file checks plus a clean/restore smoke test.
+
+`php artisan gaze:bench --requests=N` measures cold `Gaze::clean()` latency for adopter diagnostics.
 
 Exclude blob-carrying jobs from Telescope and Pulse. Keep ciphertext out of long-lived telemetry stores.
 

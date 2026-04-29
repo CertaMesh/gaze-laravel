@@ -10,6 +10,7 @@ use Illuminate\Encryption\Encrypter;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\ServiceProvider;
 use Naoray\GazeLaravel\Audit\AuditService;
+use Naoray\GazeLaravel\Console\BenchCommand;
 use Naoray\GazeLaravel\Console\CanaryCommand;
 use Naoray\GazeLaravel\Console\CheckCommand;
 use Naoray\GazeLaravel\Console\DoctorCommand;
@@ -107,6 +108,7 @@ class GazeServiceProvider extends ServiceProvider
                 CheckCommand::class,
                 DoctorCommand::class,
                 CanaryCommand::class,
+                BenchCommand::class,
             ]);
         }
     }
