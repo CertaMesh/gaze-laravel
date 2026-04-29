@@ -13,7 +13,8 @@
         "illuminate/process": "^11.0|^12.0",
         "illuminate/support": "^11.0|^12.0",
         "composer-plugin-api": "^2.0",
-        "symfony/process": "^7.0 || ^8.0"
+        "symfony/process": "^7.0 || ^8.0",
+        "yosymfony/toml": "^1.0"
     },
     "require-dev": {
         "orchestra/testbench": "^9.0|^10.0",
