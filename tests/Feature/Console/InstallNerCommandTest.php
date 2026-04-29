@@ -106,3 +106,109 @@ it('prints policy snippet after a successful install when policy is not updated'
         }
     }
 });
+
+it('--update-policy writes the configured policy path', function () {
+    $tester = gin_command_tester(new class implements NerFetcher {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    });
+    $dest = sys_get_temp_dir().'/gaze-command-'.bin2hex(random_bytes(6));
+    $policy = sys_get_temp_dir().'/gaze-policy-'.bin2hex(random_bytes(6)).'.toml';
+    file_put_contents($policy, "[session]\nscope = \"persistent\"\n");
+    app('config')->set('gaze.policy_path', $policy);
+
+    try {
+        $exit = $tester->execute(['--dest' => $dest, '--yes' => true, '--update-policy' => true]);
+
+        expect($exit)->toBe(0);
+        expect(file_get_contents($policy))->toContain('[ner]');
+        expect(file_get_contents($policy))->toContain($dest);
+        expect($tester->getDisplay())->not->toContain('paste this into your policy.toml');
+    } finally {
+        @unlink($policy);
+        @unlink($policy.'.bak');
+        if (is_dir($dest)) {
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($dest, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST,
+            );
+            foreach ($files as $file) {
+                $file->isDir() ? @rmdir($file->getPathname()) : @unlink($file->getPathname());
+            }
+            @rmdir($dest);
+        }
+    }
+});
+
+it('fails non-interactive install without --yes before fetching', function () {
+    $fetcher = new class implements NerFetcher {
+        public int $fetches = 0;
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    };
+    $tester = gin_command_tester($fetcher);
+
+    $exit = $tester->execute(['--dest' => sys_get_temp_dir().'/gaze-no-confirm'], ['interactive' => false]);
+
+    expect($exit)->toBe(1);
+    expect($fetcher->fetches)->toBe(0);
+    expect($tester->getDisplay())->toContain('pass --yes');
+});
+
+it('--force fetches even when existing destination verifies', function () {
+    $fetcher = new class implements NerFetcher {
+        public int $fetches = 0;
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return true;
+        }
+    };
+    $tester = gin_command_tester($fetcher);
+    $dest = sys_get_temp_dir().'/gaze-force-'.bin2hex(random_bytes(6));
+
+    try {
+        $exit = $tester->execute(['--dest' => $dest, '--yes' => true, '--force' => true]);
+
+        expect($exit)->toBe(0);
+        expect($fetcher->fetches)->toBe(1);
+    } finally {
+        if (is_dir($dest)) {
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($dest, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::CHILD_FIRST,
+            );
+            foreach ($files as $file) {
+                $file->isDir() ? @rmdir($file->getPathname()) : @unlink($file->getPathname());
+            }
+            @rmdir($dest);
+        }
+    }
+});
