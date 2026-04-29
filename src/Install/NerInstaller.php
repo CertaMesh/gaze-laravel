@@ -14,6 +14,7 @@ final class NerInstaller
         private readonly NerFetcher $fetcher,
         private readonly PolicyTomlPatcher $patcher,
         private readonly NerManifest $manifest,
+        private readonly ?\Closure $diskFreeSpace = null,
     ) {}
 
     public function install(NerInstallerOptions $options, ?OutputInterface $output = null): NerInstallerResult
@@ -55,6 +56,7 @@ final class NerInstaller
         if (! is_dir($parent) && ! mkdir($parent, 0755, true) && ! is_dir($parent)) {
             throw new NerTransportException("could not create NER destination parent: {$parent}");
         }
+        $this->assertDiskSpace($parent, $set);
 
         $lock = LockGuard::acquire($parent.DIRECTORY_SEPARATOR.'.gaze-install-ner.lock');
         $staging = $parent.DIRECTORY_SEPARATOR.basename($options->dest).'.staging.'.bin2hex(random_bytes(4));
@@ -120,6 +122,22 @@ final class NerInstaller
     private function policySnippet(string $dest, ?string $locale): string
     {
         return trim($this->patcher->buildAppended('', $dest, $locale));
+    }
+
+    private function assertDiskSpace(string $parent, NerArtifactSet $set): void
+    {
+        $free = $this->diskFreeSpace !== null
+            ? ($this->diskFreeSpace)($parent)
+            : @disk_free_space($parent);
+
+        if ($free === false) {
+            return;
+        }
+
+        $required = $set->totalSize() * 2;
+        if ($free < $required) {
+            throw new NerDiskSpaceException($required, (int) $free, $parent);
+        }
     }
 
     private function removeDirectory(string $dir): void

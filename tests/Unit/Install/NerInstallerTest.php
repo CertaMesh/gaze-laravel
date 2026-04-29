@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Naoray\GazeLaravel\Install\NerArtifactSet;
+use Naoray\GazeLaravel\Install\NerDiskSpaceException;
 use Naoray\GazeLaravel\Install\NerFetcher;
 use Naoray\GazeLaravel\Install\NerInstallStatus;
 use Naoray\GazeLaravel\Install\NerInstaller;
@@ -34,12 +35,13 @@ afterEach(function () {
     @rmdir($this->tmp);
 });
 
-function gi_installer(object $fetcher, string $resources): NerInstaller
+function gi_installer(object $fetcher, string $resources, ?Closure $diskFreeSpace = null): NerInstaller
 {
     return new NerInstaller(
         fetcher: $fetcher,
         patcher: new PolicyTomlPatcher,
         manifest: NerManifest::fromFile($resources.'/SHA256SUMS'),
+        diskFreeSpace: $diskFreeSpace,
     );
 }
 
@@ -160,4 +162,55 @@ it('returns dry-run without writing or fetching', function () {
     expect($result->policySnippet)->toContain('locale = "de"');
     expect(is_dir($dest))->toBeFalse();
     expect($fetcher->fetches)->toBe(0);
+});
+
+it('fails before fetch when disk space is insufficient', function () {
+    $fetcher = new class implements NerFetcher {
+        public int $fetches = 0;
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    };
+    $installer = gi_installer($fetcher, $this->resources, fn (string $path): int => 1);
+
+    expect(fn () => $installer->install(gi_options($this->tmp.'/dest')))
+        ->toThrow(NerDiskSpaceException::class);
+    expect($fetcher->fetches)->toBe(0);
+});
+
+it('restores previous destination when policy patching fails after placement', function () {
+    $fetcher = new class implements NerFetcher {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, 'new-'.$name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest);
+    file_put_contents($dest.'/model.onnx', 'old-model');
+    $policy = $this->tmp.'/policy.toml';
+    file_put_contents($policy, "[ner]\nmodel_dir = \"/different\"\n");
+    $installer = gi_installer($fetcher, $this->resources);
+
+    expect(fn () => $installer->install(gi_options($dest, [
+        'policyPath' => $policy,
+        'policyForce' => false,
+    ])))->toThrow(\Naoray\GazeLaravel\Install\NerPolicyConflictException::class);
+
+    expect(file_get_contents($dest.'/model.onnx'))->toBe('old-model');
 });
