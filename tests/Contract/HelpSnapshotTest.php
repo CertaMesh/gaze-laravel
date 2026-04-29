@@ -62,6 +62,10 @@ function normalizeHelpOutput(string $output, string $binaryName): string
         'Usage: gaze',
         $normalized,
     );
+    if (! is_string($normalized)) {
+        throw new RuntimeException('failed to normalize help output');
+    }
+
     $normalized = preg_replace(
         '/^gaze '.preg_quote(BinaryInstaller::PINNED_VERSION, '/').'$/m',
         'gaze '.BinaryInstaller::PINNED_VERSION,

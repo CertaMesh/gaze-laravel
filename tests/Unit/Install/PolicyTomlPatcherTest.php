@@ -23,37 +23,47 @@ afterEach(function () {
     @rmdir($this->tmp);
 });
 
+function pt_fixture(string $fixtures, string $name): string
+{
+    $body = file_get_contents($fixtures.'/'.$name);
+    if (! is_string($body)) {
+        throw new RuntimeException("could not read fixture {$name}");
+    }
+
+    return $body;
+}
+
 it('detects [ner] block when present', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-same-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-same-dir.toml');
 
     expect($patcher->hasNerBlock($body))->toBeTrue();
 });
 
 it('reports no [ner] block when absent', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-no-ner.toml');
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
 
     expect($patcher->hasNerBlock($body))->toBeFalse();
 });
 
 it('reads existing model_dir', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-same-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-same-dir.toml');
 
     expect($patcher->readModelDir($body))->toBe('/abs/storage/app/gaze-ner/davlan-mbert-ner-hrl-int8');
 });
 
 it('returns null when no [ner].model_dir set', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-no-ner.toml');
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
 
     expect($patcher->readModelDir($body))->toBeNull();
 });
 
 it('appends [ner] block to policy without it', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-no-ner.toml');
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
     $patched = $patcher->buildAppended($body, '/abs/dest/path', null);
 
     expect($patched)->toContain($body);
@@ -64,7 +74,7 @@ it('appends [ner] block to policy without it', function () {
 
 it('embeds locale in appended block when provided', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-no-ner.toml');
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
     $patched = $patcher->buildAppended($body, '/abs/dest/path', 'de');
 
     expect($patched)->toMatch('/locale\s*=\s*"de"/');
@@ -81,7 +91,7 @@ it('appended block ends with single trailing newline', function () {
 
 it('refuses to replace existing [ner] with different model_dir without force', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-different-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-different-dir.toml');
 
     expect(fn () => $patcher->buildReplaced($body, '/new/dest', null, force: false))
         ->toThrow(NerPolicyConflictException::class);
@@ -89,7 +99,7 @@ it('refuses to replace existing [ner] with different model_dir without force', f
 
 it('replaces [ner].model_dir when force is true', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-different-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-different-dir.toml');
     $patched = $patcher->buildReplaced($body, '/new/dest', null, force: true);
 
     expect($patcher->readModelDir($patched))->toBe('/new/dest');
@@ -97,7 +107,7 @@ it('replaces [ner].model_dir when force is true', function () {
 
 it('preserves locale and threshold when replacing model_dir', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-different-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-different-dir.toml');
     $patched = $patcher->buildReplaced($body, '/new/dest', null, force: true);
 
     expect($patched)->toMatch('/locale\s*=\s*"fr"/');
@@ -106,7 +116,7 @@ it('preserves locale and threshold when replacing model_dir', function () {
 
 it('is a no-op when [ner].model_dir already matches', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-same-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-same-dir.toml');
     $patched = $patcher->buildReplaced(
         $body,
         '/abs/storage/app/gaze-ner/davlan-mbert-ner-hrl-int8',
@@ -119,7 +129,7 @@ it('is a no-op when [ner].model_dir already matches', function () {
 
 it('produces unified diff on conflict', function () {
     $patcher = new PolicyTomlPatcher;
-    $body = file_get_contents($this->fixtures.'/policy-with-ner-different-dir.toml');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-different-dir.toml');
 
     try {
         $patcher->buildReplaced($body, '/new/dest', null, force: false);
@@ -138,7 +148,7 @@ it('applies an appended [ner] block to disk and writes a backup', function () {
     $patched = $patcher->apply($policy, '/abs/dest/path', 'de', force: false);
 
     expect(file_get_contents($policy))->toBe($patched);
-    expect(file_get_contents($policy.'.bak'))->toBe(file_get_contents($this->fixtures.'/policy-no-ner.toml'));
+    expect(file_get_contents($policy.'.bak'))->toBe(pt_fixture($this->fixtures, 'policy-no-ner.toml'));
     expect($patcher->readModelDir($patched))->toBe('/abs/dest/path');
 });
 

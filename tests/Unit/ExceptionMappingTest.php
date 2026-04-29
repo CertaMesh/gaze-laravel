@@ -15,7 +15,12 @@ use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
 
+/** @param class-string<GazeException> $class */
 it('maps variants to their dedicated exception classes', function (string $error, string $class) {
+    if (! is_a($class, GazeException::class, true)) {
+        throw new RuntimeException('expected GazeException subclass');
+    }
+
     $stderr = json_encode([
         'error' => $error,
         'exit' => match ($error) {

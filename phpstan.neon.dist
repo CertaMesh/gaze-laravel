@@ -2,5 +2,27 @@ parameters:
     level: 8
     paths:
         - src
+        - tests
     tmpDir: .phpstan.cache
     treatPhpDocTypesAsCertain: false
+    ignoreErrors:
+        -
+            message: '#^Access to an undefined property PHPUnit\\Framework\\TestCase::\$#'
+            paths:
+                - tests/*
+        -
+            message: '#^Call to an undefined method PHPUnit\\Framework\\TestCase::#'
+            paths:
+                - tests/*
+        -
+            message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall\|Pest\\Support\\HigherOrderTapProxy::markTestSkipped\(\)\.$#'
+            paths:
+                - tests/*
+        -
+            message: '#^Access to an undefined property Pest\\Mixins\\Expectation<.*>::\$not\.$#'
+            paths:
+                - tests/*
+        -
+            message: '#^Parameter \#1 \.\.\.\$data of method Pest\\PendingCalls\\TestCall::with\(\) expects .*, array\{.*\} given\.$#'
+            paths:
+                - tests/*
