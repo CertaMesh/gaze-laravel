@@ -29,6 +29,27 @@ final class PolicyTomlPatcher
         return is_string($modelDir) && $modelDir !== '' ? $modelDir : null;
     }
 
+    public function buildAppended(string $body, string $modelDir, ?string $locale): string
+    {
+        $this->parse($body);
+
+        $block = "\n\n[ner]\n";
+        $block .= 'model_dir = '.$this->tomlString($modelDir)."\n";
+
+        if ($locale !== null && $locale !== '') {
+            $block .= 'locale = '.$this->tomlString($locale)."\n";
+        } else {
+            $block .= "# locale = \"de\"          # optional BCP47 (single string)\n";
+        }
+
+        $block .= "# threshold = 0.4         # optional 0.0..=1.0\n";
+
+        $patched = rtrim($body, "\n").$block;
+        $this->parse($patched);
+
+        return $patched;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -42,5 +63,20 @@ final class PolicyTomlPatcher
         } catch (ParseException $e) {
             throw new NerManifestInvalidException('invalid policy TOML: '.$e->getMessage(), previous: $e);
         }
+    }
+
+    private function tomlString(string $value): string
+    {
+        if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', $value) === 1) {
+            throw new NerManifestInvalidException('policy value contains unsupported control characters');
+        }
+
+        return '"'.strtr($value, [
+            '\\' => '\\\\',
+            '"' => '\\"',
+            "\t" => '\\t',
+            "\n" => '\\n',
+            "\r" => '\\r',
+        ]).'"';
     }
 }

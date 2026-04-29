@@ -35,3 +35,31 @@ it('returns null when no [ner].model_dir set', function () {
 
     expect($patcher->readModelDir($body))->toBeNull();
 });
+
+it('appends [ner] block to policy without it', function () {
+    $patcher = new PolicyTomlPatcher;
+    $body = file_get_contents($this->fixtures.'/policy-no-ner.toml');
+    $patched = $patcher->buildAppended($body, '/abs/dest/path', null);
+
+    expect($patched)->toContain($body);
+    expect($patched)->toContain('[ner]');
+    expect($patched)->toMatch('/model_dir\s*=\s*"\/abs\/dest\/path"/');
+    expect($patcher->readModelDir($patched))->toBe('/abs/dest/path');
+});
+
+it('embeds locale in appended block when provided', function () {
+    $patcher = new PolicyTomlPatcher;
+    $body = file_get_contents($this->fixtures.'/policy-no-ner.toml');
+    $patched = $patcher->buildAppended($body, '/abs/dest/path', 'de');
+
+    expect($patched)->toMatch('/locale\s*=\s*"de"/');
+});
+
+it('appended block ends with single trailing newline', function () {
+    $patcher = new PolicyTomlPatcher;
+    $body = "[session]\nscope=\"persistent\"\n";
+    $patched = $patcher->buildAppended($body, '/abs/dest', null);
+
+    expect(substr($patched, -1))->toBe("\n");
+    expect(substr($patched, -2, 1))->not->toBe("\n");
+});
