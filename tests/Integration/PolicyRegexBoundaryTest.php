@@ -25,8 +25,8 @@ beforeEach(function () {
     $versionProcess = new Process([$binary, '--version']);
     $versionProcess->run();
     $versionOutput = trim($versionProcess->getOutput());
-    if (! str_contains($versionOutput, '0.5.')) {
-        $this->markTestSkipped("Gaze binary at {$binary} reports '{$versionOutput}', expected v0.5.x.");
+    if (! str_contains($versionOutput, '0.6.')) {
+        $this->markTestSkipped("Gaze binary at {$binary} reports '{$versionOutput}', expected v0.6.x.");
     }
 
     $this->app['config']->set('gaze.binary', $binary);

@@ -4,6 +4,10 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Bump pinned upstream `piinuts/gaze` from v0.5.2 to v0.6.0. Adapter PHP APIs are unchanged; help snapshots were regenerated against the v0.6.0 CLI. Users with custom Rust extensions should import audit helpers from `gaze_audit` (`SqliteLogger`, `AuditFilter`, `AuditLogRow`, `build_audit_query_sql`, `AUDIT_RESTRICTED_COLUMNS`) instead of `gaze`, and depend on `gaze-audit = "0.6"` when needed.
+
 ## [0.6.0] - 2026-04-29
 
 NER opt-in wave: ships `gaze:install-ner` for one-command Davlan mBERT NER int8 ONNX setup, lockstep with upstream gaze v0.5.2 (canonical NER asset contracts), and bundles the polish PR follow-ups from PR #40 review nits + GH issues #1/#2/#8/#9.

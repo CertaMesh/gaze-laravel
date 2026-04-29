@@ -6,7 +6,7 @@ use Naoray\GazeLaravel\Variant;
 
 /**
  * Source-of-truth fixture mirrored from upstream `crates/gaze-cli/src/error.rs`
- * for gaze v0.5.2. Each row pins one upstream `CliError` variant:
+ * for gaze v0.6.0. Each row pins one upstream `CliError` variant:
  *   - 0: enum case name on the PHP side
  *   - 1: exit bucket the upstream binary returns (`exit_code()`)
  *   - 2: minimal `{error, exit, ...}` JSON shape upstream emits on stderr

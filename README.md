@@ -1,6 +1,6 @@
 # gaze-laravel
 
-Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.5 CLI contract.
+Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.6 CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
@@ -20,7 +20,7 @@ php artisan vendor:publish --tag=gaze-policy
 
 ### Binary install hook
 
-The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream release is `gaze` v0.5.2.
+The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream release is `gaze` v0.6.0.
 
 Binary resolution and install probing both use Symfony `ExecutableFinder` and `Process` — no `shell_exec`. The plugin is therefore container-, Alpine-, and `disable_functions=shell_exec`-safe.
 
@@ -95,7 +95,7 @@ By default gaze-laravel runs in regex/rulepack mode. Enable named-entity recogni
 php artisan gaze:install-ner --yes
 ```
 
-This downloads the pinned Davlan mBERT NER int8 ONNX artifact set into `storage/app/gaze-ner/davlan-mbert-ner-hrl-int8/`, verifies every file against the upstream v0.5.2 `SHA256SUMS` contract, copies the packaged BIO-to-class `labels.json`, and prints the `[ner]` block to paste into `policy.toml`.
+This downloads the pinned Davlan mBERT NER int8 ONNX artifact set into `storage/app/gaze-ner/davlan-mbert-ner-hrl-int8/`, verifies every file against the upstream v0.6.0 `SHA256SUMS` contract, copies the packaged BIO-to-class `labels.json`, and prints the `[ner]` block to paste into `policy.toml`.
 
 To wire `policy.toml` automatically, add `--update-policy`. Re-running the command is idempotent when artifacts already verify.
 

@@ -29,5 +29,19 @@ Options:
           Path to a typed Context JSON envelope. stdin remains raw text
       --audit-db <AUDIT_DB>
           Optional SQLite redaction-log database path
+      --safety-net <SAFETY_NET>
+          Optional observer-only privacy safety net [possible values: openai-filter]
+      --openai-filter-command <OPENAI_FILTER_COMMAND>
+          Path to the local OpenAI Privacy Filter `opf` command
+      --openai-filter-checkpoint <OPENAI_FILTER_CHECKPOINT>
+          Path to the local OpenAI Privacy Filter checkpoint or model directory
+      --openai-filter-operating-point <OPENAI_FILTER_OPERATING_POINT>
+          OpenAI Privacy Filter operating point, when supported by the command [possible values: high-recall, balanced, high-precision]
+      --safety-net-timeout-ms <SAFETY_NET_TIMEOUT_MS>
+          Safety-net subprocess timeout in milliseconds [default: 5000]
+      --safety-net-input-limit-bytes <SAFETY_NET_INPUT_LIMIT_BYTES>
+          Maximum clean-text bytes submitted to the safety net [default: 1048576]
+      --safety-net-mode <SAFETY_NET_MODE>
+          Safety-net handling mode for suspected leaks [default: strict] [possible values: strict, tolerant]
   -h, --help
           Print help
