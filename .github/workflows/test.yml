@@ -1,0 +1,59 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: "PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}"
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3"]
+        laravel: ["^11.0", "^12.0"]
+
+    env:
+      GAZE_SKIP_BINARY_DOWNLOAD: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sqlite3, mbstring, json, openssl
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ matrix.php }}-${{ matrix.laravel }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ matrix.php }}-${{ matrix.laravel }}-
+            composer-${{ matrix.php }}-
+
+      - name: Pin Laravel ${{ matrix.laravel }}
+        run: >
+          composer require
+          "illuminate/contracts:${{ matrix.laravel }}"
+          "illuminate/console:${{ matrix.laravel }}"
+          "illuminate/encryption:${{ matrix.laravel }}"
+          "illuminate/process:${{ matrix.laravel }}"
+          "illuminate/support:${{ matrix.laravel }}"
+          --no-update --no-interaction
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist --prefer-stable --optimize-autoloader
+
+      - name: Run tests
+        run: composer test
+
+      - name: Run static analysis
+        run: composer analyse
