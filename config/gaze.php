@@ -71,12 +71,17 @@ return [
     'locale' => env('GAZE_LOCALE'),
 
     /*
-     * Comma-separated list of bundled rulepack names (`GAZE_RULEPACKS=names,emails`)
-     * and/or filesystem paths to custom rulepack TOML files (`GAZE_RULEPACK_PATHS=...`).
-     * Each entry is forwarded as a separate `--rulepack-bundled=` or
-     * `--rulepack-path=` flag.
+     * Comma-separated list of bundled rulepack names forwarded as `--rulepack-bundled=`
+     * flags (e.g. `GAZE_RULEPACKS=names,emails`).
      */
     'rulepacks' => array_filter(explode(',', env('GAZE_RULEPACKS', ''))),
+
+    /*
+     * Comma-separated list of filesystem paths to custom rulepack TOML files,
+     * forwarded as `--rulepack-path=` flags
+     * (e.g. `GAZE_RULEPACK_PATHS=/path/a.toml,/path/b.toml`).
+     */
+    'rulepack_paths' => array_filter(explode(',', env('GAZE_RULEPACK_PATHS', ''))),
 
     /*
      * Enable the safety-net classifier (`--safety-net`). When true, the binary
