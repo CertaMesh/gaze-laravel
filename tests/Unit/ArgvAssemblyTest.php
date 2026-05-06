@@ -104,3 +104,102 @@ it('omits --audit-db when audit_db_path is null', function () {
         return true;
     });
 });
+
+it('forwards --locale when configured', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', locale: 'en-GB')->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toContain('--locale=en-GB');
+
+        return true;
+    });
+});
+
+it('produces multiple --rulepack-bundled entries', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', rulepacks: ['names', 'emails'])->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)
+            ->toContain('--rulepack-bundled=names')
+            ->toContain('--rulepack-bundled=emails');
+
+        return true;
+    });
+});
+
+it('appends --safety-net when safety_net is true', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNet: true)->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toContain('--safety-net');
+
+        return true;
+    });
+});
+
+it('appends --openai-filter-device when safety_net_device is set', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNetDevice: 'cuda:0')->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toContain('--openai-filter-device=cuda:0');
+
+        return true;
+    });
+});
+
+it('omits locale, rulepacks, safety-net flags when not configured', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml')->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        foreach ($process->command as $arg) {
+            expect($arg)
+                ->not->toStartWith('--locale=')
+                ->not->toStartWith('--rulepack-bundled=')
+                ->not->toStartWith('--rulepack-path=')
+                ->not->toBe('--safety-net')
+                ->not->toStartWith('--openai-filter-device=');
+        }
+
+        return true;
+    });
+});

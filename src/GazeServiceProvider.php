@@ -55,6 +55,11 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 maxBytes: is_numeric($config->get('gaze.max_bytes')) ? (int) $config->get('gaze.max_bytes') : null,
                 sessionTtlSeconds: is_numeric($config->get('gaze.session_ttl_seconds')) ? (int) $config->get('gaze.session_ttl_seconds') : null,
                 auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
+                locale: is_string($config->get('gaze.locale')) && $config->get('gaze.locale') !== '' ? $config->get('gaze.locale') : null,
+                rulepacks: is_array($config->get('gaze.rulepacks')) && count($config->get('gaze.rulepacks')) > 0 ? $config->get('gaze.rulepacks') : null,
+                rulepackPaths: null,
+                safetyNet: (bool) $config->get('gaze.safety_net', false),
+                safetyNetDevice: is_string($config->get('gaze.safety_net_device')) && $config->get('gaze.safety_net_device') !== '' ? $config->get('gaze.safety_net_device') : null,
                 container: $app,
             );
         });

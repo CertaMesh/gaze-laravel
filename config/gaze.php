@@ -63,4 +63,12 @@ return [
      * file_exists pre-flight).
      */
     'audit_db_path' => env('GAZE_AUDIT_DB_PATH'),
+
+    'locale' => env('GAZE_LOCALE'),
+
+    'rulepacks' => array_filter(explode(',', env('GAZE_RULEPACKS', ''))),
+
+    'safety_net' => (bool) env('GAZE_SAFETY_NET', false),
+
+    'safety_net_device' => env('GAZE_SAFETY_NET_DEVICE'),
 ];

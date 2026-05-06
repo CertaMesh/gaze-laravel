@@ -25,6 +25,15 @@ class AuditService
         );
     }
 
+    public function query(): QueryBuilder
+    {
+        return new QueryBuilder(
+            gaze: $this->gaze,
+            resolver: $this->resolver,
+            auditDbPath: $this->resolveAuditDbPath(),
+        );
+    }
+
     protected function resolveAuditDbPath(): string
     {
         if ($this->auditDbPath === null || $this->auditDbPath === '') {
