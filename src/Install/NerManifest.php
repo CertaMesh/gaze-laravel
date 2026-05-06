@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Naoray\GazeLaravel\Install;
 
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+
 final class NerManifest
 {
     private const URL_BASE = 'https://huggingface.co/onnx-community/bert-base-multilingual-cased-ner-hrl-ONNX/resolve/cfe67b1c1c4c91c1b26ac192955fc0971e62d8c8';
@@ -31,6 +34,26 @@ final class NerManifest
         $body = file_get_contents($path);
         if ($body === false) {
             throw new NerManifestInvalidException("could not read NER manifest: {$path}");
+        }
+
+        return self::fromString($body);
+    }
+
+    public static function fromUrl(string $url, HttpClientInterface $client): self
+    {
+        if (! str_starts_with($url, 'https://')) {
+            throw new NerTransportException("refusing non-HTTPS NER manifest URL: {$url}");
+        }
+
+        try {
+            $response = $client->request('GET', $url);
+            $status = $response->getStatusCode();
+            if ($status < 200 || $status >= 300) {
+                throw new NerTransportException("NER manifest fetch failed with HTTP {$status}: {$url}");
+            }
+            $body = $response->getContent();
+        } catch (TransportExceptionInterface $e) {
+            throw new NerTransportException("NER manifest fetch transport failed: {$url}: ".$e->getMessage(), previous: $e);
         }
 
         return self::fromString($body);
