@@ -8,6 +8,7 @@ use Naoray\GazeLaravel\Gaze;
 use Naoray\GazeLaravel\Install\LaravelNerFetcher;
 use Naoray\GazeLaravel\Install\NerFetcher;
 use Naoray\GazeLaravel\Install\NerInstaller;
+use Naoray\GazeLaravel\Install\NerManifest;
 
 it('resolves Gaze as a singleton', function () {
     $a = $this->app->make(Gaze::class);
@@ -75,6 +76,8 @@ it('fails loudly on an invalid dedicated key', function () {
 })->throws(RuntimeException::class, 'base64-encoded 32 bytes');
 
 it('binds NerInstaller as a singleton', function () {
+    $this->app->instance(NerManifest::class, NerManifest::fromString(gl_nerChecksumFixture()));
+
     $a = $this->app->make(NerInstaller::class);
     $b = $this->app->make(NerInstaller::class);
 

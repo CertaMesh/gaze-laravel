@@ -17,7 +17,7 @@ function gin_command_tester(NerFetcher $fetcher): CommandTester
     $installer = new NerInstaller(
         fetcher: $fetcher,
         patcher: new PolicyTomlPatcher,
-        manifest: NerManifest::fromFile(__DIR__.'/../../../resources/ner/SHA256SUMS'),
+        manifest: NerManifest::fromString(gl_nerChecksumFixture()),
     );
     app()->instance(NerInstaller::class, $installer);
 

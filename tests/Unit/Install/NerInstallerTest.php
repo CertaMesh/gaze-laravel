@@ -16,7 +16,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 beforeEach(function () {
     $this->tmp = sys_get_temp_dir().'/gaze-installer-'.bin2hex(random_bytes(6));
     mkdir($this->tmp);
-    $this->resources = __DIR__.'/../../../resources/ner';
 });
 
 afterEach(function () {
@@ -36,12 +35,12 @@ afterEach(function () {
     @rmdir($this->tmp);
 });
 
-function gi_installer(NerFetcher $fetcher, string $resources, ?Closure $diskFreeSpace = null): NerInstaller
+function gi_installer(NerFetcher $fetcher, ?Closure $diskFreeSpace = null): NerInstaller
 {
     return new NerInstaller(
         fetcher: $fetcher,
         patcher: new PolicyTomlPatcher,
-        manifest: NerManifest::fromFile($resources.'/SHA256SUMS'),
+        manifest: NerManifest::fromString(gl_nerChecksumFixture()),
         diskFreeSpace: $diskFreeSpace,
     );
 }
@@ -78,7 +77,7 @@ it('returns check-passed or check-failed without fetching', function () {
             return $this->verifyResult;
         }
     };
-    $installer = gi_installer($fetcher, $this->resources);
+    $installer = gi_installer($fetcher);
 
     $passed = $installer->install(gi_options($this->tmp.'/dest', ['check' => true]));
     $fetcher->verifyResult = false;
@@ -109,7 +108,7 @@ it('installs into a staging dir then places artifacts and gitignore at dest', fu
         }
     };
     $dest = $this->tmp.'/dest';
-    $installer = gi_installer($fetcher, $this->resources);
+    $installer = gi_installer($fetcher);
 
     $result = $installer->install(gi_options($dest));
 
@@ -136,7 +135,7 @@ it('does not fetch again when destination already verifies', function () {
             return true;
         }
     };
-    $installer = gi_installer($fetcher, $this->resources);
+    $installer = gi_installer($fetcher);
 
     $result = $installer->install(gi_options($this->tmp.'/dest'));
 
@@ -160,7 +159,7 @@ it('returns dry-run without writing or fetching', function () {
         }
     };
     $dest = $this->tmp.'/dest';
-    $installer = gi_installer($fetcher, $this->resources);
+    $installer = gi_installer($fetcher);
 
     $result = $installer->install(gi_options($dest, ['dryRun' => true, 'locale' => 'de']));
 
@@ -186,7 +185,7 @@ it('fails before fetch when disk space is insufficient', function () {
             return false;
         }
     };
-    $installer = gi_installer($fetcher, $this->resources, fn (string $path): int => 1);
+    $installer = gi_installer($fetcher, fn (string $path): int => 1);
 
     expect(fn () => $installer->install(gi_options($this->tmp.'/dest')))
         ->toThrow(NerDiskSpaceException::class);
@@ -214,7 +213,7 @@ it('restores previous destination when policy patching fails after placement', f
     file_put_contents($dest.'/model.onnx', 'old-model');
     $policy = $this->tmp.'/policy.toml';
     file_put_contents($policy, "[ner]\nmodel_dir = \"/different\"\n");
-    $installer = gi_installer($fetcher, $this->resources);
+    $installer = gi_installer($fetcher);
 
     expect(fn () => $installer->install(gi_options($dest, [
         'policyPath' => $policy,
