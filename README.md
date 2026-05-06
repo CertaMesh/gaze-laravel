@@ -20,7 +20,7 @@ php artisan vendor:publish --tag=gaze-policy
 
 ### Binary install hook
 
-The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream release is `gaze` v0.5.2.
+The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream release is `gaze` v0.6.5.
 
 Binary resolution and install probing both use Symfony `ExecutableFinder` and `Process` — no `shell_exec`. The plugin is therefore container-, Alpine-, and `disable_functions=shell_exec`-safe.
 
@@ -31,9 +31,9 @@ Installer env overrides:
 - `GAZE_GITHUB_TOKEN=ghp_...` — GitHub PAT used to fetch release assets from the upstream `piinuts/gaze` repo (see below)
 - `GAZE_RELEASE_BASE=https://...` — non-production-only release base override for fixture or staging release hosts. Production installs (`APP_ENV` empty, `production`, or `prod`) ignore this override and always use the canonical `https://github.com/piinuts/gaze/releases/download` host.
 
-#### `GAZE_GITHUB_TOKEN` — private release access
+#### `GAZE_GITHUB_TOKEN` — authenticated release access
 
-`piinuts/gaze` is currently a private repository, which means the redirect from `releases/download/<tag>/<asset>` to the signed S3 URL returns `404` for unauthenticated requests. Set `GAZE_GITHUB_TOKEN` to a fine-scoped PAT with `contents:read` on `piinuts/gaze`, and the installer switches to the GitHub API path (`/repos/.../releases/assets/<id>` with `Accept: application/octet-stream`) which honors auth.
+Set `GAZE_GITHUB_TOKEN` to a fine-scoped PAT with `contents:read` on `piinuts/gaze` when you need authenticated access to release assets — for example, when installing from a private fork or accessing pre-release builds before they are publicly listed. With the token set, the installer switches to the GitHub API path (`/repos/.../releases/assets/<id>` with `Accept: application/octet-stream`) which honors auth instead of the unauthenticated redirect.
 
 ```bash
 # .env (read by Composer at install time)
@@ -61,12 +61,19 @@ return [
     'session_ttl_seconds' => env('GAZE_SESSION_TTL'),
     'blob_encryption_key' => env('GAZE_ENCRYPTION_KEY'),
     'audit_db_path' => env('GAZE_AUDIT_DB_PATH'),
+    'locale' => env('GAZE_LOCALE'),
+    'rulepacks' => env('GAZE_RULEPACKS'),
+    'rulepack_paths' => env('GAZE_RULEPACK_PATHS'),
+    'safety_net' => env('GAZE_SAFETY_NET', false),
+    'safety_net_device' => env('GAZE_SAFETY_NET_DEVICE'),
 ];
 ```
 
 `GAZE_ENCRYPTION_KEY` may be unset to reuse `APP_KEY`, or set to a dedicated `base64:` 32-byte key.
 The adapter Encrypter cipher matches host `config('app.cipher')` (Laravel default).
 Pin the host cipher explicitly if you rotate keys across deploys.
+
+**v0.6.5 additions:** `GAZE_LOCALE` (BCP47 locale hint), `GAZE_RULEPACKS` (comma-separated bundled rulepack names), `GAZE_RULEPACK_PATHS` (comma-separated rulepack TOML paths), `GAZE_SAFETY_NET` (bool, enables secondary classifier pass), `GAZE_SAFETY_NET_DEVICE` (device for safety-net model, e.g. `cuda:0`).
 
 `GAZE_AUDIT_DB_PATH` enables the audit-log SQLite trail: write side via `Gaze::clean()`, read side via `Gaze::audit()->purge()` and the upcoming `query` / `export` verbs. See [docs/audit.md](docs/audit.md).
 
@@ -210,6 +217,19 @@ Prune failed jobs on a cadence aligned with your session TTL:
 ```php
 Schedule::command('queue:prune-failed --hours=24')->daily();
 ```
+
+## Security model
+
+**What the adapter guarantees:**
+- Session blobs are encrypted at rest using Laravel's `Encrypter` (AES-256-GCM by default, keyed on `GAZE_ENCRYPTION_KEY` or `APP_KEY`).
+- Restore happens owner-side: the original text is never sent to the model — only `$session->cleanText` (pseudonymized) crosses the model boundary.
+- The adapter never logs or stores raw PII; `GazeSession::cleanText` and `GazeSession::ciphertext` are separate fields precisely to prevent accidental exposure.
+
+**What the adapter does not guarantee:**
+- Encryption key management: rotate and protect `GAZE_ENCRYPTION_KEY` / `APP_KEY` using your own key management practices.
+- Transport security: connections to the LLM provider are outside this adapter's scope.
+- Audit DB access control: `GAZE_AUDIT_DB_PATH` points to a SQLite file — OS-level file permissions apply.
+- GDPR, DSGVO, or HIPAA compliance: the adapter is designed to support pseudonymization per GDPR Art. 4(5) and related frameworks, but compliance depends on your full data processing context, not this library alone.
 
 ## Testing
 
