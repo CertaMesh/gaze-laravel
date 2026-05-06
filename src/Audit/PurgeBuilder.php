@@ -66,8 +66,8 @@ class PurgeBuilder
 
     private function parseRowCount(string $stdout): ?int
     {
-        // TODO(PR B / pin stdout): once fixture audit DB snapshots exist,
-        // tighten this contract. For PR A, parse opportunistically and keep
+        // TODO: pin stdout once fixture audit-DB infrastructure exists:
+        // tighten this contract. For now, parse opportunistically and keep
         // rawOutput available for callers when no count pattern is present.
         if (preg_match('/(\d+)\s+rows?/', trim($stdout), $matches) === 1) {
             return (int) $matches[1];

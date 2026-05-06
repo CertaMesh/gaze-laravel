@@ -175,6 +175,7 @@ class Gaze
      * hard-scoped to the `audit query` stage.
      *
      * @param  list<string>  $command
+     * @return ProcessResult
      */
     public function runForAuditQuery(array $command): ProcessResult
     {
