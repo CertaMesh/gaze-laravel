@@ -25,6 +25,10 @@ abstract class TestCase extends OrchestraTestCase
         return [GazeServiceProvider::class];
     }
 
+    /**
+     * @param  list<string>|null  $rulepacks
+     * @param  list<string>|null  $rulepackPaths
+     */
     public function makeGaze(
         string $explicitPath = '/fake/gaze',
         string $vendorBinPath = '/nonexistent',
