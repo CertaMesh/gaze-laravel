@@ -143,7 +143,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 __DIR__.'/../config/gaze.php' => $this->app->configPath('gaze.php'),
             ], 'gaze-config');
             $this->publishes([
-                __DIR__.'/../policy.toml.example' => $this->app->basePath('policy.toml'),
+                __DIR__.'/../resources/policy.toml' => $this->app->basePath('policy.toml'),
             ], 'gaze-policy');
 
             $this->commands([

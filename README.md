@@ -4,6 +4,8 @@ Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.6.5 CLI con
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
+**New here?** See [docs/getting-started.md](docs/getting-started.md) for the 10-minute quickstart.
+
 ## Requirements
 
 - PHP `^8.2`

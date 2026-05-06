@@ -12,7 +12,7 @@ it('reports doctor readiness without deep round-trip', function () {
         BinaryResolver::class,
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
-    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../policy.toml.example');
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
 
     Process::fake([
         '*' => Process::result(output: "gaze 0.3.0-rc.3\n"),
@@ -29,7 +29,7 @@ it('runs the deep round-trip check when requested', function () {
         BinaryResolver::class,
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
-    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../policy.toml.example');
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
 
     Process::fake([
         '*' => Process::result(output: "gaze 0.3.0-rc.3\n"),
