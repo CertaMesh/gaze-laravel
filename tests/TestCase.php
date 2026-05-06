@@ -33,6 +33,11 @@ abstract class TestCase extends OrchestraTestCase
         ?int $maxBytes = null,
         ?int $sessionTtlSeconds = null,
         ?string $auditDbPath = null,
+        ?string $locale = null,
+        ?array $rulepacks = null,
+        ?array $rulepackPaths = null,
+        bool $safetyNet = false,
+        ?string $safetyNetDevice = null,
     ): Gaze {
         $app = $this->applicationInstance();
 
@@ -47,6 +52,11 @@ abstract class TestCase extends OrchestraTestCase
             maxBytes: $maxBytes,
             sessionTtlSeconds: $sessionTtlSeconds,
             auditDbPath: $auditDbPath,
+            locale: $locale,
+            rulepacks: $rulepacks,
+            rulepackPaths: $rulepackPaths,
+            safetyNet: $safetyNet,
+            safetyNetDevice: $safetyNetDevice,
             container: $app,
         );
     }
