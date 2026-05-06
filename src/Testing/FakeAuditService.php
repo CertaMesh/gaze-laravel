@@ -7,6 +7,7 @@ namespace Naoray\GazeLaravel\Testing;
 use Naoray\GazeLaravel\Audit\AuditPurgeResult;
 use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Audit\PurgeBuilder;
+use Naoray\GazeLaravel\Audit\QueryBuilder;
 
 final class FakeAuditService extends AuditService
 {
@@ -25,6 +26,11 @@ final class FakeAuditService extends AuditService
     public function purge(): PurgeBuilder
     {
         return new FakePurgeBuilder($this);
+    }
+
+    public function query(): QueryBuilder
+    {
+        return new FakeQueryBuilder;
     }
 
     public function recordPurgeCall(string $before, bool $dryRun): AuditPurgeResult

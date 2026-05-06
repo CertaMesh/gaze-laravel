@@ -43,6 +43,13 @@ class Gaze
         private readonly ?int $maxBytes = null,
         private readonly ?int $sessionTtlSeconds = null,
         private readonly ?string $auditDbPath = null,
+        private readonly ?string $locale = null,
+        /** @var list<string>|null */
+        private readonly ?array $rulepacks = null,
+        /** @var list<string>|null */
+        private readonly ?array $rulepackPaths = null,
+        private readonly bool $safetyNet = false,
+        private readonly ?string $safetyNetDevice = null,
     ) {}
 
     public function clean(string $text): GazeSession
@@ -66,6 +73,26 @@ class Gaze
 
         if ($this->auditDbPath !== null && $this->auditDbPath !== '') {
             $command[] = '--audit-db='.$this->auditDbPath;
+        }
+
+        if ($this->locale !== null && $this->locale !== '') {
+            $command[] = '--locale='.$this->locale;
+        }
+
+        foreach ($this->rulepacks ?? [] as $rulepack) {
+            $command[] = '--rulepack-bundled='.$rulepack;
+        }
+
+        foreach ($this->rulepackPaths ?? [] as $path) {
+            $command[] = '--rulepack-path='.$path;
+        }
+
+        if ($this->safetyNet) {
+            $command[] = '--safety-net';
+        }
+
+        if ($this->safetyNetDevice !== null && $this->safetyNetDevice !== '') {
+            $command[] = '--openai-filter-device='.$this->safetyNetDevice;
         }
 
         $result = $this->run($command, $text, 'clean');
@@ -141,6 +168,17 @@ class Gaze
     public function runForAuditPurge(array $command): ProcessResult
     {
         return $this->run($command, '', 'audit purge');
+    }
+
+    /**
+     * @internal Audit-query process invocation. Not a generic command runner;
+     * hard-scoped to the `audit query` stage.
+     *
+     * @param  list<string>  $command
+     */
+    public function runForAuditQuery(array $command): ProcessResult
+    {
+        return $this->run($command, '', 'audit query');
     }
 
     /**
