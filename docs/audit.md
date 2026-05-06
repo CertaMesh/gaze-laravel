@@ -96,6 +96,8 @@ Gaze::fake(
 
 Other typed exceptions, including `GazeIoException`, `GazeTimeoutException`, and `GazeSigPipeException`, follow the same taxonomy as `clean` / `restore`.
 
-## Future Verbs
+## Query (v0.6.5+)
 
-PR B will add `query()` and `export()` on the same `Gaze::audit()` entry point. `query()` will return streamed audit rows and `export()` will forward upstream's export surface for compliance handoff. Both share the filter set documented in `gaze audit query --help` and `gaze audit export --help`, snapshotted under `tests/Contract/__snapshots__/`.
+`Gaze::audit()->query()` returns a `QueryBuilder` that executes `gaze audit query --audit-db=<path>` and parses TSV output into `list<list<string>>`. See `gaze audit query --help` (snapshotted under `tests/Contract/__snapshots__/`) for filter options.
+
+`export()` is tracked upstream and will be added in a follow-up release.

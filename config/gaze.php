@@ -64,11 +64,29 @@ return [
      */
     'audit_db_path' => env('GAZE_AUDIT_DB_PATH'),
 
+    /*
+     * BCP47 locale hint forwarded to `gaze clean` as `--locale=<value>`
+     * (e.g. `en`, `de`). Null passes no flag.
+     */
     'locale' => env('GAZE_LOCALE'),
 
+    /*
+     * Comma-separated list of bundled rulepack names (`GAZE_RULEPACKS=names,emails`)
+     * and/or filesystem paths to custom rulepack TOML files (`GAZE_RULEPACK_PATHS=...`).
+     * Each entry is forwarded as a separate `--rulepack-bundled=` or
+     * `--rulepack-path=` flag.
+     */
     'rulepacks' => array_filter(explode(',', env('GAZE_RULEPACKS', ''))),
 
+    /*
+     * Enable the safety-net classifier (`--safety-net`). When true, the binary
+     * runs a lightweight secondary pass to catch tokens the primary policy missed.
+     */
     'safety_net' => (bool) env('GAZE_SAFETY_NET', false),
 
+    /*
+     * CUDA/CPU device for the safety-net model (e.g. `cuda:0`, `cpu`). Forwarded
+     * as `--openai-filter-device=<value>`. Null omits the flag.
+     */
     'safety_net_device' => env('GAZE_SAFETY_NET_DEVICE'),
 ];

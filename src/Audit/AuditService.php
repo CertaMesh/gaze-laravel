@@ -25,6 +25,10 @@ class AuditService
         );
     }
 
+    /**
+     * Returns a QueryBuilder for `gaze audit query`.
+     * Reads from the configured audit DB, or the per-call override passed to `Gaze::audit($auditDbPath)`.
+     */
     public function query(): QueryBuilder
     {
         return new QueryBuilder(
