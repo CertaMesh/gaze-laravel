@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 it('publishes a v0.4 multi-class policy with bundled rulepacks', function () {
-    $sourcePath = dirname(__DIR__, 2).'/policy.toml.example';
+    $sourcePath = dirname(__DIR__, 2).'/resources/policy.toml';
     expect($sourcePath)->toBeFile();
 
     $body = file_get_contents($sourcePath);
