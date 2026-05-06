@@ -57,7 +57,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
                 locale: is_string($config->get('gaze.locale')) && $config->get('gaze.locale') !== '' ? $config->get('gaze.locale') : null,
                 rulepacks: is_array($config->get('gaze.rulepacks')) && count($config->get('gaze.rulepacks')) > 0 ? $config->get('gaze.rulepacks') : null,
-                rulepackPaths: null,
+                rulepackPaths: is_array($config->get('gaze.rulepack_paths')) && count($config->get('gaze.rulepack_paths')) > 0 ? $config->get('gaze.rulepack_paths') : null,
                 safetyNet: (bool) $config->get('gaze.safety_net', false),
                 safetyNetDevice: is_string($config->get('gaze.safety_net_device')) && $config->get('gaze.safety_net_device') !== '' ? $config->get('gaze.safety_net_device') : null,
                 container: $app,
