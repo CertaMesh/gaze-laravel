@@ -1,6 +1,6 @@
 # gaze-laravel
 
-Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.5 CLI contract.
+Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.6.5 CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
@@ -225,15 +225,9 @@ Integration tests require a real binary:
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
 
-### Local pre-push hook
+### Pre-push hook
 
-The repo ships `.githooks/pre-push` running `composer test` (Pest) + `composer analyse` (PHPStan) before any `git push`. Replaces the previous cloud test workflow; runs locally without consuming GitHub Actions minutes.
-
-Activate once per clone:
-
-```sh
-git config core.hooksPath .githooks
-```
+`composer install` / `composer update` automatically points `core.hooksPath` at `.githooks`. The shipped `pre-push` hook runs `composer test` (Pest) + `composer analyse` (PHPStan) before any push — so CI failures surface locally without burning GitHub Actions minutes.
 
 Emergency bypass for WIP-branch backups:
 
