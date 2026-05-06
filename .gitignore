@@ -7,3 +7,10 @@
 /build/
 /coverage/
 .DS_Store
+.agents/
+.claude/skills/
+.scribe.yaml
+LEAN-CTX.md
+GEMINI.md
+.cursorrules
+.cursor/
