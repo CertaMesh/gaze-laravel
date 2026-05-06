@@ -147,6 +147,7 @@ final class BinaryInstaller
 
         return match (true) {
             $os === 'darwin' && in_array($arch, ['arm64', 'aarch64'], true) => 'aarch64-apple-darwin',
+            $os === 'darwin' && $arch === 'x86_64' => 'x86_64-apple-darwin',
             $os === 'linux' && $arch === 'x86_64' => 'x86_64-unknown-linux-gnu',
             $os === 'linux' && in_array($arch, ['arm64', 'aarch64'], true) => 'aarch64-unknown-linux-gnu',
             default => null,
