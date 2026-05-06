@@ -7,7 +7,7 @@ use Naoray\GazeLaravel\Install\NerManifestInvalidException;
 use Naoray\GazeLaravel\Install\NerVariantUnknownException;
 
 it('resolves the pinned int8 artifact set from SHA256SUMS', function () {
-    $set = NerManifest::fromFile(__DIR__.'/../../../resources/ner/SHA256SUMS')->resolve('int8');
+    $set = NerManifest::fromString(gl_nerChecksumFixture())->resolve('int8');
 
     expect($set->urlBase)->toBe('https://huggingface.co/onnx-community/bert-base-multilingual-cased-ner-hrl-ONNX/resolve/cfe67b1c1c4c91c1b26ac192955fc0971e62d8c8');
     expect($set->fileNames())->toBe([
@@ -28,7 +28,7 @@ it('resolves the pinned int8 artifact set from SHA256SUMS', function () {
 });
 
 it('rejects unknown variants', function () {
-    $manifest = NerManifest::fromFile(__DIR__.'/../../../resources/ner/SHA256SUMS');
+    $manifest = NerManifest::fromString(gl_nerChecksumFixture());
 
     expect(fn () => $manifest->resolve('fp32'))
         ->toThrow(NerVariantUnknownException::class);

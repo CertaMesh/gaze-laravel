@@ -16,6 +16,7 @@ use Naoray\GazeLaravel\Console\CanaryCommand;
 use Naoray\GazeLaravel\Console\CheckCommand;
 use Naoray\GazeLaravel\Console\DoctorCommand;
 use Naoray\GazeLaravel\Console\InstallNerCommand;
+use Naoray\GazeLaravel\Install\BinaryInstaller;
 use Naoray\GazeLaravel\Install\LaravelNerFetcher;
 use Naoray\GazeLaravel\Install\NerFetcher;
 use Naoray\GazeLaravel\Install\NerInstaller;
@@ -89,9 +90,12 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
 
         $this->app->singleton(NerFetcher::class, LaravelNerFetcher::class);
 
-        $this->app->singleton(NerManifest::class, fn (): NerManifest => NerManifest::fromFile(
-            __DIR__.'/../resources/ner/SHA256SUMS',
-        ));
+        $this->app->singleton(NerManifest::class, function (Application $app): NerManifest {
+            $version = BinaryInstaller::PINNED_VERSION;
+            $url = "https://github.com/PIInuts/gaze/releases/download/v{$version}/SHA256SUMS.ner";
+
+            return NerManifest::fromUrl($url, $app->make(HttpClientInterface::class));
+        });
 
         $this->app->singleton(PolicyTomlPatcher::class);
 
