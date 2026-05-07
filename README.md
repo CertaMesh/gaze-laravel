@@ -336,40 +336,6 @@ Integration tests require a real binary:
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
 
-### Boundary enforcement with Pest `arch()`
-
-If your app routes all LLM traffic through `Gaze`, you probably want a Pest architecture test that prevents adopters (or future-you) from instantiating a model client outside the Gaze-boundary path. Drop this in `tests/Architecture/GazeBoundaryTest.php`:
-
-```php
-<?php
-
-// tests/Architecture/GazeBoundaryTest.php
-
-arch('LLM clients only used inside the Gaze-aware boundary')
-    ->expect(['Prism\\Prism', 'OpenAI\\Client', 'Anthropic\\Anthropic'])
-    ->toOnlyBeUsedIn('App\\Support\\Ai'); // narrow to your actual boundary namespace
-
-arch('app code never bypasses Gaze::clean')
-    ->expect('App')
-    ->not->toUse([
-        'Prism\\Prism\\Facades\\Prism', // bypasses tokenization
-        'OpenAI\\Laravel\\Facades\\OpenAI',
-    ])
-    ->ignoring('App\\Support\\Ai'); // boundary path is the only allowed caller
-
-arch('GazeSession does not leak into HTTP responses')
-    ->expect('Naoray\\GazeLaravel\\GazeSession')
-    ->not->toBeUsedIn('App\\Http\\Resources');
-```
-
-Tune the namespaces to match your boundary path (`App\Support\Ai`, `App\Services\Llm`, etc.). The third rule guards against accidentally serializing the session ciphertext through an API resource — adjust the target to whatever HTTP-output layer you use (Inertia props, Blade view composers, JSON resources).
-
-Run with the rest of your suite:
-
-```bash
-./vendor/bin/pest --filter=Architecture
-```
-
 ### Pre-push hook
 
 `composer install` / `composer update` automatically points `core.hooksPath` at `.githooks`. The shipped `pre-push` hook runs `composer test` (Pest) + `composer analyse` (PHPStan) before any push — so CI failures surface locally without burning GitHub Actions minutes.
