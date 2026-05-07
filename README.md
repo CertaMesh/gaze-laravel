@@ -336,4 +336,6 @@ Integration tests require a real binary:
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
 
-Note: cross-version (php × laravel) matrix coverage from the previous CI workflow is dropped. Cross-version regressions will surface on next dependency bump.
+## License
+
+Apache-2.0 — see [LICENSE](./LICENSE).
