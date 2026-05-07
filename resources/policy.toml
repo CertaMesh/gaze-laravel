@@ -1,7 +1,7 @@
 # Gaze policy - Laravel adapter default
 #
 # Schema: v0.4 ([[policy.custom_recognizers]]). Compatible with pinned
-# upstream binary v0.5.0. Verify with `vendor/bin/gaze --version`.
+# upstream binary v0.6.4. Verify with `vendor/bin/gaze --version`.
 #
 # Activates rulepacks `core` (email + email-header names) and `core-extended`
 # (phone, IBAN, credit card, IP, postal codes). Adds custom recognizers for

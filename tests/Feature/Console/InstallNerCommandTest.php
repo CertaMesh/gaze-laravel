@@ -31,10 +31,11 @@ it('gaze:install-ner exposes the patched flag surface', function () {
     $command = $this->app->make(InstallNerCommand::class);
     $definition = $command->getDefinition();
 
-    foreach (['variant', 'dest', 'update-policy', 'force', 'check', 'dry-run', 'yes', 'no-progress', 'locale'] as $option) {
+    foreach (['variant', 'dest', 'update-policy', 'force', 'check', 'dry-run', 'no-progress', 'locale'] as $option) {
         expect($definition->hasOption($option))->toBeTrue("--{$option} should exist");
     }
 
+    expect($definition->hasOption('yes'))->toBeFalse();
     expect($definition->hasOption('model'))->toBeFalse();
     expect($definition->hasOption('unpinned'))->toBeFalse();
 });
@@ -91,7 +92,7 @@ it('prints policy snippet after a successful install when policy is not updated'
     $dest = sys_get_temp_dir().'/gaze-command-'.bin2hex(random_bytes(6));
 
     try {
-        $exit = $tester->execute(['--dest' => $dest, '--yes' => true, '--locale' => 'de']);
+        $exit = $tester->execute(['--dest' => $dest, '--force' => true, '--locale' => 'de']);
 
         expect($exit)->toBe(0);
         expect($tester->getDisplay())->toContain('[ner]');
@@ -132,7 +133,7 @@ it('--update-policy writes the configured policy path', function () {
     app('config')->set('gaze.policy_path', $policy);
 
     try {
-        $exit = $tester->execute(['--dest' => $dest, '--yes' => true, '--update-policy' => true]);
+        $exit = $tester->execute(['--dest' => $dest, '--force' => true, '--update-policy' => true]);
 
         expect($exit)->toBe(0);
         expect(file_get_contents($policy))->toContain('[ner]');
@@ -154,7 +155,7 @@ it('--update-policy writes the configured policy path', function () {
     }
 });
 
-it('fails non-interactive install without --yes before fetching', function () {
+it('fails non-interactive install without --force before fetching', function () {
     $fetcher = new class implements NerFetcher
     {
         public int $fetches = 0;
@@ -175,7 +176,7 @@ it('fails non-interactive install without --yes before fetching', function () {
 
     expect($exit)->toBe(1);
     expect($fetcher->fetches)->toBe(0);
-    expect($tester->getDisplay())->toContain('pass --yes');
+    expect($tester->getDisplay())->toContain('pass --force');
 });
 
 it('--force fetches even when existing destination verifies', function () {
@@ -201,7 +202,7 @@ it('--force fetches even when existing destination verifies', function () {
     $dest = sys_get_temp_dir().'/gaze-force-'.bin2hex(random_bytes(6));
 
     try {
-        $exit = $tester->execute(['--dest' => $dest, '--yes' => true, '--force' => true]);
+        $exit = $tester->execute(['--dest' => $dest, '--force' => true]);
 
         expect($exit)->toBe(0);
         expect($fetcher->fetches)->toBe(1);

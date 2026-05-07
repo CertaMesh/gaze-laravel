@@ -88,7 +88,7 @@ class Gaze
         }
 
         if ($this->safetyNet) {
-            $command[] = '--safety-net';
+            $command[] = '--safety-net=openai-filter';
         }
 
         if ($this->safetyNetDevice !== null && $this->safetyNetDevice !== '') {

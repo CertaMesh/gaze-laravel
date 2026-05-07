@@ -14,7 +14,7 @@ it('downloads and verifies the live NER artifact set', function () {
     try {
         $exit = Artisan::call('gaze:install-ner', [
             '--dest' => $dest,
-            '--yes' => true,
+            '--force' => true,
             '--no-progress' => true,
         ]);
 

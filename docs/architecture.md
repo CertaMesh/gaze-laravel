@@ -1,6 +1,6 @@
 # Gaze-Laravel Architecture
 
-> Audit snapshot: v0.6.5 · Generated 2026-05-06
+> Audit snapshot: v0.6.4 · Generated 2026-05-07
 
 ---
 
@@ -22,7 +22,7 @@ Request / Job
 Gaze::clean(text)
   ├─ assertInput()           – UTF-8 + size pre-flight (PHP side)
   ├─ BinaryResolver::resolve()
-  ├─ ProcessFactory::run()   – gaze clean --policy=… --format=json [v0.6.5 flags]
+  ├─ ProcessFactory::run()   – gaze clean --policy=… --format=json [v0.6.4 flags]
   └─ GazeSession             – { cleanText, ciphertext:EncryptedBlob, detections }
 
 Gaze::restore(session, text)
@@ -239,5 +239,5 @@ Severity: **HIGH** / **MEDIUM** / **LOW**
 | L-3 | `src/Exceptions/GazeIntegrityException.php` | — | `requiresFreshClean()` method on base class + `RequiresFreshClean` marker interface on subclasses — two paths for the same semantic |
 | L-4 | `src/Exceptions/GazeBinaryMissingException.php` | 9 | `stderrHash = ''` default — deviates from convention (should be `hash('sha256', '')`) |
 | L-5 | `src/Install/BinaryInstaller.php` | `alreadyInstalled()` | Version check uses `str_contains($output, $version)` — fragile if binary output format changes |
-| L-6 | `tests/Contract/VariantContractTest.php` | 15 | Docblock says "gaze v0.5.2" — stale, should reference v0.6.5 |
+| L-6 | `tests/Contract/VariantContractTest.php` | 15 | Docblock says "gaze v0.5.2" — stale, should reference v0.6.4 |
 | L-7 | `src/GazeSession.php` | — | `ciphertext` is `public readonly` — callers can invoke `decryptedBlob()` directly; consider a `getCiphertext()` accessor that returns only the opaque ciphertext string |
