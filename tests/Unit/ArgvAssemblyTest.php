@@ -143,7 +143,7 @@ it('produces multiple --rulepack-bundled entries', function () {
     });
 });
 
-it('appends --safety-net when safety_net is true', function () {
+it('appends --safety-net=openai-filter when safety_net is true', function () {
     Process::fake([
         '*' => Process::result(output: json_encode([
             'clean_text' => 'Hello',
@@ -155,7 +155,8 @@ it('appends --safety-net when safety_net is true', function () {
     $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNet: true)->clean('Hello');
 
     Process::assertRan(function ($process): bool {
-        expect($process->command)->toContain('--safety-net');
+        // PR #48 originally emitted bare --safety-net which v0.6.x binary rejects.
+        expect($process->command)->toContain('--safety-net=openai-filter');
 
         return true;
     });
@@ -196,7 +197,7 @@ it('omits locale, rulepacks, safety-net flags when not configured', function () 
                 ->not->toStartWith('--locale=')
                 ->not->toStartWith('--rulepack-bundled=')
                 ->not->toStartWith('--rulepack-path=')
-                ->not->toBe('--safety-net')
+                ->not->toStartWith('--safety-net')
                 ->not->toStartWith('--openai-filter-device=');
         }
 
