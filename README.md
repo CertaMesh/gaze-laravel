@@ -1,6 +1,6 @@
 # gaze-laravel
 
-Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.6.5 CLI contract.
+Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
@@ -22,7 +22,7 @@ php artisan vendor:publish --tag=gaze-policy
 
 ### Binary install hook
 
-The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream release is `gaze` v0.6.5.
+The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`.
 
 Binary resolution and install probing both use Symfony `ExecutableFinder` and `Process` — no `shell_exec`. The plugin is therefore container-, Alpine-, and `disable_functions=shell_exec`-safe.
 
@@ -30,27 +30,7 @@ Installer env overrides:
 
 - `GAZE_SKIP_BINARY_DOWNLOAD=1` — skip the download entirely (use when you manage the binary out-of-band)
 - `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release (use cautiously; pinned version is contract-tested)
-- `GAZE_GITHUB_TOKEN=ghp_...` — GitHub PAT used to fetch release assets from the upstream `piinuts/gaze` repo (see below)
-- `GAZE_RELEASE_BASE=https://...` — non-production-only release base override for fixture or staging release hosts. Production installs (`APP_ENV` empty, `production`, or `prod`) ignore this override and always use the canonical `https://github.com/piinuts/gaze/releases/download` host.
-
-#### `GAZE_GITHUB_TOKEN` — authenticated release access
-
-Set `GAZE_GITHUB_TOKEN` to a fine-scoped PAT with `contents:read` on `piinuts/gaze` when you need authenticated access to release assets — for example, when installing from a private fork or accessing pre-release builds before they are publicly listed. With the token set, the installer switches to the GitHub API path (`/repos/.../releases/assets/<id>` with `Accept: application/octet-stream`) which honors auth instead of the unauthenticated redirect.
-
-```bash
-# .env (read by Composer at install time)
-GAZE_GITHUB_TOKEN=ghp_...
-
-composer require naoray/gaze-laravel
-```
-
-Important details:
-
-- The token is read by Composer at install time, so it must be set in the shell or `.env` **before** you run `composer require` / `composer install`. Adding it after the fact requires `composer install` to re-run.
-- For CI, store the PAT as a secret and export `GAZE_GITHUB_TOKEN` in the install step.
-- Required scopes: `contents:read` on the `piinuts/gaze` repo (fine-grained PAT) — equivalent to the legacy `repo` scope on classic PATs. No write scopes are needed.
-- The token is sent as `Authorization: Bearer …` to `api.github.com` only. It is dropped on the redirect to the signed S3 URL (same rule as `curl --location` and `gh`), so it never leaves GitHub.
-- If `GAZE_RELEASE_BASE` points at a non-github.com mirror, `GAZE_GITHUB_TOKEN` is ignored — that scenario implies you have your own auth on the mirror.
+- `GAZE_RELEASE_BASE=https://...` — release base override for fixture or staging release hosts.
 
 ## Config
 
@@ -75,7 +55,7 @@ return [
 The adapter Encrypter cipher matches host `config('app.cipher')` (Laravel default).
 Pin the host cipher explicitly if you rotate keys across deploys.
 
-**v0.6.5 additions:** `GAZE_LOCALE` (BCP47 locale hint), `GAZE_RULEPACKS` (comma-separated bundled rulepack names), `GAZE_RULEPACK_PATHS` (comma-separated rulepack TOML paths), `GAZE_SAFETY_NET` (bool, enables secondary classifier pass), `GAZE_SAFETY_NET_DEVICE` (device for safety-net model, e.g. `cuda:0`).
+**Additional env vars:** `GAZE_LOCALE` (BCP47 locale hint), `GAZE_RULEPACKS` (comma-separated bundled rulepack names), `GAZE_RULEPACK_PATHS` (comma-separated rulepack TOML paths), `GAZE_SAFETY_NET` (bool, enables secondary classifier pass), `GAZE_SAFETY_NET_DEVICE` (device for safety-net model, e.g. `cuda:0`).
 
 `GAZE_AUDIT_DB_PATH` enables the audit-log SQLite trail: write side via `Gaze::clean()`, read side via `Gaze::audit()->purge()` and the upcoming `query` / `export` verbs. See [docs/audit.md](docs/audit.md).
 
@@ -213,7 +193,7 @@ By default gaze-laravel runs in regex/rulepack mode. Enable named-entity recogni
 php artisan gaze:install-ner --yes
 ```
 
-This downloads the pinned Davlan mBERT NER int8 ONNX artifact set into `storage/app/gaze-ner/davlan-mbert-ner-hrl-int8/`, verifies every file against the upstream v0.5.2 `SHA256SUMS` contract, copies the packaged BIO-to-class `labels.json`, and prints the `[ner]` block to paste into `policy.toml`.
+This downloads the pinned Davlan mBERT NER int8 ONNX artifact set into `storage/app/gaze-ner/davlan-mbert-ner-hrl-int8/`, verifies every file against the upstream `SHA256SUMS` contract, copies the packaged BIO-to-class `labels.json`, and prints the `[ner]` block to paste into `policy.toml`.
 
 To wire `policy.toml` automatically, add `--update-policy`. Re-running the command is idempotent when artifacts already verify.
 
@@ -356,48 +336,6 @@ Integration tests require a real binary:
 GAZE_BINARY=/path/to/gaze ./vendor/bin/pest --testsuite Integration
 ```
 
-### Boundary enforcement with Pest `arch()`
+## License
 
-If your app routes all LLM traffic through `Gaze`, you probably want a Pest architecture test that prevents adopters (or future-you) from instantiating a model client outside the Gaze-boundary path. Drop this in `tests/Architecture/GazeBoundaryTest.php`:
-
-```php
-<?php
-
-// tests/Architecture/GazeBoundaryTest.php
-
-arch('LLM clients only used inside the Gaze-aware boundary')
-    ->expect(['Prism\\Prism', 'OpenAI\\Client', 'Anthropic\\Anthropic'])
-    ->toOnlyBeUsedIn('App\\Support\\Ai'); // narrow to your actual boundary namespace
-
-arch('app code never bypasses Gaze::clean')
-    ->expect('App')
-    ->not->toUse([
-        'Prism\\Prism\\Facades\\Prism', // bypasses tokenization
-        'OpenAI\\Laravel\\Facades\\OpenAI',
-    ])
-    ->ignoring('App\\Support\\Ai'); // boundary path is the only allowed caller
-
-arch('GazeSession does not leak into HTTP responses')
-    ->expect('Naoray\\GazeLaravel\\GazeSession')
-    ->not->toBeUsedIn('App\\Http\\Resources');
-```
-
-Tune the namespaces to match your boundary path (`App\Support\Ai`, `App\Services\Llm`, etc.). The third rule guards against accidentally serializing the session ciphertext through an API resource — adjust the target to whatever HTTP-output layer you use (Inertia props, Blade view composers, JSON resources).
-
-Run with the rest of your suite:
-
-```bash
-./vendor/bin/pest --filter=Architecture
-```
-
-### Pre-push hook
-
-`composer install` / `composer update` automatically points `core.hooksPath` at `.githooks`. The shipped `pre-push` hook runs `composer test` (Pest) + `composer analyse` (PHPStan) before any push — so CI failures surface locally without burning GitHub Actions minutes.
-
-Emergency bypass for WIP-branch backups:
-
-```sh
-SKIP_HOOK=1 git push ...
-```
-
-Note: cross-version (php × laravel) matrix coverage from the previous CI workflow is dropped. Cross-version regressions will surface on next dependency bump.
+Apache-2.0 — see [LICENSE](./LICENSE).
