@@ -20,10 +20,9 @@ final class InstallNerCommand extends Command
         {--dest= : Override destination dir (default: storage/app/gaze-ner/davlan-mbert-ner-hrl-int8)}
         {--locale= : BCP47 locale hint to embed in [ner] block}
         {--update-policy : Write [ner] block to gaze.policy_path}
-        {--force : Redownload and overwrite existing destination/policy}
+        {--force : Confirm install non-interactively and overwrite existing destination/policy}
         {--check : Verify existing install without downloading}
         {--dry-run : Preview without writing}
-        {--yes : Non-interactive confirm}
         {--no-progress : Suppress progress output}';
 
     protected $description = 'Install the pinned ONNX NER model and optionally wire policy.toml.';
@@ -89,12 +88,12 @@ final class InstallNerCommand extends Command
 
     private function confirmIfNeeded(NerInstallerOptions $options): bool
     {
-        if ((bool) $this->option('yes')) {
+        if ((bool) $this->option('force')) {
             return true;
         }
 
         if (! $this->input->isInteractive()) {
-            $this->error('non-interactive; pass --yes to confirm');
+            $this->error('non-interactive; pass --force to confirm install');
 
             return false;
         }
