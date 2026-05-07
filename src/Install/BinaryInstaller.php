@@ -13,7 +13,7 @@ final class BinaryInstaller
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
 
-    public const PINNED_VERSION = '0.6.5';
+    public const PINNED_VERSION = '0.6.4';
 
     private const RELEASE_BASE = 'https://github.com/piinuts/gaze/releases/download';
 
