@@ -30,27 +30,7 @@ Installer env overrides:
 
 - `GAZE_SKIP_BINARY_DOWNLOAD=1` — skip the download entirely (use when you manage the binary out-of-band)
 - `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release (use cautiously; pinned version is contract-tested)
-- `GAZE_GITHUB_TOKEN=ghp_...` — GitHub PAT used to fetch release assets from the upstream `piinuts/gaze` repo (see below)
-- `GAZE_RELEASE_BASE=https://...` — non-production-only release base override for fixture or staging release hosts. Production installs (`APP_ENV` empty, `production`, or `prod`) ignore this override and always use the canonical `https://github.com/piinuts/gaze/releases/download` host.
-
-#### `GAZE_GITHUB_TOKEN` — authenticated release access
-
-Set `GAZE_GITHUB_TOKEN` to a fine-scoped PAT with `contents:read` on `piinuts/gaze` when you need authenticated access to release assets — for example, when installing from a private fork or accessing pre-release builds before they are publicly listed. With the token set, the installer switches to the GitHub API path (`/repos/.../releases/assets/<id>` with `Accept: application/octet-stream`) which honors auth instead of the unauthenticated redirect.
-
-```bash
-# .env (read by Composer at install time)
-GAZE_GITHUB_TOKEN=ghp_...
-
-composer require naoray/gaze-laravel
-```
-
-Important details:
-
-- The token is read by Composer at install time, so it must be set in the shell or `.env` **before** you run `composer require` / `composer install`. Adding it after the fact requires `composer install` to re-run.
-- For CI, store the PAT as a secret and export `GAZE_GITHUB_TOKEN` in the install step.
-- Required scopes: `contents:read` on the `piinuts/gaze` repo (fine-grained PAT) — equivalent to the legacy `repo` scope on classic PATs. No write scopes are needed.
-- The token is sent as `Authorization: Bearer …` to `api.github.com` only. It is dropped on the redirect to the signed S3 URL (same rule as `curl --location` and `gh`), so it never leaves GitHub.
-- If `GAZE_RELEASE_BASE` points at a non-github.com mirror, `GAZE_GITHUB_TOKEN` is ignored — that scenario implies you have your own auth on the mirror.
+- `GAZE_RELEASE_BASE=https://...` — release base override for fixture or staging release hosts.
 
 ## Config
 
