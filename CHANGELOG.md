@@ -4,6 +4,34 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- PHP adapter coverage for the upstream v0.6.4 CLI surface, including locale, bundled rulepacks, custom rulepack paths, audit query, safety-net, and OpenAI filter device arguments.
+- `gaze.rulepack_paths` / `GAZE_RULEPACK_PATHS` config support so `--rulepack-path=` is reachable through the service container.
+- Configuration reference, exception guide, testing guide, queue guide, getting-started docs, blob lifecycle docs, Livewire side-by-side notes, Pest architecture notes, and conversational-loop guidance.
+- Recreated GitHub Actions test matrix for PHP 8.2/8.3 across Laravel 11/12.
+
+### Changed
+
+- Retarget the upcoming OSS cut to upstream `piinuts/gaze` v0.6.4, the latest published release, instead of the unreleased v0.6.5 metadata used during audit prep.
+- `php artisan gaze:install-ner --force` is now the single Laravel-idiomatic gate for both non-interactive confirmation and overwriting existing destination/policy state.
+- NER artifact integrity now resolves `SHA256SUMS` from the upstream release URL instead of carrying a stale static checksum file.
+- The pre-push hook gained a docs-only fast path before being removed for OSS packaging; historical v0.5.0 notes still document the old contributor-local hook behavior.
+- OSS docs and metadata were scrubbed for public packaging, including license, gitignore, binary install guidance, security model, and quickstart entry points.
+
+### Fixed
+
+- `Gaze::clean()` now passes `--safety-net=openai-filter`; PR #48 originally emitted bare `--safety-net`, which v0.6.x binaries reject.
+- `BinaryInstaller::PINNED_VERSION` now points at `0.6.4`, avoiding 404s for the nonexistent upstream v0.6.5 release.
+- Intel Mac install guidance is reachable again after fixing the `detectTarget()` branch ordering.
+- Help/version snapshots and contract docblocks now reference the pinned v0.6.4 upstream contract.
+- Dead code and audit-found drift from the OSS readiness pass were cleaned up.
+
+### Removed
+
+- Repository-managed `.githooks/pre-push` and composer `post-install-cmd` / `post-update-cmd` auto-wiring that changed contributors' `core.hooksPath` during install/update.
+- Stale packaged NER SHA fixture that duplicated upstream release checksums.
+
 ## [0.6.0] - 2026-04-29
 
 NER opt-in wave: ships `gaze:install-ner` for one-command Davlan mBERT NER int8 ONNX setup, lockstep with upstream gaze v0.5.2 (canonical NER asset contracts), and bundles the polish PR follow-ups from PR #40 review nits + GH issues #1/#2/#8/#9.
