@@ -13,6 +13,7 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ### Changed
 
+- README slim-down: deep content moved to dedicated `docs/*.md` files. README is now a promo page (~100 lines, was ~340).
 - Retarget the upcoming OSS cut to upstream `piinuts/gaze` v0.6.4, the latest published release, instead of the unreleased v0.6.5 metadata used during audit prep.
 - `php artisan gaze:install-ner --force` is now the single Laravel-idiomatic gate for both non-interactive confirmation and overwriting existing destination/policy state.
 - NER artifact integrity now resolves `SHA256SUMS` from the upstream release URL instead of carrying a stale static checksum file.
