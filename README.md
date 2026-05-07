@@ -1,6 +1,6 @@
 # gaze-laravel
 
-Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) v0.6.5 CLI contract.
+Laravel adapter for the [`gaze`](https://github.com/piinuts/gaze) CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
@@ -22,7 +22,7 @@ php artisan vendor:publish --tag=gaze-policy
 
 ### Binary install hook
 
-The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`. Pinned upstream release is `gaze` v0.6.5.
+The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself. The plugin downloads the pinned `gaze-<target>` binary plus its `.sha256` checksum over HTTPS into `vendor/bin/`.
 
 Binary resolution and install probing both use Symfony `ExecutableFinder` and `Process` — no `shell_exec`. The plugin is therefore container-, Alpine-, and `disable_functions=shell_exec`-safe.
 
@@ -75,7 +75,7 @@ return [
 The adapter Encrypter cipher matches host `config('app.cipher')` (Laravel default).
 Pin the host cipher explicitly if you rotate keys across deploys.
 
-**v0.6.5 additions:** `GAZE_LOCALE` (BCP47 locale hint), `GAZE_RULEPACKS` (comma-separated bundled rulepack names), `GAZE_RULEPACK_PATHS` (comma-separated rulepack TOML paths), `GAZE_SAFETY_NET` (bool, enables secondary classifier pass), `GAZE_SAFETY_NET_DEVICE` (device for safety-net model, e.g. `cuda:0`).
+**Additional env vars:** `GAZE_LOCALE` (BCP47 locale hint), `GAZE_RULEPACKS` (comma-separated bundled rulepack names), `GAZE_RULEPACK_PATHS` (comma-separated rulepack TOML paths), `GAZE_SAFETY_NET` (bool, enables secondary classifier pass), `GAZE_SAFETY_NET_DEVICE` (device for safety-net model, e.g. `cuda:0`).
 
 `GAZE_AUDIT_DB_PATH` enables the audit-log SQLite trail: write side via `Gaze::clean()`, read side via `Gaze::audit()->purge()` and the upcoming `query` / `export` verbs. See [docs/audit.md](docs/audit.md).
 
@@ -213,7 +213,7 @@ By default gaze-laravel runs in regex/rulepack mode. Enable named-entity recogni
 php artisan gaze:install-ner --yes
 ```
 
-This downloads the pinned Davlan mBERT NER int8 ONNX artifact set into `storage/app/gaze-ner/davlan-mbert-ner-hrl-int8/`, verifies every file against the upstream v0.5.2 `SHA256SUMS` contract, copies the packaged BIO-to-class `labels.json`, and prints the `[ner]` block to paste into `policy.toml`.
+This downloads the pinned Davlan mBERT NER int8 ONNX artifact set into `storage/app/gaze-ner/davlan-mbert-ner-hrl-int8/`, verifies every file against the upstream `SHA256SUMS` contract, copies the packaged BIO-to-class `labels.json`, and prints the `[ner]` block to paste into `policy.toml`.
 
 To wire `policy.toml` automatically, add `--update-policy`. Re-running the command is idempotent when artifacts already verify.
 
