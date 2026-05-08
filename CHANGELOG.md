@@ -12,6 +12,8 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 ### Changed
 
 - Pre-existing Pint format drift in `BinaryInstaller` and `Gaze` was cleaned up to enable the new format-check gate.
+- Repository org renamed to `EmpireTwo`. Code/test/doc URLs sweep to canonical name; GitHub redirects keep historical refs resolvable. Two CHANGELOG history entries preserve their original org/repo wording to keep historical accuracy intact.
+- Pinned upstream `gaze` Rust binary URL switches to `EmpireTwo/gaze` (`BinaryInstaller::RELEASE_BASE` + `GazeServiceProvider` NER manifest fetch).
 
 ### Fixed
 
@@ -19,7 +21,7 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [0.6.4] - 2026-05-08
 
-OSS readiness wave: lockstep with upstream `piinuts/gaze` v0.6.4, README turned into a promo page with deep content moved to `docs/`, and a fix for the broken binary download path that shipped with the unreleased v0.6.5 metadata.
+OSS readiness wave: lockstep with upstream `EmpireTwo/gaze` v0.6.4, README turned into a promo page with deep content moved to `docs/`, and a fix for the broken binary download path that shipped with the unreleased v0.6.5 metadata.
 
 ### Added
 
@@ -31,7 +33,7 @@ OSS readiness wave: lockstep with upstream `piinuts/gaze` v0.6.4, README turned 
 ### Changed
 
 - README slim-down: deep content moved to dedicated `docs/*.md` files. README is now a promo page (~100 lines, was ~340).
-- Retarget the upcoming OSS cut to upstream `piinuts/gaze` v0.6.4, the latest published release, instead of the unreleased v0.6.5 metadata used during audit prep.
+- Retarget the upcoming OSS cut to upstream `EmpireTwo/gaze` v0.6.4, the latest published release, instead of the unreleased v0.6.5 metadata used during audit prep.
 - `php artisan gaze:install-ner --force` is now the single Laravel-idiomatic gate for both non-interactive confirmation and overwriting existing destination/policy state.
 - NER artifact integrity now resolves `SHA256SUMS` from the upstream release URL instead of carrying a stale static checksum file.
 - The pre-push hook gained a docs-only fast path before being removed for OSS packaging; historical v0.5.0 notes still document the old contributor-local hook behavior.
@@ -61,7 +63,7 @@ NER opt-in wave: ships `gaze:install-ner` for one-command Davlan mBERT NER int8 
 
 ### Changed
 
-- Bump pinned upstream `piinuts/gaze` from v0.5.0 to v0.5.2 (docs/scripts/assets refresh; CLI surface unchanged).
+- Bump pinned upstream `EmpireTwo/gaze` from v0.5.0 to v0.5.2 (docs/scripts/assets refresh; CLI surface unchanged).
 - `GazeServiceProvider` now defers container bindings until first use, and `GazeException` subclasses own their log-level classification.
 - PHPStan now analyzes `tests/` as well as `src/`; shared test helpers live in `tests/Helpers.php` and the direct PHPUnit dev constraint is removed in favor of Pest's transitive PHPUnit dependency.
 - `GazeRetryPolicy` now supports Laravel-style `array<int>` backoff schedules and reports the missing queue method (`fail` / `release`) when a consumer job lacks the expected queue traits.
@@ -94,7 +96,7 @@ Adopter ergonomics wave: ships a real multi-class default policy, a cold-latency
 
 ### Changed
 
-- Bump pinned upstream `piinuts/gaze` from v0.4.5 to v0.5.0. v0.5.0 is a workspace-shape refactor (extracted `gaze-types` + `gaze-audit` crates, Dylint-based audit-isolation gate); CLI binary contract is unchanged so the adapter does not need behaviour changes. Help snapshots regenerated against the v0.5.0 binary.
+- Bump pinned upstream `EmpireTwo/gaze` from v0.4.5 to v0.5.0. v0.5.0 is a workspace-shape refactor (extracted `gaze-types` + `gaze-audit` crates, Dylint-based audit-isolation gate); CLI binary contract is unchanged so the adapter does not need behaviour changes. Help snapshots regenerated against the v0.5.0 binary.
 - Adapter Encrypter cipher now follows host `config('app.cipher')` instead of hardcoded AES-256-CBC (#18, closes #209). Aligns with Laravel 11+ AES-256-GCM default. Existing deployments unaffected unless they relied on the hardcode mismatching the host. Cross-config regression test added.
 - `policy.toml.example` rewritten as a multi-class v0.4 default. Activates `core` + `core-extended` rulepacks, ships 4 custom recognizers (money amount, invoice/order number, street address, org with legal suffix), uses BCP47 locales (`de-DE` + `en-US`) so postal recognizers actually fire, and keeps `[ner]` commented (opt-in via #32's `php artisan gaze:install-ner`). Migrates from the retired `[[detector]]` v0.3 surface to v0.4 `[[policy.custom_recognizers]]`. Money-amount regex is bounded to prevent partial matches inside identifiers and fixes the `\d{1,3}` thousand-separator bug from #31. Schema-shape test plus real-binary integration round-trip locks the contract. Closes #31.
 - `.github/workflows/test.yml` auto-triggers (`push: main`, `pull_request`) temporarily disabled while GitHub Actions billing on the PIInuts org is being resolved. Workflow stays present and is invokable via `workflow_dispatch` (manual run from the Actions tab). Local enforcement via the new pre-push hook covers the same `composer test` + `composer analyse` checks. Re-enable by uncommenting the two trigger blocks in the workflow file.
@@ -117,7 +119,7 @@ First stable adopter-facing release. Bundles the v0.3 retarget with full upstrea
 ### Added
 
 - **Composer plugin install hook (#12).** `GazeInstallerPlugin` (`PluginInterface` + `EventSubscriberInterface`) auto-downloads the `gaze` binary into `vendor/bin/` on `composer require naoray/gaze-laravel`. Subscribes to `POST_PACKAGE_INSTALL` and `POST_PACKAGE_UPDATE` for the package itself. Previously `BinaryInstaller::postInstall` was orphaned dead code (no `extra.class`, no consumer-side script wiring) so adopters never auto-got the binary.
-- **`GAZE_GITHUB_TOKEN` env (#16).** Authenticated downloads from the private `piinuts/gaze` release artifacts via GitHub asset-id resolution + `Authorization: Bearer` + `Accept: application/octet-stream`. Required for adopter installs while the upstream repo is private. `Authorization` header is stripped on cross-host redirects (api.github.com → S3 signed URL) so the token never leaves GitHub. README documents the token + required scopes.
+- **`GAZE_GITHUB_TOKEN` env (#16).** Authenticated downloads from the private `EmpireTwo/gaze` release artifacts via GitHub asset-id resolution + `Authorization: Bearer` + `Accept: application/octet-stream`. Required for adopter installs while the upstream repo is private. `Authorization` header is stripped on cross-host redirects (api.github.com → S3 signed URL) so the token never leaves GitHub. README documents the token + required scopes.
 - **CI matrix workflow (#13).** `.github/workflows/test.yml` runs Pest + PHPStan on PHP 8.2/8.3 × Laravel 11/12, ubuntu-latest. CI sets `GAZE_SKIP_BINARY_DOWNLOAD=1` (wrapper-only test scope; binary integration test is a follow-up). Concurrency cancels in-progress runs on the same ref. Action versions pinned.
 - **Variant lockstep with upstream `gaze` v0.4.5 (#14).** `Variant::PolicyConfigDetail` + `Variant::AuditPurgeIso8601` enum cases, matching `GazePolicyConfigDetailException` and `GazeAuditPurgeIso8601Exception` typed exceptions, `Gaze::buildException` mapFailure arms, and `Variant::exitBucket()` arms. `PolicyConfigDetail` shares its wire name with `PolicyConfig` upstream and is disambiguated via the `detail` sidecar in `Variant::tryFromStderr`.
 - **Variant contract test (#14).** `tests/Contract/VariantContractTest.php` is a fixture-based parity guard asserting every PHP `Variant` matches upstream `crates/gaze-cli/src/error.rs:8-23` for `(name, exit, wire shape)`. Catches drift in either direction.
@@ -165,7 +167,7 @@ First stable adopter-facing release. Bundles the v0.3 retarget with full upstrea
 composer require naoray/gaze-laravel:^0.4.0
 ```
 
-The upstream `piinuts/gaze` repo is currently private, so binary download requires a GitHub PAT with `repo` scope:
+The upstream `EmpireTwo/gaze` repo is currently private, so binary download requires a GitHub PAT with `repo` scope:
 
 ```env
 GAZE_GITHUB_TOKEN=ghp_yourTokenHere
