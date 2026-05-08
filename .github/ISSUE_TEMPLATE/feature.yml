@@ -1,0 +1,35 @@
+name: "✨ Feature request"
+description: "Propose a new feature or enhancement"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider?
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, links, or examples when useful.
+  - type: checkboxes
+    id: existing
+    attributes:
+      label: Existing issues
+      options:
+        - label: Have you checked existing issues?
+          required: true
