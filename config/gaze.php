@@ -84,8 +84,8 @@ return [
     'rulepack_paths' => array_filter(explode(',', env('GAZE_RULEPACK_PATHS', ''))),
 
     /*
-     * Enable the safety-net classifier (`--safety-net`). When true, the binary
-     * runs a lightweight secondary pass to catch tokens the primary policy missed.
+     * Enable the safety-net classifier. When true, the binary passes
+     * `--safety-net=openai-filter` (v0.6.4+ contract).
      */
     'safety_net' => (bool) env('GAZE_SAFETY_NET', false),
 
