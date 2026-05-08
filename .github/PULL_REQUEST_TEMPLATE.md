@@ -1,5 +1,4 @@
 ## Summary
-
 <!-- 1-3 sentences: what changed and why. -->
 
 ## Type of Change
@@ -14,8 +13,7 @@
 - [ ] Other
 
 ## Test Plan
-
-- [ ] 
+- [ ]
 
 ## Related Issues
 
