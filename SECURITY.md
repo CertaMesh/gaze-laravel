@@ -11,7 +11,7 @@
 
 Report vulnerabilities privately through GitHub Security Advisories:
 
-https://github.com/PIInuts/gaze-laravel/security/advisories/new
+https://github.com/EmpireTwo/gaze-laravel/security/advisories/new
 
 This opens a private channel between the reporter and maintainers.
 
@@ -36,8 +36,8 @@ In scope:
 
 Out of scope:
 
-- The upstream `piinuts/gaze` Rust binary itself. Report those issues to
-  https://github.com/PIInuts/gaze.
+- The upstream `EmpireTwo/gaze` Rust binary itself. Report those issues to
+  https://github.com/EmpireTwo/gaze.
 
 ## Acknowledgments
 

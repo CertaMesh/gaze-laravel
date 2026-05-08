@@ -147,7 +147,7 @@ it('ignores GAZE_RELEASE_BASE in production installs', function () {
         $io = new BufferIO;
         BinaryInstaller::postInstall(gl_makeEvent($io, $this->tmpDir));
 
-        expect(BinaryInstaller::resolveReleaseBase(new BufferIO))->toBe('https://github.com/piinuts/gaze/releases/download')
+        expect(BinaryInstaller::resolveReleaseBase(new BufferIO))->toBe('https://github.com/EmpireTwo/gaze/releases/download')
             ->and($io->getOutput())->toContain("gaze v{$version} already installed")
             ->and($io->getOutput())->not->toContain('non-canonical GAZE_RELEASE_BASE override');
     } finally {
@@ -219,21 +219,21 @@ it('resolves path-relative redirects against the current directory', function ()
 });
 
 it('derives github owner/repo from the default release base', function () {
-    $base = 'https://github.com/piinuts/gaze/releases/download';
+    $base = 'https://github.com/EmpireTwo/gaze/releases/download';
 
-    expect(BinaryInstaller::deriveGithubRepo($base))->toBe('piinuts/gaze');
+    expect(BinaryInstaller::deriveGithubRepo($base))->toBe('EmpireTwo/gaze');
 });
 
 it('derives github owner/repo when the base has a trailing path segment', function () {
-    $base = 'https://github.com/piinuts/gaze/releases/download/v0.3.0';
+    $base = 'https://github.com/EmpireTwo/gaze/releases/download/v0.3.0';
 
-    expect(BinaryInstaller::deriveGithubRepo($base))->toBe('piinuts/gaze');
+    expect(BinaryInstaller::deriveGithubRepo($base))->toBe('EmpireTwo/gaze');
 });
 
 it('returns null for non-github release bases', function () {
     expect(BinaryInstaller::deriveGithubRepo('https://mirror.internal/gaze/releases/download'))->toBeNull()
         ->and(BinaryInstaller::deriveGithubRepo('https://example.com/foo/bar'))->toBeNull()
-        ->and(BinaryInstaller::deriveGithubRepo('http://github.com/piinuts/gaze/releases/download'))->toBeNull();
+        ->and(BinaryInstaller::deriveGithubRepo('http://github.com/EmpireTwo/gaze/releases/download'))->toBeNull();
 });
 
 it('builds unauthenticated request headers without an Authorization line', function () {

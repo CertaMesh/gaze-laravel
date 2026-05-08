@@ -92,7 +92,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
 
         $this->app->singleton(NerManifest::class, function (Application $app): NerManifest {
             $version = BinaryInstaller::PINNED_VERSION;
-            $url = "https://github.com/PIInuts/gaze/releases/download/v{$version}/SHA256SUMS.ner";
+            $url = "https://github.com/EmpireTwo/gaze/releases/download/v{$version}/SHA256SUMS.ner";
 
             return NerManifest::fromUrl($url, $app->make(HttpClientInterface::class));
         });
