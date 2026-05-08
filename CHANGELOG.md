@@ -4,6 +4,10 @@ All notable changes to `naoray/gaze-laravel` are documented in this file.
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-05-08
+
+OSS readiness wave: lockstep with upstream `piinuts/gaze` v0.6.4, README turned into a promo page with deep content moved to `docs/`, and a fix for the broken binary download path that shipped with the unreleased v0.6.5 metadata.
+
 ### Added
 
 - PHP adapter coverage for the upstream v0.6.4 CLI surface, including locale, bundled rulepacks, custom rulepack paths, audit query, safety-net, and OpenAI filter device arguments.
