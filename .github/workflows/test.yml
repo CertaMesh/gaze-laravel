@@ -57,3 +57,22 @@ jobs:
 
       - name: Run static analysis
         run: composer analyse
+
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+
+      - uses: ramsey/composer-install@v3
+        with:
+          dependency-versions: highest
+          # Skip the lockfile: it locks Symfony 8.x which requires PHP 8.4,
+          # while this job intentionally runs PHP 8.3 to mirror the test matrix.
+
+      - run: composer format -- --test
+        # `--test` is Pint's dry-run flag: fails if any file would be reformatted.
