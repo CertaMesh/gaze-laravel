@@ -3,6 +3,26 @@
     "description": "Laravel adapter for the Gaze PII sanitization binary.",
     "license": "Apache-2.0",
     "keywords": ["laravel", "gdpr", "pii", "anonymization", "llm", "ai"],
+    "homepage": "https://github.com/PIInuts/gaze-laravel",
+    "support": {
+        "issues": "https://github.com/PIInuts/gaze-laravel/issues",
+        "source": "https://github.com/PIInuts/gaze-laravel",
+        "docs": "https://github.com/PIInuts/gaze-laravel/blob/main/docs"
+    },
+    "authors": [
+        {
+            "name": "Naoray",
+            "homepage": "https://github.com/Naoray"
+        },
+        {
+            "name": "mg",
+            "email": "m.gottschau.ext@ndr.de"
+        },
+        {
+            "name": "The Gaze Contributors",
+            "homepage": "https://github.com/PIInuts/gaze-laravel/graphs/contributors"
+        }
+    ],
     "require": {
         "php": "^8.2",
         "ext-json": "*",
