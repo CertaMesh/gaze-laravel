@@ -94,4 +94,51 @@ return [
      * as `--openai-filter-device=<value>`. Null omits the flag.
      */
     'safety_net_device' => env('GAZE_SAFETY_NET_DEVICE'),
+
+    /*
+     * Optional path to the local `opf` binary used by the safety-net classifier.
+     * Forwarded as `--openai-filter-command=<value>`. Null lets the binary use
+     * PATH lookup.
+     */
+    'openai_filter_command' => env('GAZE_OPENAI_FILTER_COMMAND'),
+
+    /*
+     * Optional model checkpoint directory for the safety-net classifier.
+     * Forwarded as `--openai-filter-checkpoint=<value>`. Null lets the binary
+     * use its built-in default.
+     */
+    'openai_filter_checkpoint' => env('GAZE_OPENAI_FILTER_CHECKPOINT'),
+
+    /*
+     * Optional safety-net sensitivity trade-off. Valid values are `high-recall`,
+     * `balanced`, and `high-precision`. Forwarded as
+     * `--openai-filter-operating-point=<value>`. Null lets the binary use its
+     * default.
+     */
+    'openai_filter_operating_point' => env('GAZE_OPENAI_FILTER_OPERATING_POINT'),
+
+    /*
+     * Optional safety-net subprocess timeout in milliseconds. Must be positive.
+     * Forwarded as `--safety-net-timeout-ms=<value>`. Null lets the binary use
+     * its default of 5000 ms.
+     */
+    'safety_net_timeout_ms' => env('GAZE_SAFETY_NET_TIMEOUT_MS') === null
+        ? null
+        : (int) env('GAZE_SAFETY_NET_TIMEOUT_MS'),
+
+    /*
+     * Optional clean-text size cap, in bytes, for the safety-net subprocess.
+     * Must be positive. Forwarded as `--safety-net-input-limit-bytes=<value>`.
+     * Null lets the binary use its default of 1048576 bytes.
+     */
+    'safety_net_input_limit_bytes' => env('GAZE_SAFETY_NET_INPUT_LIMIT_BYTES') === null
+        ? null
+        : (int) env('GAZE_SAFETY_NET_INPUT_LIMIT_BYTES'),
+
+    /*
+     * Optional suspected-leak handling mode. Valid values are `strict` and
+     * `tolerant`. Forwarded as `--safety-net-mode=<value>`. Null lets the binary
+     * use its default of `strict`.
+     */
+    'safety_net_mode' => env('GAZE_SAFETY_NET_MODE'),
 ];
