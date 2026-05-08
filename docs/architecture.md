@@ -203,7 +203,7 @@ retries will time out indefinitely. Consumer jobs should set a `$maxTries` or
 Pre-built binaries are ARM-only. macOS x86_64 users must install from source:
 
 ```bash
-cargo install --git https://github.com/piinuts/gaze gaze
+cargo install --git https://github.com/EmpireTwo/gaze gaze
 ```
 
 Then set `GAZE_BINARY=/path/to/gaze` in `.env`.

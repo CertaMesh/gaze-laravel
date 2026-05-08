@@ -16,7 +16,7 @@
 # bound to "de-DE".
 #
 # Extending: append [[policy.custom_recognizers]] blocks for adopter-specific
-# regexes. See https://github.com/PIInuts/gaze/blob/main/docs/policy.md
+# regexes. See https://github.com/EmpireTwo/gaze/blob/main/docs/policy.md
 # for the full schema reference.
 
 [session]
