@@ -6,6 +6,7 @@ namespace Naoray\GazeLaravel\Queue;
 
 use Illuminate\Support\Facades\Event;
 use Naoray\GazeLaravel\Events\GazeInfraAlert;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
 use Naoray\GazeLaravel\Queue\Contracts\Retryable;
 use Naoray\GazeLaravel\Queue\Contracts\RetryableWithAlert;
@@ -15,6 +16,9 @@ final class GazeRetryPolicy
     public static function classify(\Throwable $e): RetryAction
     {
         return match (true) {
+            $e instanceof GazeSafetyNetFailureException && $e->isNonRetryable() => RetryAction::Fail,
+            $e instanceof GazeSafetyNetFailureException && $e->isRetryableWithAlert() => RetryAction::ReleaseWithAlert,
+            $e instanceof GazeSafetyNetFailureException && $e->isRetryable() => RetryAction::ReleaseWithBackoff,
             $e instanceof NonRetryable => RetryAction::Fail,
             $e instanceof RetryableWithAlert => RetryAction::ReleaseWithAlert,
             $e instanceof Retryable => RetryAction::ReleaseWithBackoff,
