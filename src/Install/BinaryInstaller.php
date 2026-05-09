@@ -12,7 +12,7 @@ use Symfony\Component\Process\Process;
 final class BinaryInstaller
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
-    public const PINNED_VERSION = '0.6.4';
+    public const PINNED_VERSION = '0.6.6';
 
     private const RELEASE_BASE = 'https://github.com/EmpireTwo/gaze/releases/download';
 
@@ -148,7 +148,7 @@ final class BinaryInstaller
         return match (true) {
             $os === 'darwin' && in_array($arch, ['arm64', 'aarch64'], true) => 'aarch64-apple-darwin',
             $os === 'darwin' && $arch === 'x86_64' => 'x86_64-apple-darwin',
-            $os === 'linux' && $arch === 'x86_64' => 'x86_64-unknown-linux-gnu',
+            $os === 'linux' && $arch === 'x86_64' => 'x86_64-linux-gnu',
             $os === 'linux' && in_array($arch, ['arm64', 'aarch64'], true) => 'aarch64-unknown-linux-gnu',
             default => null,
         };

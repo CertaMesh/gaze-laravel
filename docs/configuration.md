@@ -26,6 +26,9 @@ GAZE_MAX_BYTES=
 # Optional session blob TTL forwarded to the binary.
 GAZE_SESSION_TTL=
 
+# Optional clean session isolation scope: ephemeral, conversation, or persistent.
+GAZE_SESSION_SCOPE=
+
 # Optional dedicated encryption key for session blobs.
 # Must be prefixed with "base64:" followed by a base64-encoded 32-byte value.
 # Generate: php artisan key:generate --show | sed 's/base64://' | base64 -d | base64 | awk '{print "base64:"$1}'
@@ -35,12 +38,17 @@ GAZE_ENCRYPTION_KEY=
 GAZE_AUDIT_DB_PATH=/var/www/html/storage/app/gaze/audit.sqlite
 
 # OpenAI privacy-filter safety-net knobs.
+GAZE_SAFETY_NET=false
+GAZE_SAFETY_NET_DEVICE=cpu
 GAZE_OPENAI_FILTER_COMMAND=/usr/local/bin/opf
 GAZE_OPENAI_FILTER_CHECKPOINT=/var/www/html/storage/app/gaze/openai-filter
 GAZE_OPENAI_FILTER_OPERATING_POINT=balanced
 GAZE_SAFETY_NET_TIMEOUT_MS=5000
 GAZE_SAFETY_NET_INPUT_LIMIT_BYTES=1048576
 GAZE_SAFETY_NET_MODE=strict
+
+# Optional restore behavior: strict or tolerant.
+GAZE_RESTORE_MODE=
 ```
 
 ---
@@ -163,6 +171,28 @@ GAZE_SESSION_TTL=7200
 
 ---
 
+### `gaze.session_scope`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SESSION_SCOPE` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default) |
+
+Optional session isolation scope forwarded to `gaze clean` as `--session-scope=<value>`. Valid upstream values are `ephemeral`, `conversation`, and `persistent`.
+
+**When to set:** Use `ephemeral` for one-off clean/restore flows, `conversation` when multiple turns share a short-lived context, and `persistent` only when durable token/session behavior is intentional.
+
+**Example:**
+
+```dotenv
+GAZE_SESSION_SCOPE=conversation
+```
+
+**Caveat:** Unsupported values are rejected by the binary and surface as `GazeUnsupportedSessionScopeException`.
+
+---
+
 ### `gaze.blob_encryption_key`
 
 | | |
@@ -223,6 +253,42 @@ GAZE_AUDIT_DB_PATH=/var/www/html/storage/app/gaze/audit.sqlite
 - Both the web process and the queue worker must have read/write access to the file. The binary creates files in mode `0600`; widen permissions via deploy tooling if processes run under different OS users.
 - Audit logging is non-transactional with the clean response. A successful `clean` may occasionally omit an audit row. Treat audit rows as advisory and reconcile on a schedule if complete-trail guarantees are required.
 - Do not cross-join audit rows with `GazeSession::$cleanText`. The `recognizer_id`, `pii_class`, and token slot fields in audit rows are re-identification side channels. See [audit.md](./audit.md) for the full atomicity and re-identification warning.
+
+---
+
+### `gaze.safety_net`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SAFETY_NET` |
+| **PHP type** | `bool` |
+| **Default** | `false` |
+
+Enables the OpenAI privacy-filter safety net. When true, `Gaze::clean()` forwards `--safety-net=openai-filter`.
+
+**Example:**
+
+```dotenv
+GAZE_SAFETY_NET=true
+```
+
+---
+
+### `gaze.safety_net_device`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SAFETY_NET_DEVICE` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default) |
+
+CUDA/CPU device for the OpenAI privacy-filter safety net, forwarded as `--openai-filter-device=<value>`.
+
+**Example:**
+
+```dotenv
+GAZE_SAFETY_NET_DEVICE=cpu
+```
 
 ---
 
@@ -330,4 +396,24 @@ Optional suspected-leak handling mode for the OpenAI privacy-filter safety net. 
 
 ```dotenv
 GAZE_SAFETY_NET_MODE=strict
+```
+
+---
+
+### `gaze.restore_mode`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_RESTORE_MODE` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default: `strict`) |
+
+Optional restore behavior for unknown tokens, forwarded to `gaze restore` as `--restore-mode=<value>`. Valid upstream values are `strict` and `tolerant`.
+
+**When to set:** Leave null for strict restore failures on unknown tokens. Use `tolerant` only when partial restore is preferable to failing the whole operation.
+
+**Example:**
+
+```dotenv
+GAZE_RESTORE_MODE=tolerant
 ```

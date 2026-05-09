@@ -12,25 +12,27 @@ use Naoray\GazeLaravel\Exceptions\GazeIoException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
+use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
 use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
 
 /** @param class-string<GazeException> $class */
-it('maps variants to their dedicated exception classes', function (string $error, string $class) {
+it('maps variants to their dedicated exception classes', function (array $payload, string $class) {
     if (! is_a($class, GazeException::class, true)) {
         throw new RuntimeException('expected GazeException subclass');
     }
 
-    $stderr = json_encode([
-        'error' => $error,
-        'exit' => match ($error) {
-            'PolicyConfig' => 2,
-            'Io', 'PolicyOpen' => 4,
-            'SigPipe' => 141,
-            default => 3,
-        },
-    ], JSON_THROW_ON_ERROR).PHP_EOL;
+    $error = $payload['error'];
+    $payload['exit'] = match ($error) {
+        'PolicyConfig' => 2,
+        'Io', 'PolicyOpen' => 4,
+        'SigPipe' => 141,
+        default => 3,
+    };
+    $stderr = json_encode($payload, JSON_THROW_ON_ERROR).PHP_EOL;
 
     Process::fake([
         '*' => Process::result(
@@ -59,16 +61,27 @@ it('maps variants to their dedicated exception classes', function (string $error
 
     $this->fail("Expected {$class} to be thrown.");
 })->with([
-    ['UnknownToken', GazeUnknownTokenException::class],
-    ['InvalidSignature', GazeInvalidSignatureException::class],
-    ['InvalidBlobVersion', GazeInvalidBlobVersionException::class],
-    ['BlobExpired', GazeBlobExpiredException::class],
-    ['Pipeline', GazePipelineException::class],
-    ['PolicyConfig', GazePolicyConfigException::class],
-    ['Io', GazeIoException::class],
-    ['SigPipe', GazeSigPipeException::class],
-    ['PolicyOpen', GazePolicyOpenException::class],
+    [['error' => 'UnknownToken'], GazeUnknownTokenException::class],
+    [['error' => 'InvalidSignature'], GazeInvalidSignatureException::class],
+    [['error' => 'InvalidBlobVersion'], GazeInvalidBlobVersionException::class],
+    [['error' => 'BlobExpired'], GazeBlobExpiredException::class],
+    [['error' => 'Pipeline'], GazePipelineException::class],
+    [['error' => 'PolicyConfig'], GazePolicyConfigException::class],
+    [['error' => 'SafetyNetConfig', 'detail' => 'missing config'], GazeSafetyNetConfigException::class],
+    [['error' => 'SafetyNet', 'variant' => 'Timeout'], GazeSafetyNetFailureException::class],
+    [['error' => 'UnsupportedSessionScope', 'variant' => 'global'], GazeUnsupportedSessionScopeException::class],
+    [['error' => 'Io'], GazeIoException::class],
+    [['error' => 'SigPipe'], GazeSigPipeException::class],
+    [['error' => 'PolicyOpen'], GazePolicyOpenException::class],
 ]);
+
+it('exposes safety-net and session-scope sidecar fields', function () {
+    $safetyNet = new GazeSafetyNetFailureException('safety', 3, hash('sha256', ''), 'SuspectedLeak');
+    $scope = new GazeUnsupportedSessionScopeException('scope', 3, hash('sha256', ''), 'global');
+
+    expect($safetyNet->safetyNetVariant())->toBe('SuspectedLeak')
+        ->and($scope->attemptedScope())->toBe('global');
+});
 
 it('marks blob-expired variants as requiring a fresh clean', function () {
     $exception = new GazeBlobExpiredException('expired', 3, hash('sha256', ''));

@@ -21,7 +21,7 @@ it('detects a supported target triple on macOS or Linux', function () {
         test()->markTestSkipped('running on an unsupported platform');
     }
 
-    expect($target)->toMatch('/^(aarch64|x86_64)-(apple-darwin|unknown-linux-gnu)$/');
+    expect($target)->toMatch('/^(aarch64-apple-darwin|x86_64-linux-gnu)$/');
 });
 
 it('returns false from alreadyInstalled when binary is missing', function () {
@@ -315,7 +315,7 @@ it('extracts asset id pair from a github releases tag JSON payload', function ()
             ['id' => 111, 'name' => 'other-thing'],
             ['id' => 222, 'name' => 'gaze-aarch64-apple-darwin'],
             ['id' => 333, 'name' => 'gaze-aarch64-apple-darwin.sha256'],
-            ['id' => 444, 'name' => 'gaze-x86_64-unknown-linux-gnu'],
+            ['id' => 444, 'name' => 'gaze-x86_64-linux-gnu'],
         ],
     ]);
 
@@ -336,8 +336,8 @@ it('throws when the github releases tag JSON has no assets array', function () {
 it('throws when the asset name is missing from the release', function () {
     $json = (string) json_encode([
         'assets' => [
-            ['id' => 1, 'name' => 'gaze-x86_64-unknown-linux-gnu'],
-            ['id' => 2, 'name' => 'gaze-x86_64-unknown-linux-gnu.sha256'],
+            ['id' => 1, 'name' => 'gaze-x86_64-linux-gnu'],
+            ['id' => 2, 'name' => 'gaze-x86_64-linux-gnu.sha256'],
         ],
     ]);
 

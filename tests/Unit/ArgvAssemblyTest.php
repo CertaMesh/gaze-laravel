@@ -57,6 +57,42 @@ it('assembles restore argv and sends the session envelope', function () {
     });
 });
 
+it('forwards --restore-mode when configured', function (string $restoreMode) {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'text' => 'Hello Alice',
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
+    $this->makeGaze(restoreMode: $restoreMode)->restore($session, 'Hello Name_1');
+
+    Process::assertRan(function ($process) use ($restoreMode): bool {
+        expect($process->command)->toContain('--restore-mode='.$restoreMode);
+
+        return true;
+    });
+})->with(['strict', 'tolerant']);
+
+it('omits --restore-mode when not configured', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'text' => 'Hello Alice',
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
+    $this->makeGaze()->restore($session, 'Hello Name_1');
+
+    Process::assertRan(function ($process): bool {
+        foreach ($process->command as $arg) {
+            expect($arg)->not->toStartWith('--restore-mode=');
+        }
+
+        return true;
+    });
+});
+
 it('forwards --audit-db when configured on clean argv', function () {
     Process::fake([
         '*' => Process::result(output: json_encode([
@@ -122,6 +158,24 @@ it('forwards --locale when configured', function () {
         return true;
     });
 });
+
+it('forwards --session-scope when configured', function (string $sessionScope) {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', sessionScope: $sessionScope)->clean('Hello');
+
+    Process::assertRan(function ($process) use ($sessionScope): bool {
+        expect($process->command)->toContain('--session-scope='.$sessionScope);
+
+        return true;
+    });
+})->with(['ephemeral', 'conversation', 'persistent']);
 
 it('produces multiple --rulepack-bundled entries', function () {
     Process::fake([
@@ -223,6 +277,7 @@ it('omits locale, rulepacks, safety-net flags when not configured', function () 
         foreach ($process->command as $arg) {
             expect($arg)
                 ->not->toStartWith('--locale=')
+                ->not->toStartWith('--session-scope=')
                 ->not->toStartWith('--rulepack-bundled=')
                 ->not->toStartWith('--rulepack-path=')
                 ->not->toStartWith('--safety-net')
