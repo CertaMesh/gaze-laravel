@@ -50,6 +50,12 @@ class Gaze
         private readonly ?array $rulepackPaths = null,
         private readonly bool $safetyNet = false,
         private readonly ?string $safetyNetDevice = null,
+        private readonly ?string $openaiFilterCommand = null,
+        private readonly ?string $openaiFilterCheckpoint = null,
+        private readonly ?string $openaiFilterOperatingPoint = null,
+        private readonly ?int $safetyNetTimeoutMs = null,
+        private readonly ?int $safetyNetInputLimitBytes = null,
+        private readonly ?string $safetyNetMode = null,
     ) {}
 
     public function clean(string $text): GazeSession
@@ -93,6 +99,30 @@ class Gaze
 
         if ($this->safetyNetDevice !== null && $this->safetyNetDevice !== '') {
             $command[] = '--openai-filter-device='.$this->safetyNetDevice;
+        }
+
+        if ($this->openaiFilterCommand !== null && $this->openaiFilterCommand !== '') {
+            $command[] = '--openai-filter-command='.$this->openaiFilterCommand;
+        }
+
+        if ($this->openaiFilterCheckpoint !== null && $this->openaiFilterCheckpoint !== '') {
+            $command[] = '--openai-filter-checkpoint='.$this->openaiFilterCheckpoint;
+        }
+
+        if ($this->openaiFilterOperatingPoint !== null && $this->openaiFilterOperatingPoint !== '') {
+            $command[] = '--openai-filter-operating-point='.$this->openaiFilterOperatingPoint;
+        }
+
+        if ($this->safetyNetTimeoutMs !== null) {
+            $command[] = '--safety-net-timeout-ms='.$this->safetyNetTimeoutMs;
+        }
+
+        if ($this->safetyNetInputLimitBytes !== null) {
+            $command[] = '--safety-net-input-limit-bytes='.$this->safetyNetInputLimitBytes;
+        }
+
+        if ($this->safetyNetMode !== null && $this->safetyNetMode !== '') {
+            $command[] = '--safety-net-mode='.$this->safetyNetMode;
         }
 
         $result = $this->run($command, $text, 'clean');

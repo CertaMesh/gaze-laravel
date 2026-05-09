@@ -33,6 +33,14 @@ GAZE_ENCRYPTION_KEY=
 
 # Path to a SQLite audit log. Leave blank to disable audit logging.
 GAZE_AUDIT_DB_PATH=/var/www/html/storage/app/gaze/audit.sqlite
+
+# OpenAI privacy-filter safety-net knobs.
+GAZE_OPENAI_FILTER_COMMAND=/usr/local/bin/opf
+GAZE_OPENAI_FILTER_CHECKPOINT=/var/www/html/storage/app/gaze/openai-filter
+GAZE_OPENAI_FILTER_OPERATING_POINT=balanced
+GAZE_SAFETY_NET_TIMEOUT_MS=5000
+GAZE_SAFETY_NET_INPUT_LIMIT_BYTES=1048576
+GAZE_SAFETY_NET_MODE=strict
 ```
 
 ---
@@ -215,3 +223,111 @@ GAZE_AUDIT_DB_PATH=/var/www/html/storage/app/gaze/audit.sqlite
 - Both the web process and the queue worker must have read/write access to the file. The binary creates files in mode `0600`; widen permissions via deploy tooling if processes run under different OS users.
 - Audit logging is non-transactional with the clean response. A successful `clean` may occasionally omit an audit row. Treat audit rows as advisory and reconcile on a schedule if complete-trail guarantees are required.
 - Do not cross-join audit rows with `GazeSession::$cleanText`. The `recognizer_id`, `pii_class`, and token slot fields in audit rows are re-identification side channels. See [audit.md](./audit.md) for the full atomicity and re-identification warning.
+
+---
+
+### `gaze.openai_filter_command`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_OPENAI_FILTER_COMMAND` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary uses PATH lookup) |
+
+Optional path to the local `opf` command used by the OpenAI privacy-filter safety net. Forwarded to `gaze clean` as `--openai-filter-command`.
+
+**Example:**
+
+```dotenv
+GAZE_OPENAI_FILTER_COMMAND=/usr/local/bin/opf
+```
+
+---
+
+### `gaze.openai_filter_checkpoint`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_OPENAI_FILTER_CHECKPOINT` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default) |
+
+Optional model checkpoint directory for the OpenAI privacy-filter safety net. Forwarded to `gaze clean` as `--openai-filter-checkpoint`.
+
+**Example:**
+
+```dotenv
+GAZE_OPENAI_FILTER_CHECKPOINT=/var/www/html/storage/app/gaze/openai-filter
+```
+
+---
+
+### `gaze.openai_filter_operating_point`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_OPENAI_FILTER_OPERATING_POINT` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default) |
+
+Optional sensitivity trade-off for the OpenAI privacy-filter safety net. Valid upstream values are `high-recall`, `balanced`, and `high-precision`. Forwarded to `gaze clean` as `--openai-filter-operating-point`.
+
+**Example:**
+
+```dotenv
+GAZE_OPENAI_FILTER_OPERATING_POINT=balanced
+```
+
+---
+
+### `gaze.safety_net_timeout_ms`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SAFETY_NET_TIMEOUT_MS` |
+| **PHP type** | `int\|null` |
+| **Default** | `null` (binary default: 5000 ms) |
+
+Optional subprocess timeout for the OpenAI privacy-filter safety net, in milliseconds. Forwarded to `gaze clean` as `--safety-net-timeout-ms`.
+
+**Example:**
+
+```dotenv
+GAZE_SAFETY_NET_TIMEOUT_MS=5000
+```
+
+---
+
+### `gaze.safety_net_input_limit_bytes`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SAFETY_NET_INPUT_LIMIT_BYTES` |
+| **PHP type** | `int\|null` |
+| **Default** | `null` (binary default: 1048576 bytes) |
+
+Optional clean-text size cap for the OpenAI privacy-filter safety-net subprocess. Forwarded to `gaze clean` as `--safety-net-input-limit-bytes`.
+
+**Example:**
+
+```dotenv
+GAZE_SAFETY_NET_INPUT_LIMIT_BYTES=1048576
+```
+
+---
+
+### `gaze.safety_net_mode`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SAFETY_NET_MODE` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default: `strict`) |
+
+Optional suspected-leak handling mode for the OpenAI privacy-filter safety net. Valid upstream values are `strict` and `tolerant`. Forwarded to `gaze clean` as `--safety-net-mode`.
+
+**Example:**
+
+```dotenv
+GAZE_SAFETY_NET_MODE=strict
+```
