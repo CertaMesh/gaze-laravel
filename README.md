@@ -7,6 +7,8 @@
 
 Laravel adapter for the [`gaze`](https://github.com/EmpireTwo/gaze) CLI contract.
 
+> **Mission.** `gaze-laravel` is the PHP gate of [`gaze`](https://github.com/EmpireTwo/gaze). When upstream ships a feature, this package exposes it via idiomatic Laravel surfaces — Facade methods, artisan commands, config keys — when it translates. Detection logic stays upstream.
+
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow for Laravel apps. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
 Use it when you need to:
