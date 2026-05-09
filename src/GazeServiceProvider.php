@@ -61,6 +61,12 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 rulepackPaths: is_array($config->get('gaze.rulepack_paths')) && count($config->get('gaze.rulepack_paths')) > 0 ? $config->get('gaze.rulepack_paths') : null,
                 safetyNet: (bool) $config->get('gaze.safety_net', false),
                 safetyNetDevice: is_string($config->get('gaze.safety_net_device')) && $config->get('gaze.safety_net_device') !== '' ? $config->get('gaze.safety_net_device') : null,
+                openaiFilterCommand: is_string($config->get('gaze.openai_filter_command')) && $config->get('gaze.openai_filter_command') !== '' ? $config->get('gaze.openai_filter_command') : null,
+                openaiFilterCheckpoint: is_string($config->get('gaze.openai_filter_checkpoint')) && $config->get('gaze.openai_filter_checkpoint') !== '' ? $config->get('gaze.openai_filter_checkpoint') : null,
+                openaiFilterOperatingPoint: is_string($config->get('gaze.openai_filter_operating_point')) && $config->get('gaze.openai_filter_operating_point') !== '' ? $config->get('gaze.openai_filter_operating_point') : null,
+                safetyNetTimeoutMs: is_numeric($config->get('gaze.safety_net_timeout_ms')) ? (int) $config->get('gaze.safety_net_timeout_ms') : null,
+                safetyNetInputLimitBytes: is_numeric($config->get('gaze.safety_net_input_limit_bytes')) ? (int) $config->get('gaze.safety_net_input_limit_bytes') : null,
+                safetyNetMode: is_string($config->get('gaze.safety_net_mode')) && $config->get('gaze.safety_net_mode') !== '' ? $config->get('gaze.safety_net_mode') : null,
                 container: $app,
             );
         });
