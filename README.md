@@ -11,6 +11,10 @@ Use it when you need to:
 - keep encrypted session blobs out of logs and public component state;
 - classify subprocess failures into caller, config, integrity, and infra buckets.
 
+> **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in
+> second install — run `php artisan gaze:install-ner` to download model artifacts. See
+> [`docs/ner.md`](docs/ner.md) for trade-offs.
+
 **New here?** Start with the [getting started guide](./docs/getting-started.md).
 
 ## Requirements
@@ -22,12 +26,31 @@ Use it when you need to:
 ## Install
 
 ```bash
-composer require naoray/gaze-laravel
+composer require empiretwo/gaze-laravel
 php artisan vendor:publish --tag=gaze-config
 php artisan vendor:publish --tag=gaze-policy
 ```
 
 The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself.
+
+> **Non-interactive (CI) installs:** Composer 2.2+ requires plugins be allow-listed before
+> they execute. Add this once before installing in CI:
+>
+> ```bash
+> composer config allow-plugins.empiretwo/gaze-laravel true
+> ```
+>
+> Or pre-seed `composer.json`:
+>
+> ```json
+> "config": {
+>   "allow-plugins": {
+>     "empiretwo/gaze-laravel": true
+>   }
+> }
+> ```
+>
+> Without this, the binary auto-download step is silently skipped on first install.
 
 Installer env overrides:
 
@@ -75,6 +98,11 @@ See [Testing](./docs/testing.md) for fakes, assertions, and integration-test set
 Session blobs are encrypted at rest with Laravel's encrypter, keyed by `GAZE_ENCRYPTION_KEY` or `APP_KEY`.
 Only pseudonymized `$session->cleanText` should cross the model boundary; restore happens owner-side.
 See [Security model](./docs/security.md) for guarantees, responsibilities, and compliance boundaries.
+
+## Known limitations
+
+- Pre-built binary auto-downloads currently cover Linux x86_64 and macOS arm64. Intel Mac users must install `gaze` from source and set `GAZE_BINARY`.
+- NER model artifacts are not bundled in the Composer package. Install them explicitly with `php artisan gaze:install-ner` when you need NER-backed detection.
 
 ## License
 

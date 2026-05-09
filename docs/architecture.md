@@ -203,8 +203,10 @@ retries will time out indefinitely. Consumer jobs should set a `$maxTries` or
 Pre-built binaries are ARM-only. macOS x86_64 users must install from source:
 
 ```bash
-cargo install --git https://github.com/EmpireTwo/gaze gaze
+git clone https://github.com/EmpireTwo/gaze && cd gaze && cargo install --path crates/gaze-cli
 ```
+
+<!-- TODO(gaze-v0.7): mention `cargo install gaze-cli` once published to crates.io. -->
 
 Then set `GAZE_BINARY=/path/to/gaze` in `.env`.
 

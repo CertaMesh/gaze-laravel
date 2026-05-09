@@ -37,7 +37,7 @@ final class BinaryResolver
 
         throw new GazeBinaryMissingException(
             'gaze binary not found. Set GAZE_BINARY, install the binary, '
-            .'or add the naoray/gaze-laravel post-install-cmd to composer.json.'
+            .'or add the empiretwo/gaze-laravel post-install-cmd to composer.json.'
         );
     }
 

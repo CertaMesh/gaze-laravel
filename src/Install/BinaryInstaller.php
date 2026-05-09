@@ -57,7 +57,8 @@ final class BinaryInstaller
         }
 
         if ($target === 'x86_64-apple-darwin') {
-            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only; run `cargo install --git https://github.com/EmpireTwo/gaze gaze` and set GAZE_BINARY.</error>');
+            // TODO(gaze-v0.7): mention `cargo install gaze-cli` once published to crates.io.
+            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only on Intel; clone https://github.com/EmpireTwo/gaze and run `cargo install --path crates/gaze-cli`, then set GAZE_BINARY.</error>');
 
             return;
         }

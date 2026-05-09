@@ -1,0 +1,19 @@
+* text=auto
+
+# Files excluded from `composer install --prefer-dist` tarballs.
+/.claude/** export-ignore
+/.codex/** export-ignore
+/.github/** export-ignore
+/.idea/** export-ignore
+/.lean-ctx/** export-ignore
+/.scribe/** export-ignore
+/.vscode/** export-ignore
+/AGENTS.md export-ignore
+/CLAUDE.md export-ignore
+/CONTRIBUTING.md export-ignore
+/docs/** export-ignore
+/phpstan-baseline.neon export-ignore
+/phpstan.neon.dist export-ignore
+/phpunit.xml.dist export-ignore
+/pint.json export-ignore
+/tests/** export-ignore
