@@ -180,6 +180,34 @@ it('appends --openai-filter-device when safety_net_device is set', function () {
     });
 });
 
+it('appends OpenAI privacy-filter argv flags when configured', function (string $parameter, mixed $value, string $expectedFlag) {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(...[
+        'policyPath' => '/tmp/policy.toml',
+        $parameter => $value,
+    ])->clean('Hello');
+
+    Process::assertRan(function ($process) use ($expectedFlag): bool {
+        expect($process->command)->toContain($expectedFlag);
+
+        return true;
+    });
+})->with([
+    'openai filter command' => ['openaiFilterCommand', '/usr/local/bin/opf', '--openai-filter-command=/usr/local/bin/opf'],
+    'openai filter checkpoint' => ['openaiFilterCheckpoint', '/models/opf', '--openai-filter-checkpoint=/models/opf'],
+    'openai filter operating point' => ['openaiFilterOperatingPoint', 'high-recall', '--openai-filter-operating-point=high-recall'],
+    'safety net timeout' => ['safetyNetTimeoutMs', 7500, '--safety-net-timeout-ms=7500'],
+    'safety net input limit' => ['safetyNetInputLimitBytes', 123456, '--safety-net-input-limit-bytes=123456'],
+    'safety net mode' => ['safetyNetMode', 'tolerant', '--safety-net-mode=tolerant'],
+]);
+
 it('omits locale, rulepacks, safety-net flags when not configured', function () {
     Process::fake([
         '*' => Process::result(output: json_encode([
@@ -198,7 +226,10 @@ it('omits locale, rulepacks, safety-net flags when not configured', function () 
                 ->not->toStartWith('--rulepack-bundled=')
                 ->not->toStartWith('--rulepack-path=')
                 ->not->toStartWith('--safety-net')
-                ->not->toStartWith('--openai-filter-device=');
+                ->not->toStartWith('--openai-filter-device=')
+                ->not->toStartWith('--openai-filter-command=')
+                ->not->toStartWith('--openai-filter-checkpoint=')
+                ->not->toStartWith('--openai-filter-operating-point=');
         }
 
         return true;
