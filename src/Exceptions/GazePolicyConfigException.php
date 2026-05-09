@@ -6,10 +6,15 @@ namespace Naoray\GazeLaravel\Exceptions;
 
 use Naoray\GazeLaravel\Variant;
 
-final class GazePolicyConfigException extends GazeOpsConfigException
+class GazePolicyConfigException extends GazeOpsConfigException
 {
-    public function __construct(string $message, int $exitCode, string $stderrHash, ?\Throwable $previous = null)
-    {
-        parent::__construct($message, $exitCode, $stderrHash, Variant::PolicyConfig, $previous);
+    public function __construct(
+        string $message,
+        int $exitCode,
+        string $stderrHash,
+        ?\Throwable $previous = null,
+        Variant $variant = Variant::PolicyConfig,
+    ) {
+        parent::__construct($message, $exitCode, $stderrHash, $variant, $previous);
     }
 }

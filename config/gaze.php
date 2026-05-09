@@ -39,6 +39,13 @@ return [
     'session_ttl_seconds' => env('GAZE_SESSION_TTL'),
 
     /*
+     * Optional session isolation scope forwarded to `gaze clean`.
+     * Valid values are `ephemeral`, `conversation`, and `persistent`.
+     * Null omits the flag and lets upstream apply its default.
+     */
+    'session_scope' => env('GAZE_SESSION_SCOPE'),
+
+    /*
      * Optional dedicated base64-encoded 32-byte key for session-blob encryption.
      * When unset, EncryptedBlob falls back to Laravel's default Crypt facade
      * (keyed on APP_KEY). When set, the key MUST be valid or boot fails loudly.
@@ -141,4 +148,10 @@ return [
      * use its default of `strict`.
      */
     'safety_net_mode' => env('GAZE_SAFETY_NET_MODE'),
+
+    /*
+     * Optional restore behavior for unknown tokens. Valid values are `strict`
+     * and `tolerant`. Null omits the flag and lets upstream default to `strict`.
+     */
+    'restore_mode' => env('GAZE_RESTORE_MODE'),
 ];

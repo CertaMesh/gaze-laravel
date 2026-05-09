@@ -48,6 +48,8 @@ abstract class TestCase extends OrchestraTestCase
         ?int $safetyNetTimeoutMs = null,
         ?int $safetyNetInputLimitBytes = null,
         ?string $safetyNetMode = null,
+        ?string $sessionScope = null,
+        ?string $restoreMode = null,
     ): Gaze {
         $app = $this->applicationInstance();
 
@@ -73,6 +75,8 @@ abstract class TestCase extends OrchestraTestCase
             safetyNetTimeoutMs: $safetyNetTimeoutMs,
             safetyNetInputLimitBytes: $safetyNetInputLimitBytes,
             safetyNetMode: $safetyNetMode,
+            sessionScope: $sessionScope,
+            restoreMode: $restoreMode,
             container: $app,
         );
     }

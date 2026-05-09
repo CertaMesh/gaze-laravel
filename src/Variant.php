@@ -12,8 +12,11 @@ enum Variant: string
     case InvalidEncoding = 'InvalidEncoding';
     case PolicyConfig = 'PolicyConfig';
     case PolicyConfigDetail = 'PolicyConfigDetail';
+    case SafetyNetConfig = 'SafetyNetConfig';
+    case SafetyNet = 'SafetyNet';
     case AuditPurgeIso8601 = 'AuditPurgeIso8601';
     case UnknownToken = 'UnknownToken';
+    case UnsupportedSessionScope = 'UnsupportedSessionScope';
     case InvalidSignature = 'InvalidSignature';
     case InvalidBlobVersion = 'InvalidBlobVersion';
     case BlobExpired = 'BlobExpired';
@@ -46,6 +49,18 @@ enum Variant: string
             return self::PolicyConfigDetail;
         }
 
+        if ($error === 'SafetyNetConfig' && array_key_exists('detail', $decoded)) {
+            return self::SafetyNetConfig;
+        }
+
+        if ($error === 'SafetyNet' && isset($decoded['variant']) && is_string($decoded['variant'])) {
+            return self::SafetyNet;
+        }
+
+        if ($error === 'UnsupportedSessionScope' && isset($decoded['variant']) && is_string($decoded['variant'])) {
+            return self::UnsupportedSessionScope;
+        }
+
         return self::tryFrom($error) ?? self::unknownFor($actualExit);
     }
 
@@ -67,7 +82,10 @@ enum Variant: string
         return match ($this) {
             self::StdinParse, self::EmptyInput, self::InputTooLarge, self::InvalidEncoding => 1,
             self::PolicyConfig, self::PolicyConfigDetail, self::AuditPurgeIso8601 => 2,
+            self::SafetyNetConfig,
+            self::SafetyNet,
             self::UnknownToken,
+            self::UnsupportedSessionScope,
             self::InvalidSignature,
             self::InvalidBlobVersion,
             self::BlobExpired,

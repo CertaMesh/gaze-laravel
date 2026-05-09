@@ -6,7 +6,7 @@ use Naoray\GazeLaravel\Variant;
 
 /**
  * Source-of-truth fixture mirrored from upstream `crates/gaze-cli/src/error.rs`
- * for gaze v0.6.4. Each row pins one upstream `CliError` variant:
+ * for gaze v0.6.6. Each row pins one upstream `CliError` variant:
  *   - 0: enum case name on the PHP side
  *   - 1: exit bucket the upstream binary returns (`exit_code()`)
  *   - 2: minimal `{error, exit, ...}` JSON shape upstream emits on stderr
@@ -27,8 +27,11 @@ const UPSTREAM_VARIANTS = [
     'InvalidEncoding' => ['InvalidEncoding', 1, ['error' => 'InvalidEncoding', 'exit' => 1]],
     'PolicyConfig' => ['PolicyConfig', 2, ['error' => 'PolicyConfig', 'exit' => 2]],
     'PolicyConfigDetail' => ['PolicyConfigDetail', 2, ['error' => 'PolicyConfig', 'exit' => 2, 'detail' => 'unknown key `[[detector]]`']],
+    'SafetyNetConfig' => ['SafetyNetConfig', 3, ['error' => 'SafetyNetConfig', 'exit' => 3, 'detail' => 'openai filter config missing']],
+    'SafetyNet' => ['SafetyNet', 3, ['error' => 'SafetyNet', 'exit' => 3, 'variant' => 'Timeout']],
     'AuditPurgeIso8601' => ['AuditPurgeIso8601', 2, ['error' => 'AuditPurgeIso8601', 'exit' => 2, 'input' => 'not-a-date']],
     'UnknownToken' => ['UnknownToken', 3, ['error' => 'UnknownToken', 'exit' => 3, 'token' => 'gz1_abc']],
+    'UnsupportedSessionScope' => ['UnsupportedSessionScope', 3, ['error' => 'UnsupportedSessionScope', 'exit' => 3, 'variant' => 'global']],
     'InvalidSignature' => ['InvalidSignature', 3, ['error' => 'InvalidSignature', 'exit' => 3]],
     'InvalidBlobVersion' => ['InvalidBlobVersion', 3, ['error' => 'InvalidBlobVersion', 'exit' => 3]],
     'BlobExpired' => ['BlobExpired', 3, ['error' => 'BlobExpired', 'exit' => 3]],

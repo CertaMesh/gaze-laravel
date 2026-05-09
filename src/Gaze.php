@@ -25,10 +25,13 @@ use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
 use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeStdinParseException;
 use Naoray\GazeLaravel\Exceptions\GazeTimeoutException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
+use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
 
 class Gaze
 {
@@ -56,6 +59,8 @@ class Gaze
         private readonly ?int $safetyNetTimeoutMs = null,
         private readonly ?int $safetyNetInputLimitBytes = null,
         private readonly ?string $safetyNetMode = null,
+        private readonly ?string $sessionScope = null,
+        private readonly ?string $restoreMode = null,
     ) {}
 
     public function clean(string $text): GazeSession
@@ -75,6 +80,10 @@ class Gaze
 
         if ($this->sessionTtlSeconds !== null) {
             $command[] = '--session-ttl='.$this->sessionTtlSeconds;
+        }
+
+        if ($this->sessionScope !== null && $this->sessionScope !== '') {
+            $command[] = '--session-scope='.$this->sessionScope;
         }
 
         if ($this->auditDbPath !== null && $this->auditDbPath !== '') {
@@ -166,6 +175,10 @@ class Gaze
         $command = [$this->resolver->resolve(), 'restore', '--format=json'];
         if ($this->maxBytes !== null) {
             $command[] = '--max-bytes='.$this->maxBytes;
+        }
+
+        if ($this->restoreMode !== null && $this->restoreMode !== '') {
+            $command[] = '--restore-mode='.$this->restoreMode;
         }
 
         $result = $this->run($command, $payload, 'restore');
@@ -360,6 +373,17 @@ class Gaze
                 $exitCode,
                 $stderrHash,
             ),
+            Variant::SafetyNetConfig => new GazeSafetyNetConfigException(
+                "gaze {$stage} safety-net configuration invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+            ),
+            Variant::SafetyNet => new GazeSafetyNetFailureException(
+                "gaze {$stage} safety-net failed (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+                $this->stderrStringField($stderr, 'variant') ?? 'Other',
+            ),
             Variant::AuditPurgeIso8601 => new GazeAuditPurgeIso8601Exception(
                 "gaze {$stage} audit purge timestamp not ISO8601 (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
@@ -369,6 +393,12 @@ class Gaze
                 "gaze {$stage} encountered unknown token (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
                 $stderrHash,
+            ),
+            Variant::UnsupportedSessionScope => new GazeUnsupportedSessionScopeException(
+                "gaze {$stage} session scope unsupported (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+                $this->stderrStringField($stderr, 'variant') ?? '',
             ),
             Variant::InvalidSignature => new GazeInvalidSignatureException(
                 "gaze {$stage} session signature invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
@@ -410,5 +440,18 @@ class Gaze
         Log::{$exception->logLevel()}("gaze {$stage} failed", $exception->toLogContext());
 
         return $exception;
+    }
+
+    private function stderrStringField(string $stderr, string $field): ?string
+    {
+        $decoded = json_decode($stderr, true);
+
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        $value = $decoded[$field] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 }

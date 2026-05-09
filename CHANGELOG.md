@@ -8,6 +8,9 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 - `composer.json` homepage, support, and authors blocks for Packagist discoverability.
 - Six OpenAI privacy-filter config keys so Laravel apps can tune `--openai-filter-command`, `--openai-filter-checkpoint`, `--openai-filter-operating-point`, `--safety-net-timeout-ms`, `--safety-net-input-limit-bytes`, and `--safety-net-mode` without constructing `Gaze` manually.
+- Upstream `gaze` v0.6.6 parity: `--session-scope` (`GAZE_SESSION_SCOPE`) on `Gaze::clean()`, `--restore-mode` (`GAZE_RESTORE_MODE`) on `Gaze::restore()`, and typed exceptions for `SafetyNetConfig`, `SafetyNet`, and `UnsupportedSessionScope`.
+- `AGENTS.md` mission section plus living-roadmap convention cite for the upstream parity workflow.
+- `docs/upstream-coverage.md` as the living coverage matrix for upstream CLI flags, commands, and stderr variants.
 - Pint format-check CI job that runs `composer format -- --test`.
 
 ### Changed
@@ -15,6 +18,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 - Pre-existing Pint format drift in `BinaryInstaller` and `Gaze` was cleaned up to enable the new format-check gate.
 - Repository org renamed to `EmpireTwo`. Code/test/doc URLs sweep to canonical name; GitHub redirects keep historical refs resolvable. Two CHANGELOG history entries preserve their original org/repo wording to keep historical accuracy intact.
 - Pinned upstream `gaze` Rust binary URL switches to `EmpireTwo/gaze` (`BinaryInstaller::RELEASE_BASE` + `GazeServiceProvider` NER manifest fetch).
+- `BinaryInstaller::PINNED_VERSION` now points at upstream `gaze` v0.6.6 and Linux binary asset detection matches the published `gaze-x86_64-linux-gnu` release asset.
 
 ### Fixed
 

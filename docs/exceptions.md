@@ -14,12 +14,15 @@ All exceptions live under `Naoray\GazeLaravel\Exceptions`. They form a typed hie
     │   └── GazeStdinParseException
     ├── GazeOpsConfigException           (exit bucket 2 — config error, NonRetryable)
     │   ├── GazePolicyConfigException
+    │   │   └── GazeSafetyNetConfigException (exit bucket 3, NonRetryable)
     │   ├── GazePolicyConfigDetailException
     │   ├── GazeAuditPurgeIso8601Exception
     │   └── GazeAuditDbNotConfiguredException
     ├── GazeIntegrityException           (exit bucket 3 — integrity/session error)
     │   ├── GazeUnknownTokenException    (NonRetryable)
     │   ├── GazeResponseDecodeException  (NonRetryable)
+    │   ├── GazeSafetyNetFailureException (variant-dependent retry policy)
+    │   ├── GazeUnsupportedSessionScopeException (NonRetryable)
     │   ├── GazeInvalidSignatureException (NonRetryable)
     │   ├── GazeInvalidBlobVersionException (NonRetryable + RequiresFreshClean)
     │   ├── GazeBlobExpiredException     (NonRetryable + RequiresFreshClean)
@@ -63,6 +66,9 @@ All exceptions live under `Naoray\GazeLaravel\Exceptions`. They form a typed hie
 | `GazeIntegrityException` | 3 | (see subclasses) | No | Abstract base for session-integrity subclasses |
 | `GazeUnknownTokenException` | 3 | `NonRetryable` → fail | No | Binary encountered a token it could not map back to PII |
 | `GazeResponseDecodeException` | 3 | `NonRetryable` → fail | No | Binary stdout was not valid JSON or not a JSON object |
+| `GazeSafetyNetConfigException` | 3 | `NonRetryable` → fail | No | Safety-net configuration is invalid; extends `GazePolicyConfigException` |
+| `GazeSafetyNetFailureException` | 3 | See safety-net table | No | Safety-net subprocess failed or suspected a leak; exposes `safetyNetVariant(): string` |
+| `GazeUnsupportedSessionScopeException` | 3 | `NonRetryable` → fail | No | `--session-scope` value is not supported; exposes `attemptedScope(): string` |
 | `GazeInvalidSignatureException` | 3 | `NonRetryable` → fail | No | Session blob HMAC verification failed |
 | `GazeInvalidBlobVersionException` | 3 | `NonRetryable` → fail | **Yes** | Session blob was created by a newer binary version |
 | `GazeBlobExpiredException` | 3 | `NonRetryable` → fail | **Yes** | Session blob TTL has elapsed |
@@ -96,6 +102,23 @@ try {
 ### `GazePolicyConfigDetailException`
 
 This class is never produced by the binary's raw stderr — it is synthesized client-side by `Variant::tryFromStderr()`. The binary emits `error=PolicyConfig` for both config errors; when the stderr JSON also contains a `detail` sidecar field, the adapter promotes the exception to `GazePolicyConfigDetailException` to give you richer context without changing exit codes.
+
+### Safety-net and session-scope exceptions
+
+`GazeSafetyNetFailureException::safetyNetVariant()` returns the upstream sidecar variant. `GazeRetryPolicy` classifies those variants as:
+
+| Safety-net variant | Retry behaviour |
+|---|---|
+| `Timeout` | `Retryable` → release |
+| `InputTooLarge` | `NonRetryable` → fail |
+| `Unsupported` | `NonRetryable` → fail |
+| `WeightsMissing` | `NonRetryable` → fail |
+| `SuspectedLeak` | `RetryableWithAlert` → release + alert |
+| `Other` | `Retryable` → release |
+
+`GazeSafetyNetConfigException` extends `GazePolicyConfigException`, so existing catch blocks for policy/config failures keep working.
+
+`GazeUnsupportedSessionScopeException::attemptedScope()` returns the rejected scope string from the upstream `variant` sidecar. It is non-retryable because retrying cannot fix invalid configuration/input.
 
 ### `GazeInvalidBlobVersionException` + `GazeBlobExpiredException` (`RequiresFreshClean`)
 

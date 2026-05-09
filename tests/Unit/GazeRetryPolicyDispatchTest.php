@@ -6,8 +6,12 @@ use Illuminate\Support\Facades\Event;
 use Naoray\GazeLaravel\Events\GazeInfraAlert;
 use Naoray\GazeLaravel\Exceptions\GazeIoException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
+use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
 use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
+use Naoray\GazeLaravel\Queue\RetryAction;
 
 it('fails non-retryable exceptions immediately', function () {
     $job = new class
@@ -135,3 +139,16 @@ it('uses Laravel array backoff schedules by attempt number', function () {
 
     expect($job->released)->toBe(60);
 });
+
+it('classifies new safety-net and session-scope variants', function (Throwable $exception, RetryAction $action) {
+    expect(GazeRetryPolicy::classify($exception))->toBe($action);
+})->with([
+    'safety net config' => [new GazeSafetyNetConfigException('config', 3, hash('sha256', '')), RetryAction::Fail],
+    'safety net timeout' => [new GazeSafetyNetFailureException('timeout', 3, hash('sha256', ''), 'Timeout'), RetryAction::ReleaseWithBackoff],
+    'safety net input too large' => [new GazeSafetyNetFailureException('large', 3, hash('sha256', ''), 'InputTooLarge'), RetryAction::Fail],
+    'safety net unsupported' => [new GazeSafetyNetFailureException('unsupported', 3, hash('sha256', ''), 'Unsupported'), RetryAction::Fail],
+    'safety net weights missing' => [new GazeSafetyNetFailureException('weights', 3, hash('sha256', ''), 'WeightsMissing'), RetryAction::Fail],
+    'safety net suspected leak' => [new GazeSafetyNetFailureException('leak', 3, hash('sha256', ''), 'SuspectedLeak'), RetryAction::ReleaseWithAlert],
+    'safety net other' => [new GazeSafetyNetFailureException('other', 3, hash('sha256', ''), 'Other'), RetryAction::ReleaseWithBackoff],
+    'unsupported session scope' => [new GazeUnsupportedSessionScopeException('scope', 3, hash('sha256', ''), 'global'), RetryAction::Fail],
+]);
