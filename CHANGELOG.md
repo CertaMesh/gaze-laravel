@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `naoray/gaze-laravel` are documented in this file.
+All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
 
 ## [Unreleased]
 

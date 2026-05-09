@@ -1,5 +1,5 @@
 {
-    "name": "naoray/gaze-laravel",
+    "name": "empiretwo/gaze-laravel",
     "description": "Laravel adapter for the Gaze PII sanitization binary.",
     "license": "Apache-2.0",
     "keywords": ["laravel", "gdpr", "pii", "anonymization", "llm", "ai"],
@@ -76,7 +76,7 @@
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "naoray/gaze-laravel": true
+            "empiretwo/gaze-laravel": true
         }
     }
 }
