@@ -7,6 +7,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 ### Added
 
 - `composer.json` homepage, support, and authors blocks for Packagist discoverability.
+- Six OpenAI privacy-filter config keys so Laravel apps can tune `--openai-filter-command`, `--openai-filter-checkpoint`, `--openai-filter-operating-point`, `--safety-net-timeout-ms`, `--safety-net-input-limit-bytes`, and `--safety-net-mode` without constructing `Gaze` manually.
 - Pint format-check CI job that runs `composer format -- --test`.
 
 ### Changed

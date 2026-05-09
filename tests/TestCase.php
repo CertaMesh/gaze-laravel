@@ -42,6 +42,12 @@ abstract class TestCase extends OrchestraTestCase
         ?array $rulepackPaths = null,
         bool $safetyNet = false,
         ?string $safetyNetDevice = null,
+        ?string $openaiFilterCommand = null,
+        ?string $openaiFilterCheckpoint = null,
+        ?string $openaiFilterOperatingPoint = null,
+        ?int $safetyNetTimeoutMs = null,
+        ?int $safetyNetInputLimitBytes = null,
+        ?string $safetyNetMode = null,
     ): Gaze {
         $app = $this->applicationInstance();
 
@@ -61,6 +67,12 @@ abstract class TestCase extends OrchestraTestCase
             rulepackPaths: $rulepackPaths,
             safetyNet: $safetyNet,
             safetyNetDevice: $safetyNetDevice,
+            openaiFilterCommand: $openaiFilterCommand,
+            openaiFilterCheckpoint: $openaiFilterCheckpoint,
+            openaiFilterOperatingPoint: $openaiFilterOperatingPoint,
+            safetyNetTimeoutMs: $safetyNetTimeoutMs,
+            safetyNetInputLimitBytes: $safetyNetInputLimitBytes,
+            safetyNetMode: $safetyNetMode,
             container: $app,
         );
     }
