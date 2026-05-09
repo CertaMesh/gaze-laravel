@@ -1,5 +1,10 @@
 # gaze-laravel
 
+[![Latest Stable Version](https://img.shields.io/packagist/v/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
+[![Total Downloads](https://img.shields.io/packagist/dt/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
+[![Tests](https://img.shields.io/github/actions/workflow/status/EmpireTwo/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/actions/workflows/test.yml)
+[![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/blob/main/LICENSE)
+
 Laravel adapter for the [`gaze`](https://github.com/EmpireTwo/gaze) CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow for Laravel apps. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
