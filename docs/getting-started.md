@@ -7,7 +7,7 @@ For the full API reference see [README.md](../README.md).
 ## 1. Install
 
 ```bash
-composer require naoray/gaze-laravel
+composer require empiretwo/gaze-laravel
 php artisan vendor:publish --tag=gaze-config
 php artisan vendor:publish --tag=gaze-policy
 ```

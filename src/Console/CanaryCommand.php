@@ -16,7 +16,7 @@ final class CanaryCommand extends Command
 
     private const CUSTOMER_EMAIL = 'k@example.com';
 
-    private const BODY = 'Hi, this is Krishan Koenig (k@example.com / +353 1 234 5678). Please cancel order ORD-CANARY-ZZ.';
+    private const BODY = 'Hi, this is Ada Example (k@example.com / +353 1 234 5678). Please cancel order ORD-CANARY-ZZ.';
 
     public function handle(Gaze $gaze): int
     {

@@ -1,8 +1,8 @@
 {
-    "name": "naoray/gaze-laravel",
+    "name": "empiretwo/gaze-laravel",
     "description": "Laravel adapter for the Gaze PII sanitization binary.",
     "license": "Apache-2.0",
-    "keywords": ["laravel", "gdpr", "pii", "anonymization", "llm", "ai"],
+    "keywords": ["laravel", "gdpr", "pii", "anonymization", "pseudonymization", "privacy", "redaction", "llm", "ai"],
     "homepage": "https://github.com/EmpireTwo/gaze-laravel",
     "support": {
         "issues": "https://github.com/EmpireTwo/gaze-laravel/issues",
@@ -16,7 +16,7 @@
         },
         {
             "name": "mg",
-            "email": "m.gottschau.ext@ndr.de"
+            "email": "hello@lordeagle.ie"
         },
         {
             "name": "The Gaze Contributors",
@@ -60,6 +60,9 @@
     },
     "extra": {
         "class": "Naoray\\GazeLaravel\\Install\\GazeInstallerPlugin",
+        "branch-alias": {
+            "dev-main": "0.x-dev"
+        },
         "laravel": {
             "providers": ["Naoray\\GazeLaravel\\GazeServiceProvider"],
             "aliases": {"Gaze": "Naoray\\GazeLaravel\\Facades\\Gaze"}
@@ -68,7 +71,7 @@
     "type": "composer-plugin",
     "scripts": {
         "test": "pest",
-        "analyse": "phpstan analyse",
+        "analyse": "phpstan analyse --memory-limit=512M",
         "format": "pint"
     },
     "minimum-stability": "stable",
@@ -76,7 +79,7 @@
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "naoray/gaze-laravel": true
+            "empiretwo/gaze-laravel": true
         }
     }
 }

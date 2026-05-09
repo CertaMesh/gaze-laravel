@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `naoray/gaze-laravel` are documented in this file.
+All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
 
 ## [Unreleased]
 
@@ -114,11 +114,13 @@ Adopter ergonomics wave: ships a real multi-class default policy, a cold-latency
 
 ## [0.4.0] - 2026-04-26
 
+> **Historical note (post-2026-05 public flip):** This release predates both the public flip of `EmpireTwo/gaze` and the vendor rename to `empiretwo/gaze-laravel`. The install instructions below required a GitHub Personal Access Token because `gaze` was a private repo, and reference the legacy package name `naoray/gaze-laravel`. **No PAT is required as of v0.6.x, and the current package name is `empiretwo/gaze-laravel`.** Adopters on current versions should follow `README.md` install instructions instead. The block below is preserved for reproducibility of historical builds.
+
 First stable adopter-facing release. Bundles the v0.3 retarget with full upstream `gaze` v0.4.5 lockstep, real Composer-plugin-driven binary install, `GAZE_GITHUB_TOKEN` auth for private upstream artifacts, and CI matrix coverage.
 
 ### Added
 
-- **Composer plugin install hook (#12).** `GazeInstallerPlugin` (`PluginInterface` + `EventSubscriberInterface`) auto-downloads the `gaze` binary into `vendor/bin/` on `composer require naoray/gaze-laravel`. Subscribes to `POST_PACKAGE_INSTALL` and `POST_PACKAGE_UPDATE` for the package itself. Previously `BinaryInstaller::postInstall` was orphaned dead code (no `extra.class`, no consumer-side script wiring) so adopters never auto-got the binary.
+- **Composer plugin install hook (#12).** `GazeInstallerPlugin` (`PluginInterface` + `EventSubscriberInterface`) auto-downloads the `gaze` binary into `vendor/bin/` on `composer require naoray/gaze-laravel` (legacy package name). Subscribes to `POST_PACKAGE_INSTALL` and `POST_PACKAGE_UPDATE` for the package itself. Previously `BinaryInstaller::postInstall` was orphaned dead code (no `extra.class`, no consumer-side script wiring) so adopters never auto-got the binary.
 - **`GAZE_GITHUB_TOKEN` env (#16).** Authenticated downloads from the private `EmpireTwo/gaze` release artifacts via GitHub asset-id resolution + `Authorization: Bearer` + `Accept: application/octet-stream`. Required for adopter installs while the upstream repo is private. `Authorization` header is stripped on cross-host redirects (api.github.com → S3 signed URL) so the token never leaves GitHub. README documents the token + required scopes.
 - **CI matrix workflow (#13).** `.github/workflows/test.yml` runs Pest + PHPStan on PHP 8.2/8.3 × Laravel 11/12, ubuntu-latest. CI sets `GAZE_SKIP_BINARY_DOWNLOAD=1` (wrapper-only test scope; binary integration test is a follow-up). Concurrency cancels in-progress runs on the same ref. Action versions pinned.
 - **Variant lockstep with upstream `gaze` v0.4.5 (#14).** `Variant::PolicyConfigDetail` + `Variant::AuditPurgeIso8601` enum cases, matching `GazePolicyConfigDetailException` and `GazeAuditPurgeIso8601Exception` typed exceptions, `Gaze::buildException` mapFailure arms, and `Variant::exitBucket()` arms. `PolicyConfigDetail` shares its wire name with `PolicyConfig` upstream and is disambiguated via the `detail` sidecar in `Variant::tryFromStderr`.
@@ -164,13 +166,13 @@ First stable adopter-facing release. Bundles the v0.3 retarget with full upstrea
 ### Install
 
 ```bash
-composer require naoray/gaze-laravel:^0.4.0
+composer require naoray/gaze-laravel:^0.4.0 # legacy package name
 ```
 
 The upstream `EmpireTwo/gaze` repo is currently private, so binary download requires a GitHub PAT with `repo` scope:
 
 ```env
-GAZE_GITHUB_TOKEN=ghp_yourTokenHere
+GAZE_GITHUB_TOKEN=[redacted historical PAT placeholder]
 ```
 
 Set this in `.env` **before** running `composer require`. Without it, the binary download will 404.
