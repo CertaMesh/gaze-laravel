@@ -35,11 +35,11 @@ afterEach(function () {
     @rmdir($this->tmp);
 });
 
-function gi_installer(NerFetcher $fetcher, ?Closure $diskFreeSpace = null): NerInstaller
+function gi_installer(NerFetcher $fetcher, ?Closure $diskFreeSpace = null, ?string $baseDir = null): NerInstaller
 {
     return new NerInstaller(
         fetcher: $fetcher,
-        patcher: new PolicyTomlPatcher,
+        patcher: new PolicyTomlPatcher(baseDir: $baseDir),
         manifest: NerManifest::fromString(gl_nerChecksumFixture()),
         diskFreeSpace: $diskFreeSpace,
     );
@@ -190,6 +190,79 @@ it('fails before fetch when disk space is insufficient', function () {
     expect(fn () => $installer->install(gi_options($this->tmp.'/dest')))
         ->toThrow(NerDiskSpaceException::class);
     expect($fetcher->fetches)->toBe(0);
+});
+
+it('writes an absolute [ner].model_dir to policy.toml even when dest is relative', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return is_file($dir.'/model.onnx');
+        }
+    };
+
+    $baseDir = $this->tmp;
+    $relativeDest = 'storage/app/gaze-ner/davlan-mbert-ner-hrl-int8';
+    $absoluteDest = $baseDir.DIRECTORY_SEPARATOR.$relativeDest;
+    mkdir(dirname($absoluteDest), 0755, true);
+
+    $policy = $this->tmp.'/policy.toml';
+    file_put_contents($policy, "# baseline\n");
+
+    $installer = gi_installer($fetcher, baseDir: $baseDir);
+
+    $result = $installer->install(gi_options($absoluteDest, [
+        'policyPath' => $policy,
+    ]));
+
+    expect($result->status)->toBe(NerInstallStatus::Installed);
+
+    $patcher = new PolicyTomlPatcher(baseDir: $baseDir);
+    $written = (string) file_get_contents($policy);
+
+    expect($patcher->readModelDir($written))->toBe($absoluteDest);
+    expect($patcher->readModelDir($written))->toStartWith('/');
+});
+
+it('absolutizes a relative dest passed straight to the patcher via installer', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    };
+
+    $baseDir = $this->tmp;
+    $policy = $this->tmp.'/policy.toml';
+    file_put_contents($policy, "# baseline\n");
+
+    $installer = gi_installer($fetcher, baseDir: $baseDir);
+    $relativeDest = $this->tmp.'/dest';
+
+    $result = $installer->install(gi_options($relativeDest, [
+        'dryRun' => true,
+        'policyPath' => $policy,
+    ]));
+
+    expect($result->status)->toBe(NerInstallStatus::DryRun);
+    expect($result->policySnippet)->toContain('model_dir = "'.$relativeDest.'"');
 });
 
 it('restores previous destination when policy patching fails after placement', function () {
