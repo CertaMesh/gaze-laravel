@@ -10,8 +10,10 @@ use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
 use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
 use Naoray\GazeLaravel\Exceptions\GazeIoException;
 use Naoray\GazeLaravel\Exceptions\GazePipelineException;
+use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
@@ -27,7 +29,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
 
     $error = $payload['error'];
     $payload['exit'] = match ($error) {
-        'PolicyConfig' => 2,
+        'PolicyConfig', 'PolicySchemaUnsupported' => 2,
         'Io', 'PolicyOpen' => 4,
         'SigPipe' => 141,
         default => 3,
@@ -39,7 +41,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
             output: '',
             errorOutput: $stderr,
             exitCode: match ($error) {
-                'PolicyConfig' => 2,
+                'PolicyConfig', 'PolicySchemaUnsupported' => 2,
                 'Io', 'PolicyOpen' => 4,
                 'SigPipe' => 141,
                 default => 3,
@@ -67,6 +69,8 @@ it('maps variants to their dedicated exception classes', function (array $payloa
     [['error' => 'BlobExpired'], GazeBlobExpiredException::class],
     [['error' => 'Pipeline'], GazePipelineException::class],
     [['error' => 'PolicyConfig'], GazePolicyConfigException::class],
+    [['error' => 'PolicyConfig', 'detail' => 'unknown bundled rulepack: garbage'], GazePolicyConfigDetailException::class],
+    [['error' => 'PolicySchemaUnsupported', 'found' => '9.9.0', 'supported' => '0.1'], GazePolicySchemaUnsupportedException::class],
     [['error' => 'SafetyNetConfig', 'detail' => 'missing config'], GazeSafetyNetConfigException::class],
     [['error' => 'SafetyNet', 'variant' => 'Timeout'], GazeSafetyNetFailureException::class],
     [['error' => 'UnsupportedSessionScope', 'variant' => 'global'], GazeUnsupportedSessionScopeException::class],
@@ -81,6 +85,41 @@ it('exposes safety-net and session-scope sidecar fields', function () {
 
     expect($safetyNet->safetyNetVariant())->toBe('SuspectedLeak')
         ->and($scope->attemptedScope())->toBe('global');
+});
+
+it('exposes the upstream PolicyConfig detail sidecar through the typed exception', function () {
+    $payload = ['error' => 'PolicyConfig', 'exit' => 2, 'detail' => 'unknown bundled rulepack: garbage'];
+    $stderr = json_encode($payload, JSON_THROW_ON_ERROR).PHP_EOL;
+
+    Process::fake(['*' => Process::result(output: '', errorOutput: $stderr, exitCode: 2)]);
+
+    try {
+        $this->makeGaze()->restore($this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1), 'Hello Name_1');
+    } catch (GazePolicyConfigDetailException $e) {
+        expect($e->detail())->toBe('unknown bundled rulepack: garbage');
+
+        return;
+    }
+
+    $this->fail('Expected GazePolicyConfigDetailException to be thrown.');
+});
+
+it('exposes the upstream PolicySchemaUnsupported found/supported sidecars', function () {
+    $payload = ['error' => 'PolicySchemaUnsupported', 'exit' => 2, 'found' => '9.9.0', 'supported' => '0.1'];
+    $stderr = json_encode($payload, JSON_THROW_ON_ERROR).PHP_EOL;
+
+    Process::fake(['*' => Process::result(output: '', errorOutput: $stderr, exitCode: 2)]);
+
+    try {
+        $this->makeGaze()->restore($this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1), 'Hello Name_1');
+    } catch (GazePolicySchemaUnsupportedException $e) {
+        expect($e->found())->toBe('9.9.0')
+            ->and($e->supported())->toBe('0.1');
+
+        return;
+    }
+
+    $this->fail('Expected GazePolicySchemaUnsupportedException to be thrown.');
 });
 
 it('marks blob-expired variants as requiring a fresh clean', function () {

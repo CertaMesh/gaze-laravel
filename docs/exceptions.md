@@ -16,6 +16,7 @@ All exceptions live under `Naoray\GazeLaravel\Exceptions`. They form a typed hie
     │   ├── GazePolicyConfigException
     │   │   └── GazeSafetyNetConfigException (exit bucket 3, NonRetryable)
     │   ├── GazePolicyConfigDetailException
+    │   ├── GazePolicySchemaUnsupportedException
     │   ├── GazeAuditPurgeIso8601Exception
     │   └── GazeAuditDbNotConfiguredException
     ├── GazeIntegrityException           (exit bucket 3 — integrity/session error)
@@ -59,7 +60,8 @@ All exceptions live under `Naoray\GazeLaravel\Exceptions`. They form a typed hie
 | `GazeStdinParseException` | 1 | `NonRetryable` → fail | No | Binary could not parse the JSON sent on stdin |
 | `GazeOpsConfigException` | 2 | `NonRetryable` → fail | No | Abstract base for configuration-error subclasses |
 | `GazePolicyConfigException` | 2 | `NonRetryable` → fail | No | TOML policy file is syntactically invalid |
-| `GazePolicyConfigDetailException` | 2 | `NonRetryable` → fail | No | TOML policy file has a semantic validation error (detail field present) |
+| `GazePolicyConfigDetailException` | 2 | `NonRetryable` → fail | No | TOML policy file has a semantic validation error; exposes `detail(): ?string` |
+| `GazePolicySchemaUnsupportedException` | 2 | `NonRetryable` → fail | No | `policy.toml`'s `schema_version` major.minor prefix is outside the binary's supported range; exposes `found(): string` + `supported(): string` |
 | `GazeAuditPurgeIso8601Exception` | 2 | `NonRetryable` → fail | No | `--before` timestamp is not valid ISO 8601 UTC |
 | `GazeAuditDbNotConfiguredException` | N/A | `NonRetryable` → fail | No | `gaze.audit_db_path` is null and no per-call override given |
 | `GazeBinaryMissingException` | N/A | (not queue-facing) | No | Binary not found at configured or discovered path |
@@ -102,6 +104,38 @@ try {
 ### `GazePolicyConfigDetailException`
 
 This class is never produced by the binary's raw stderr — it is synthesized client-side by `Variant::tryFromStderr()`. The binary emits `error=PolicyConfig` for both config errors; when the stderr JSON also contains a `detail` sidecar field, the adapter promotes the exception to `GazePolicyConfigDetailException` to give you richer context without changing exit codes.
+
+`GazePolicyConfigDetailException::detail(): ?string` returns the upstream
+`detail` sidecar string verbatim — typical values are loader causes such as
+`"unknown bundled rulepack: garbage"`,
+`"--format must be 'json', got 'xml'"`, or a TOML parse-error trace. It is
+`null` only when the adapter could not decode the field (defensive — upstream
+always emits it on this variant).
+
+### `GazePolicySchemaUnsupportedException`
+
+Thrown when the upstream `gaze` binary rejects a policy whose top-level
+`schema_version` major.minor prefix does not match its supported range.
+Distinct from `GazePolicyConfigException` so adopters crossing a schema
+contract break see the version mismatch directly:
+
+```php
+try {
+    $session = Gaze::clean($text);
+} catch (\Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException $e) {
+    report(new \RuntimeException(sprintf(
+        'policy.toml schema_version %s is unsupported; binary expects prefix %s',
+        $e->found(),
+        $e->supported(),
+    ), previous: $e));
+    throw $e;
+}
+```
+
+Soft-default behaviour: existing 0.6.x / 0.7.x policies that omit
+`schema_version` keep loading because upstream stamps the missing field with
+`DEFAULT_POLICY_SCHEMA_VERSION` (`"0.1.0"`). Adopters can opt into explicit
+pinning by adding `schema_version = "0.1"` to the top of `policy.toml`.
 
 ### Safety-net and session-scope exceptions
 

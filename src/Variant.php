@@ -12,6 +12,7 @@ enum Variant: string
     case InvalidEncoding = 'InvalidEncoding';
     case PolicyConfig = 'PolicyConfig';
     case PolicyConfigDetail = 'PolicyConfigDetail';
+    case PolicySchemaUnsupported = 'PolicySchemaUnsupported';
     case SafetyNetConfig = 'SafetyNetConfig';
     case SafetyNet = 'SafetyNet';
     case AuditPurgeIso8601 = 'AuditPurgeIso8601';
@@ -81,7 +82,7 @@ enum Variant: string
     {
         return match ($this) {
             self::StdinParse, self::EmptyInput, self::InputTooLarge, self::InvalidEncoding => 1,
-            self::PolicyConfig, self::PolicyConfigDetail, self::AuditPurgeIso8601 => 2,
+            self::PolicyConfig, self::PolicyConfigDetail, self::PolicySchemaUnsupported, self::AuditPurgeIso8601 => 2,
             self::SafetyNetConfig,
             self::SafetyNet,
             self::UnknownToken,

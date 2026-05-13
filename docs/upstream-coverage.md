@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.6.6.
+Living parity checklist for upstream `EmpireTwo/gaze` v0.7.2.
 
 ## Commands
 
@@ -49,7 +49,8 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.6.6.
 | `EmptyInput` | `GazeEmptyInputException` |
 | `InputTooLarge` | `GazeInputTooLargeException` |
 | `InvalidEncoding` | `GazeInvalidEncodingException` |
-| `PolicyConfig` | `GazePolicyConfigException` or `GazePolicyConfigDetailException` when `detail` exists |
+| `PolicyConfig` | `GazePolicyConfigException` or `GazePolicyConfigDetailException` when `detail` exists; `detail()` accessor exposes the upstream sidecar |
+| `PolicySchemaUnsupported` | `GazePolicySchemaUnsupportedException`; `found()` + `supported()` accessors expose the typed envelope fields |
 | `SafetyNetConfig` | `GazeSafetyNetConfigException` |
 | `SafetyNet` | `GazeSafetyNetFailureException` |
 | `AuditPurgeIso8601` | `GazeAuditPurgeIso8601Exception` |
@@ -68,3 +69,6 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.6.6.
 | Upstream surface | Reason |
 |---|---|
 | `--context-json` | P1 design item; needs PHP API design before exposure. |
+| `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
+| `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. Tracked separately. |
+| `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in `core-extended` | Upstream v0.7.0 additions; need to be surfaced in the published `resources/policy.toml` stub. Tracked separately. |

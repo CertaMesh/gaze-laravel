@@ -4,6 +4,65 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-13
+
+Upstream `EmpireTwo/gaze` v0.7.x adapter release. Adopts upstream v0.7.2 as the
+pinned binary, which itself was the dogfooding-driven point release closing
+out PulseFlow demo findings F5 (gaze#191 — `PolicyConfig.detail` threading)
+and F6 (gaze#192 — `PolicySchemaUnsupported` envelope + policy
+`schema_version` field).
+
+> **BREAKING for adopters who do not override `GAZE_VERSION`.** This release
+> bumps the pinned upstream binary across the 0.6 → 0.7 boundary in a single
+> step. Existing `policy.toml` files keep loading via upstream's soft-default
+> `schema_version`, but adopters that pin the SemVer minor of this package
+> should review the [README upgrade section](./README.md#upgrading-from-06x)
+> before deploying.
+
+### Added
+
+- `Variant::PolicySchemaUnsupported` enum case and
+  `GazePolicySchemaUnsupportedException` typed exception with `found()` /
+  `supported()` accessors. Maps the upstream wire shape
+  `{"error":"PolicySchemaUnsupported","exit":2,"found":"...","supported":"..."}`
+  emitted when a policy's `schema_version` major.minor prefix does not match
+  the binary's supported range. Shares the `exit=2` bucket with other
+  config-error variants.
+- `GazePolicyConfigDetailException::detail(): ?string` accessor exposing the
+  upstream `detail` sidecar (e.g. `"unknown bundled rulepack: garbage"`)
+  threaded through every `gaze-cli` `PolicyConfig` loader cause as of
+  upstream PR191. Wire shape stays additive — existing catch blocks need no
+  change.
+
+### Changed
+
+- `BinaryInstaller::PINNED_VERSION` `0.6.6` → `0.7.2`. Help-snapshot fixtures
+  re-baselined against the v0.7.2 binary; help-text drift includes the new
+  `audit safety-net` subcommand and the `--has-ambiguity` /
+  `--ambiguity-reason` / `--collision-family` / `--collision-variant` audit
+  filters from upstream's collision-family side-channel work.
+- `tests/Contract/VariantContractTest.php` fixture now pins the
+  `PolicySchemaUnsupported` row alongside the existing 17 variants.
+- `docs/upstream-coverage.md` exception table extended with the new variant
+  and the `detail()` accessor; banner bumped to v0.7.2.
+
+### Notes on deferred upstream surfaces (v0.7.x family)
+
+The following upstream additions ship in v0.7.0 / v0.7.1 but are intentionally
+NOT yet exposed through this adapter release. Each is tracked separately:
+
+- `gaze mcp install / doctor / serve` MCP subcommands (opt-in `mcp` feature).
+- `gaze document clean <input> --out <dir>` document-mode CLI (opt-in
+  `document` feature; PDF/PNG/JPG → SafeBundle via Tesseract + pdfium).
+- New validator kinds `Ipv4Parse`, `Ipv6Parse`, `EthEip55` (and `eth.address`
+  in `core-extended`) not yet surfaced in the published `policy.toml` stub.
+
+## [0.6.6] - earlier
+
+> Historical note: the entries below were originally tracked under
+> `[Unreleased]` against the 0.6.6 binary and are folded into this release
+> for the SemVer transition. They predate the v0.7.x adapter changes above.
+
 ### Added
 
 - `Naoray\GazeLaravel\Entry` readonly DTO and `GazeSession::$entries` (`list<Entry>`) — per-rule detection metadata (`class`, `raw`, `token`, `family`) populated from the upstream `gaze clean` JSON `entries` field. Defaults to `[]` when the field is absent so callers can always iterate; dogfooding F1 (replaces hand-parsing the encrypted session blob's binary header).

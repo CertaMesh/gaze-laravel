@@ -10,15 +10,15 @@ Options:
       --session-ttl <SESSION_TTL>
           Override the persistent session TTL in seconds
       --session-scope <SESSION_SCOPE>
-          Override policy [session].scope
+          Override policy \[session].scope
       --locale <LOCALE>
           Active locale fallback chain, comma separated and priority ordered
       --ner-threshold <NER_THRESHOLD>
-          Override policy [ner] threshold. Must be between 0.0 and 1.0 inclusive
+          Override policy \[ner] threshold. Must be between 0.0 and 1.0 inclusive
       --ner-model-dir <NER_MODEL_DIR>
-          Override policy [ner].model_dir
+          Override policy \[ner].model_dir
       --ner-locale <NER_LOCALE>
-          Override policy [ner].locale
+          Override policy \[ner].locale
       --rulepack-bundled <RULEPACK_BUNDLED>
           Override policy.rulepacks.bundled. Comma-separated and repeatable
       --rulepack-path <RULEPACK_PATHS>
@@ -29,5 +29,21 @@ Options:
           Path to a typed Context JSON envelope. stdin remains raw text
       --audit-db <AUDIT_DB>
           Optional SQLite redaction-log database path
+      --safety-net <SAFETY_NET>
+          Optional observer-only privacy safety net [possible values: openai-filter]
+      --openai-filter-command <OPENAI_FILTER_COMMAND>
+          Path to the local OpenAI Privacy Filter `opf` command
+      --openai-filter-checkpoint <OPENAI_FILTER_CHECKPOINT>
+          Path to the local OpenAI Privacy Filter checkpoint or model directory
+      --openai-filter-operating-point <OPENAI_FILTER_OPERATING_POINT>
+          OpenAI Privacy Filter operating point, when supported by the command [possible values: high-recall, balanced, high-precision]
+      --openai-filter-device <OPENAI_FILTER_DEVICE>
+          Device selection for the OpenAI safety-net subprocess (auto|cpu|cuda|mps). Default: auto (let opf decide) [default: auto] [possible values: auto, cpu, cuda, mps]
+      --safety-net-timeout-ms <SAFETY_NET_TIMEOUT_MS>
+          Safety-net subprocess timeout in milliseconds [default: 5000]
+      --safety-net-input-limit-bytes <SAFETY_NET_INPUT_LIMIT_BYTES>
+          Maximum clean-text bytes submitted to the safety net [default: 1048576]
+      --safety-net-mode <SAFETY_NET_MODE>
+          Safety-net handling mode for suspected leaks [default: strict] [possible values: strict, tolerant]
   -h, --help
           Print help
