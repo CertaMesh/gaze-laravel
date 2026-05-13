@@ -23,6 +23,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 ### Fixed
 
 - `config/gaze.php` safety-net description now references the correct `--safety-net=openai-filter` flag arity.
+- `gaze:install-ner` now persists the verified `SHA256SUMS` manifest at the NER `model_dir` so upstream `gaze` v0.7.x can locate the sidecar required for runtime detection. `--check` reports failure when the file is missing or drifted; re-installs self-heal the sidecar idempotently.
 
 ## [0.6.4] - 2026-05-08
 

@@ -27,7 +27,10 @@ final class NerManifest
     /**
      * @param  array<string, string>  $checksums
      */
-    private function __construct(private readonly array $checksums) {}
+    private function __construct(
+        private readonly array $checksums,
+        private readonly string $body,
+    ) {}
 
     public static function fromFile(string $path): self
     {
@@ -94,7 +97,12 @@ final class NerManifest
             }
         }
 
-        return new self($checksums);
+        return new self($checksums, $body);
+    }
+
+    public function body(): string
+    {
+        return $this->body;
     }
 
     public function resolve(string $variant): NerArtifactSet
