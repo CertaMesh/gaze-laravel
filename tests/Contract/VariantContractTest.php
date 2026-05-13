@@ -27,6 +27,7 @@ const UPSTREAM_VARIANTS = [
     'InvalidEncoding' => ['InvalidEncoding', 1, ['error' => 'InvalidEncoding', 'exit' => 1]],
     'PolicyConfig' => ['PolicyConfig', 2, ['error' => 'PolicyConfig', 'exit' => 2]],
     'PolicyConfigDetail' => ['PolicyConfigDetail', 2, ['error' => 'PolicyConfig', 'exit' => 2, 'detail' => 'unknown key `[[detector]]`']],
+    'PolicySchemaUnsupported' => ['PolicySchemaUnsupported', 2, ['error' => 'PolicySchemaUnsupported', 'exit' => 2, 'found' => '9.9.0', 'supported' => '0.1']],
     'SafetyNetConfig' => ['SafetyNetConfig', 3, ['error' => 'SafetyNetConfig', 'exit' => 3, 'detail' => 'openai filter config missing']],
     'SafetyNet' => ['SafetyNet', 3, ['error' => 'SafetyNet', 'exit' => 3, 'variant' => 'Timeout']],
     'AuditPurgeIso8601' => ['AuditPurgeIso8601', 2, ['error' => 'AuditPurgeIso8601', 'exit' => 2, 'input' => 'not-a-date']],
