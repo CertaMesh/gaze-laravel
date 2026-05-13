@@ -6,6 +6,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- `Naoray\GazeLaravel\Entry` readonly DTO and `GazeSession::$entries` (`list<Entry>`) — per-rule detection metadata (`class`, `raw`, `token`, `family`) populated from the upstream `gaze clean` JSON `entries` field. Defaults to `[]` when the field is absent so callers can always iterate; dogfooding F1 (replaces hand-parsing the encrypted session blob's binary header).
 - `composer.json` homepage, support, and authors blocks for Packagist discoverability.
 - Six OpenAI privacy-filter config keys so Laravel apps can tune `--openai-filter-command`, `--openai-filter-checkpoint`, `--openai-filter-operating-point`, `--safety-net-timeout-ms`, `--safety-net-input-limit-bytes`, and `--safety-net-mode` without constructing `Gaze` manually.
 - Upstream `gaze` v0.6.6 parity: `--session-scope` (`GAZE_SESSION_SCOPE`) on `Gaze::clean()`, `--restore-mode` (`GAZE_RESTORE_MODE`) on `Gaze::restore()`, and typed exceptions for `SafetyNetConfig`, `SafetyNet`, and `UnsupportedSessionScope`.
@@ -23,6 +24,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 ### Fixed
 
 - `config/gaze.php` safety-net description now references the correct `--safety-net=openai-filter` flag arity.
+- `gaze:install-ner` now persists the verified `SHA256SUMS` manifest at the NER `model_dir` so upstream `gaze` v0.7.x can locate the sidecar required for runtime detection. `--check` reports failure when the file is missing or drifted; re-installs self-heal the sidecar idempotently.
 - `gaze:install-ner --update-policy` now writes an absolute `[ner].model_dir` to `policy.toml`. Previously a relative dest (or a `--dest=storage/app/...` override) leaked a relative path into the policy file, which upstream `gaze` CLI resolves against the current working directory rather than the policy file's location — silently failing when Laravel launches `gaze` from a non-project CWD (PulseFlow dogfooding 2026-05-13 F#4). `PolicyTomlPatcher` now resolves relative `model_dir` against the project base path (or `getcwd()` fallback) before patching.
 
 ## [0.6.4] - 2026-05-08

@@ -77,11 +77,14 @@ it('returns check-passed or check-failed without fetching', function () {
             return $this->verifyResult;
         }
     };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
+    file_put_contents($dest.'/SHA256SUMS', gl_nerChecksumFixture());
     $installer = gi_installer($fetcher);
 
-    $passed = $installer->install(gi_options($this->tmp.'/dest', ['check' => true]));
+    $passed = $installer->install(gi_options($dest, ['check' => true]));
     $fetcher->verifyResult = false;
-    $failed = $installer->install(gi_options($this->tmp.'/dest', ['check' => true]));
+    $failed = $installer->install(gi_options($dest, ['check' => true]));
 
     expect($passed->status)->toBe(NerInstallStatus::CheckPassed);
     expect($failed->status)->toBe(NerInstallStatus::CheckFailed);
@@ -135,9 +138,11 @@ it('does not fetch again when destination already verifies', function () {
             return true;
         }
     };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
     $installer = gi_installer($fetcher);
 
-    $result = $installer->install(gi_options($this->tmp.'/dest'));
+    $result = $installer->install(gi_options($dest));
 
     expect($result->status)->toBe(NerInstallStatus::AlreadyInstalled);
     expect($fetcher->fetches)->toBe(0);
@@ -263,6 +268,129 @@ it('absolutizes a relative dest passed straight to the patcher via installer', f
 
     expect($result->status)->toBe(NerInstallStatus::DryRun);
     expect($result->policySnippet)->toContain('model_dir = "'.$relativeDest.'"');
+});
+
+it('writes SHA256SUMS verbatim into dest after install', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return is_file($dir.'/model.onnx');
+        }
+    };
+    $dest = $this->tmp.'/dest';
+    $installer = gi_installer($fetcher);
+
+    $result = $installer->install(gi_options($dest));
+
+    expect($result->status)->toBe(NerInstallStatus::Installed);
+    expect(is_file($dest.'/SHA256SUMS'))->toBeTrue();
+    expect(file_get_contents($dest.'/SHA256SUMS'))->toBe(gl_nerChecksumFixture());
+});
+
+it('rewrites SHA256SUMS idempotently when re-installed without force', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public int $fetches = 0;
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return true;
+        }
+    };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
+    file_put_contents($dest.'/SHA256SUMS', 'stale-bytes');
+    $installer = gi_installer($fetcher);
+
+    $result = $installer->install(gi_options($dest));
+
+    expect($result->status)->toBe(NerInstallStatus::AlreadyInstalled);
+    expect($fetcher->fetches)->toBe(0);
+    expect(file_get_contents($dest.'/SHA256SUMS'))->toBe(gl_nerChecksumFixture());
+});
+
+it('rewrites SHA256SUMS on --force re-install', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public int $fetches = 0;
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
+    file_put_contents($dest.'/SHA256SUMS', 'stale-bytes');
+    $installer = gi_installer($fetcher);
+
+    $result = $installer->install(gi_options($dest, ['force' => true]));
+
+    expect($result->status)->toBe(NerInstallStatus::Installed);
+    expect($fetcher->fetches)->toBe(1);
+    expect(file_get_contents($dest.'/SHA256SUMS'))->toBe(gl_nerChecksumFixture());
+});
+
+it('reports check-failed when SHA256SUMS is missing at dest', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void {}
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return true;
+        }
+    };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
+    $installer = gi_installer($fetcher);
+
+    $result = $installer->install(gi_options($dest, ['check' => true]));
+
+    expect($result->status)->toBe(NerInstallStatus::CheckFailed);
+});
+
+it('reports check-failed when SHA256SUMS bytes drift at dest', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void {}
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return true;
+        }
+    };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
+    file_put_contents($dest.'/SHA256SUMS', 'stale-bytes');
+    $installer = gi_installer($fetcher);
+
+    $result = $installer->install(gi_options($dest, ['check' => true]));
+
+    expect($result->status)->toBe(NerInstallStatus::CheckFailed);
 });
 
 it('restores previous destination when policy patching fails after placement', function () {
