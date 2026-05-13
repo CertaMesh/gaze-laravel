@@ -197,7 +197,7 @@ it('fails before fetch when disk space is insufficient', function () {
     expect($fetcher->fetches)->toBe(0);
 });
 
-it('writes an absolute [ner].model_dir to policy.toml even when dest is relative', function () {
+it('passes an absolute dest through to policy.toml [ner].model_dir end-to-end', function () {
     $fetcher = new class implements NerFetcher
     {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -237,7 +237,7 @@ it('writes an absolute [ner].model_dir to policy.toml even when dest is relative
     expect($patcher->readModelDir($written))->toStartWith('/');
 });
 
-it('absolutizes a relative dest passed straight to the patcher via installer', function () {
+it('passes an absolute dest through to the dryRun policy snippet end-to-end', function () {
     $fetcher = new class implements NerFetcher
     {
         public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
@@ -268,6 +268,56 @@ it('absolutizes a relative dest passed straight to the patcher via installer', f
 
     expect($result->status)->toBe(NerInstallStatus::DryRun);
     expect($result->policySnippet)->toContain('model_dir = "'.$relativeDest.'"');
+});
+
+it('resolves a truly relative dest to an absolute [ner].model_dir end-to-end', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return is_file($dir.'/model.onnx');
+        }
+    };
+
+    $baseDir = realpath($this->tmp) ?: $this->tmp;
+    $relativeDest = 'storage/app/gaze-ner/davlan-mbert-ner-hrl-int8';
+    $policy = $baseDir.'/policy.toml';
+    file_put_contents($policy, "# baseline\n");
+
+    // null baseDir → patcher's absolutize() falls back to getcwd(); chdir makes cwd deterministic.
+    $installer = gi_installer($fetcher, baseDir: null);
+    $originalCwd = getcwd();
+
+    try {
+        if (! chdir($baseDir)) {
+            throw new RuntimeException("could not chdir to {$baseDir}");
+        }
+
+        $result = $installer->install(gi_options($relativeDest, [
+            'policyPath' => $policy,
+        ]));
+
+        expect($result->status)->toBe(NerInstallStatus::Installed);
+
+        $patcher = new PolicyTomlPatcher(baseDir: $baseDir);
+        $written = (string) file_get_contents($policy);
+        $expectedAbsolute = $baseDir.DIRECTORY_SEPARATOR.$relativeDest;
+
+        expect($patcher->readModelDir($written))->toBe($expectedAbsolute);
+        expect($patcher->readModelDir($written))->toStartWith('/');
+    } finally {
+        if ($originalCwd !== false) {
+            chdir($originalCwd);
+        }
+    }
 });
 
 it('writes SHA256SUMS verbatim into dest after install', function () {
