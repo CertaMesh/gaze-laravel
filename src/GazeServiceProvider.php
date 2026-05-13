@@ -105,7 +105,9 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             return NerManifest::fromUrl($url, $app->make(HttpClientInterface::class));
         });
 
-        $this->app->singleton(PolicyTomlPatcher::class);
+        $this->app->singleton(PolicyTomlPatcher::class, function (Application $app): PolicyTomlPatcher {
+            return new PolicyTomlPatcher(baseDir: $app->basePath());
+        });
 
         $this->app->singleton(NerInstaller::class, function (Application $app): NerInstaller {
             return new NerInstaller(
