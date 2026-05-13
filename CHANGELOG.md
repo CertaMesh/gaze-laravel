@@ -6,6 +6,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- `Naoray\GazeLaravel\Entry` readonly DTO and `GazeSession::$entries` (`list<Entry>`) — per-rule detection metadata (`class`, `raw`, `token`, `family`) populated from the upstream `gaze clean` JSON `entries` field. Defaults to `[]` when the field is absent so callers can always iterate; dogfooding F1 (replaces hand-parsing the encrypted session blob's binary header).
 - `composer.json` homepage, support, and authors blocks for Packagist discoverability.
 - Six OpenAI privacy-filter config keys so Laravel apps can tune `--openai-filter-command`, `--openai-filter-checkpoint`, `--openai-filter-operating-point`, `--safety-net-timeout-ms`, `--safety-net-input-limit-bytes`, and `--safety-net-mode` without constructing `Gaze` manually.
 - Upstream `gaze` v0.6.6 parity: `--session-scope` (`GAZE_SESSION_SCOPE`) on `Gaze::clean()`, `--restore-mode` (`GAZE_RESTORE_MODE`) on `Gaze::restore()`, and typed exceptions for `SafetyNetConfig`, `SafetyNet`, and `UnsupportedSessionScope`.
