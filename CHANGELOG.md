@@ -27,6 +27,10 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 - `gaze:install-ner` now persists the verified `SHA256SUMS` manifest at the NER `model_dir` so upstream `gaze` v0.7.x can locate the sidecar required for runtime detection. `--check` reports failure when the file is missing or drifted; re-installs self-heal the sidecar idempotently.
 - `gaze:install-ner --update-policy` now writes an absolute `[ner].model_dir` to `policy.toml`. Previously a relative dest (or a `--dest=storage/app/...` override) leaked a relative path into the policy file, which upstream `gaze` CLI resolves against the current working directory rather than the policy file's location — silently failing when Laravel launches `gaze` from a non-project CWD (PulseFlow dogfooding 2026-05-13 F#4). `PolicyTomlPatcher` now resolves relative `model_dir` against the project base path (or `getcwd()` fallback) before patching.
 
+### Tests
+
+- Renamed two F4 installer tests in `tests/Unit/Install/NerInstallerTest.php` to reflect that they verify absolute-dest passthrough end-to-end (the original names claimed relative→absolute coverage but both passed absolute paths, so `PolicyTomlPatcher::absolutize()` short-circuited). Added a new test that drives a truly relative `dest` through the installer (`chdir($baseDir)` + null patcher baseDir) and asserts the written `policy.toml` carries the absolute resolution (nit #322, PR #73 follow-up).
+
 ## [0.6.4] - 2026-05-08
 
 OSS readiness wave: lockstep with upstream `EmpireTwo/gaze` v0.6.4, README turned into a promo page with deep content moved to `docs/`, and a fix for the broken binary download path that shipped with the unreleased v0.6.5 metadata.
