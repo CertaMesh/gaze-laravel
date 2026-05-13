@@ -25,7 +25,7 @@ final class NerInstaller
 
         if ($options->check) {
             return new NerInstallerResult(
-                status: $this->fetcher->verify($set, $options->dest)
+                status: $this->verifyInstalled($set, $options->dest)
                     ? NerInstallStatus::CheckPassed
                     : NerInstallStatus::CheckFailed,
                 dest: $options->dest,
@@ -42,6 +42,7 @@ final class NerInstaller
         }
 
         if (! $options->force && $this->fetcher->verify($set, $options->dest)) {
+            $this->writeSha256Sums($options->dest);
             $policyWritten = $this->applyPolicyIfRequested($options);
 
             return new NerInstallerResult(
@@ -81,6 +82,7 @@ final class NerInstaller
             if (file_put_contents($options->dest.DIRECTORY_SEPARATOR.'.gitignore', "*\n!.gitignore\n") === false) {
                 throw new NerTransportException("could not write NER destination .gitignore: {$options->dest}");
             }
+            $this->writeSha256Sums($options->dest);
             $policyWritten = $this->applyPolicyIfRequested($options);
 
             if ($backup !== null && is_dir($backup)) {
@@ -109,6 +111,28 @@ final class NerInstaller
             }
 
             $lock->release();
+        }
+    }
+
+    private function verifyInstalled(NerArtifactSet $set, string $dir): bool
+    {
+        if (! $this->fetcher->verify($set, $dir)) {
+            return false;
+        }
+
+        $sumsPath = $dir.DIRECTORY_SEPARATOR.'SHA256SUMS';
+        if (! is_file($sumsPath)) {
+            return false;
+        }
+
+        return file_get_contents($sumsPath) === $this->manifest->body();
+    }
+
+    private function writeSha256Sums(string $dest): void
+    {
+        $path = $dest.DIRECTORY_SEPARATOR.'SHA256SUMS';
+        if (file_put_contents($path, $this->manifest->body()) === false) {
+            throw new NerTransportException("could not write NER SHA256SUMS: {$path}");
         }
     }
 
