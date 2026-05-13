@@ -24,6 +24,7 @@ use Naoray\GazeLaravel\Exceptions\GazePipelineException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
+use Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException;
 use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
@@ -396,6 +397,14 @@ class Gaze
                 "gaze {$stage} policy configuration invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
                 $exitCode,
                 $stderrHash,
+                $this->stderrStringField($stderr, 'detail'),
+            ),
+            Variant::PolicySchemaUnsupported => new GazePolicySchemaUnsupportedException(
+                "gaze {$stage} policy schema version unsupported (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+                $this->stderrStringField($stderr, 'found') ?? '',
+                $this->stderrStringField($stderr, 'supported') ?? '',
             ),
             Variant::SafetyNetConfig => new GazeSafetyNetConfigException(
                 "gaze {$stage} safety-net configuration invalid (exit={$exitCode}, stderr_sha256={$stderrHash})",
