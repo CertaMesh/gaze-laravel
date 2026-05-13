@@ -76,6 +76,29 @@ $reply = $llm->complete($session->cleanText);
 return $gaze->restore($session, $reply);
 ```
 
+### Per-rule detection entries
+
+`GazeSession::$entries` exposes each tokenized span as a readonly `Entry` DTO
+(`class`, `raw`, `token`, `family`) when the upstream `gaze` CLI emits the
+`entries` field on its JSON response. The array is empty for releases that do
+not yet surface the field, so consumers can always iterate safely:
+
+```php
+foreach ($session->entries as $entry) {
+    logger()->info('detected', [
+        'class' => $entry->class,
+        'token' => $entry->token,
+        'family' => $entry->family,
+    ]);
+}
+
+// Single-entry access:
+$firstClass = $session->entries[0]->class ?? null;
+```
+
+This surface replaces the previous pattern of decrypting `$session->ciphertext`
+and parsing the binary snapshot header by hand.
+
 See [Exceptions](./docs/exceptions.md) for the exit bucket and typed exception reference.
 
 See [Testing](./docs/testing.md) for fakes, assertions, and integration-test setup.
