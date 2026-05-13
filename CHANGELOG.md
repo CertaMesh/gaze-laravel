@@ -23,6 +23,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 ### Fixed
 
 - `config/gaze.php` safety-net description now references the correct `--safety-net=openai-filter` flag arity.
+- `gaze:install-ner --update-policy` now writes an absolute `[ner].model_dir` to `policy.toml`. Previously a relative dest (or a `--dest=storage/app/...` override) leaked a relative path into the policy file, which upstream `gaze` CLI resolves against the current working directory rather than the policy file's location — silently failing when Laravel launches `gaze` from a non-project CWD (PulseFlow dogfooding 2026-05-13 F#4). `PolicyTomlPatcher` now resolves relative `model_dir` against the project base path (or `getcwd()` fallback) before patching.
 
 ## [0.6.4] - 2026-05-08
 
