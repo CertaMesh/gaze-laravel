@@ -152,7 +152,6 @@ class Gaze
      * a list of Entry DTOs. Returns [] when the field is absent, null, or
      * not a list of associative arrays — never throws on shape drift.
      *
-     * @param  mixed  $raw
      * @return list<Entry>
      */
     private function mapEntries(mixed $raw): array
