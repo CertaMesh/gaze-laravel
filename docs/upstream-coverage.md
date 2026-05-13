@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.6.6.
+Living parity checklist for upstream `EmpireTwo/gaze` v0.7.1.
 
 ## Commands
 
