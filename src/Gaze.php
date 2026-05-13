@@ -136,14 +136,38 @@ class Gaze
 
         $result = $this->run($command, $text, 'clean');
 
-        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int}} $decoded */
+        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>} $decoded */
         $decoded = $this->decodeResponse($result->output(), 'clean');
 
         return new GazeSession(
             cleanText: $decoded['clean_text'],
             ciphertext: EncryptedBlob::wrap($decoded['session_blob']),
             detections: (int) ($decoded['stats']['detections'] ?? 0),
+            entries: $this->mapEntries($decoded['entries'] ?? null),
         );
+    }
+
+    /**
+     * Map the optional `entries` field of the gaze CLI clean response into
+     * a list of Entry DTOs. Returns [] when the field is absent, null, or
+     * not a list of associative arrays — never throws on shape drift.
+     *
+     * @return list<Entry>
+     */
+    private function mapEntries(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $entries = [];
+        foreach ($raw as $item) {
+            if (is_array($item)) {
+                $entries[] = Entry::fromArray($item);
+            }
+        }
+
+        return $entries;
     }
 
     public function restore(GazeSession $session, string $text): string

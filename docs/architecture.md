@@ -23,7 +23,7 @@ Gaze::clean(text)
   ├─ assertInput()           – UTF-8 + size pre-flight (PHP side)
   ├─ BinaryResolver::resolve()
   ├─ ProcessFactory::run()   – gaze clean --policy=… --format=json [v0.6.4 flags]
-  └─ GazeSession             – { cleanText, ciphertext:EncryptedBlob, detections }
+  └─ GazeSession             – { cleanText, ciphertext:EncryptedBlob, detections, entries:list<Entry> }
 
 Gaze::restore(session, text)
   ├─ EncryptedBlob::decryptedBlob()
@@ -65,7 +65,7 @@ Install/ (Composer time, not runtime)
 ```
 Gaze::clean(text)
   │
-  ├─ subprocess: gaze clean → { clean_text, session_blob, stats }
+  ├─ subprocess: gaze clean → { clean_text, session_blob, stats, entries? }
   │                                         │
   │                              base64-encoded binary blob
   │                              (gaze-internal tokenization map)
@@ -75,7 +75,10 @@ Gaze::clean(text)
   │                                 uses gaze.encrypter (GAZE_ENCRYPTION_KEY
   │                                 or APP_KEY fallback, AES-256-CBC, fresh IV)
   │                                         │
-  └─ GazeSession { cleanText, ciphertext:EncryptedBlob, detections }
+  └─ GazeSession { cleanText, ciphertext:EncryptedBlob, detections, entries:list<Entry> }
+       ↑ entries[] surfaces per-rule detection metadata (class, raw, token, family)
+         when the upstream CLI emits an `entries` JSON field. Defaults to [] for
+         current upstream releases where the field is absent.
        │
        │  (stored in queue payload, cache, or passed to restore call)
        │
