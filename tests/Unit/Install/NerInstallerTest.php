@@ -77,11 +77,14 @@ it('returns check-passed or check-failed without fetching', function () {
             return $this->verifyResult;
         }
     };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
+    file_put_contents($dest.'/SHA256SUMS', gl_nerChecksumFixture());
     $installer = gi_installer($fetcher);
 
-    $passed = $installer->install(gi_options($this->tmp.'/dest', ['check' => true]));
+    $passed = $installer->install(gi_options($dest, ['check' => true]));
     $fetcher->verifyResult = false;
-    $failed = $installer->install(gi_options($this->tmp.'/dest', ['check' => true]));
+    $failed = $installer->install(gi_options($dest, ['check' => true]));
 
     expect($passed->status)->toBe(NerInstallStatus::CheckPassed);
     expect($failed->status)->toBe(NerInstallStatus::CheckFailed);
@@ -135,9 +138,11 @@ it('does not fetch again when destination already verifies', function () {
             return true;
         }
     };
+    $dest = $this->tmp.'/dest';
+    mkdir($dest, 0755, true);
     $installer = gi_installer($fetcher);
 
-    $result = $installer->install(gi_options($this->tmp.'/dest'));
+    $result = $installer->install(gi_options($dest));
 
     expect($result->status)->toBe(NerInstallStatus::AlreadyInstalled);
     expect($fetcher->fetches)->toBe(0);
