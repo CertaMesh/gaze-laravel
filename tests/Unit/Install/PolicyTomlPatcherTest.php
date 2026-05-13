@@ -152,6 +152,56 @@ it('applies an appended [ner] block to disk and writes a backup', function () {
     expect($patcher->readModelDir($patched))->toBe('/abs/dest/path');
 });
 
+it('absolutizes relative model_dir against injected baseDir on append', function () {
+    $patcher = new PolicyTomlPatcher(baseDir: '/abs/project');
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
+
+    $patched = $patcher->buildAppended($body, 'storage/app/gaze-ner/davlan-mbert-ner-hrl-int8', null);
+
+    expect($patcher->readModelDir($patched))
+        ->toBe('/abs/project/storage/app/gaze-ner/davlan-mbert-ner-hrl-int8');
+});
+
+it('leaves absolute model_dir unchanged on append', function () {
+    $patcher = new PolicyTomlPatcher(baseDir: '/abs/project');
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
+
+    $patched = $patcher->buildAppended($body, '/already/absolute/dest', null);
+
+    expect($patcher->readModelDir($patched))->toBe('/already/absolute/dest');
+});
+
+it('absolutizes relative model_dir when replacing existing [ner] with force', function () {
+    $patcher = new PolicyTomlPatcher(baseDir: '/abs/project');
+    $body = pt_fixture($this->fixtures, 'policy-with-ner-different-dir.toml');
+
+    $patched = $patcher->buildReplaced($body, 'storage/app/gaze-ner/v2', null, force: true);
+
+    expect($patcher->readModelDir($patched))->toBe('/abs/project/storage/app/gaze-ner/v2');
+});
+
+it('falls back to getcwd when baseDir is null and input is relative', function () {
+    $patcher = new PolicyTomlPatcher;
+    $body = pt_fixture($this->fixtures, 'policy-no-ner.toml');
+    $expected = rtrim((string) getcwd(), '/\\').'/storage/app/gaze-ner/x';
+
+    $patched = $patcher->buildAppended($body, 'storage/app/gaze-ner/x', null);
+
+    expect($patcher->readModelDir($patched))->toBe($expected);
+});
+
+it('writes absolute model_dir to disk via apply when given a relative dest', function () {
+    $patcher = new PolicyTomlPatcher(baseDir: '/abs/project');
+    $policy = $this->tmp.'/policy.toml';
+    copy($this->fixtures.'/policy-no-ner.toml', $policy);
+
+    $patcher->apply($policy, 'storage/app/gaze-ner/davlan-mbert-ner-hrl-int8', null, force: false);
+
+    $written = (string) file_get_contents($policy);
+    expect($patcher->readModelDir($written))
+        ->toBe('/abs/project/storage/app/gaze-ner/davlan-mbert-ner-hrl-int8');
+});
+
 it('does not overwrite an existing policy backup on repeat apply', function () {
     $patcher = new PolicyTomlPatcher;
     $policy = $this->tmp.'/policy.toml';

@@ -9,6 +9,8 @@ use Yosymfony\Toml\Toml;
 
 final class PolicyTomlPatcher
 {
+    public function __construct(private readonly ?string $baseDir = null) {}
+
     public function hasNerBlock(string $body): bool
     {
         $parsed = $this->parse($body);
@@ -33,6 +35,8 @@ final class PolicyTomlPatcher
     {
         $this->parse($body);
 
+        $modelDir = $this->absolutize($modelDir);
+
         $block = "\n\n[ner]\n";
         $block .= 'model_dir = '.$this->tomlString($modelDir)."\n";
 
@@ -56,6 +60,7 @@ final class PolicyTomlPatcher
             return $this->buildAppended($body, $modelDir, $locale);
         }
 
+        $modelDir = $this->absolutize($modelDir);
         $currentModelDir = $this->readModelDir($body);
         $patched = $this->replaceNerModelDir($body, $modelDir);
 
@@ -116,6 +121,36 @@ final class PolicyTomlPatcher
         } catch (ParseException $e) {
             throw new NerManifestInvalidException('invalid policy TOML: '.$e->getMessage(), previous: $e);
         }
+    }
+
+    private function absolutize(string $modelDir): string
+    {
+        if ($modelDir === '' || $this->isAbsolutePath($modelDir)) {
+            return $modelDir;
+        }
+
+        $base = $this->baseDir ?? (getcwd() ?: null);
+        if ($base === null || $base === '') {
+            return $modelDir;
+        }
+
+        return rtrim($base, '/\\').DIRECTORY_SEPARATOR.ltrim($modelDir, '/\\');
+    }
+
+    private function isAbsolutePath(string $path): bool
+    {
+        if ($path === '') {
+            return false;
+        }
+
+        if ($path[0] === '/' || $path[0] === '\\') {
+            return true;
+        }
+
+        return strlen($path) >= 3
+            && ctype_alpha($path[0])
+            && $path[1] === ':'
+            && ($path[2] === '/' || $path[2] === '\\');
     }
 
     private function tomlString(string $value): string
