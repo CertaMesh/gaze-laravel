@@ -50,3 +50,67 @@ it('runs the deep round-trip check when requested', function () {
         ->expectsOutputToContain('deep')
         ->expectsOutputToContain('OK');
 });
+
+it('does not warn when rulepacks list only the unified core bundle', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.rulepacks', ['core']);
+
+    Process::fake([
+        '*' => Process::result(output: "gaze 0.8.0\n"),
+    ]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->doesntExpectOutputToContain('deprecated');
+});
+
+it('warns when gaze.rulepacks lists the deprecated core-extended bundle', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.rulepacks', ['core-extended']);
+
+    Process::fake([
+        '*' => Process::result(output: "gaze 0.8.0\n"),
+    ]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain("rulepack 'core-extended' is deprecated");
+});
+
+it('warns when a user policy.toml still bundles core-extended', function () {
+    $tmpPolicy = tempnam(sys_get_temp_dir(), 'gaze-doctor-policy-').'.toml';
+    file_put_contents($tmpPolicy, <<<'TOML'
+[locale]
+active = ["de-DE", "en-US"]
+
+[policy.rulepacks]
+bundled = ["core", "core-extended"]
+TOML);
+
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', $tmpPolicy);
+    $this->app['config']->set('gaze.rulepacks', []);
+
+    Process::fake([
+        '*' => Process::result(output: "gaze 0.8.0\n"),
+    ]);
+
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(0)
+            ->expectsOutputToContain("rulepack 'core-extended' is deprecated");
+    } finally {
+        @unlink($tmpPolicy);
+    }
+});
