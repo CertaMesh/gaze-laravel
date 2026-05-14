@@ -51,6 +51,7 @@ final class DoctorCommand extends Command
         }
 
         $this->warnIfDeprecatedRulepack($config, $policy);
+        $this->probeProxyFeature($binary, $config, $process);
 
         try {
             $this->laravel->make('gaze.encrypter');
@@ -106,5 +107,78 @@ final class DoctorCommand extends Command
         if (is_array($bundled) && in_array('core-extended', $bundled, true)) {
             $this->warn($message);
         }
+    }
+
+    /**
+     * Best-effort probe for the upstream `proxy` feature build flag.
+     *
+     * Skipped when the adopter has not deviated from the package's default
+     * `gaze.proxy.*` block — keeps doctor output noise-free for the majority
+     * who never use the proxy. When the adopter HAS configured proxy and the
+     * installed binary lacks the feature, surface the exact `cargo install`
+     * hint upstream documents.
+     */
+    private function probeProxyFeature(string $binary, ConfigRepository $config, ProcessFactory $process): void
+    {
+        if (! $this->proxyExplicitlyConfigured($config)) {
+            return;
+        }
+
+        $result = $process->newPendingProcess()->timeout(3)->run([$binary, 'proxy', '--help']);
+        $stderr = $result->errorOutput();
+
+        if ($result->successful() && ! str_contains($stderr, 'unknown subcommand')) {
+            $this->info('gaze proxy feature available');
+
+            return;
+        }
+
+        $this->warn(
+            'gaze proxy not available — rebuild upstream binary with: '
+            .'cargo install gaze-cli --features proxy. '
+            .'Adapter v0.8.1 proxy artisan commands will error on invocation.'
+        );
+    }
+
+    private function proxyExplicitlyConfigured(ConfigRepository $config): bool
+    {
+        $proxy = $config->get('gaze.proxy');
+        if (! is_array($proxy)) {
+            return false;
+        }
+
+        $policyPath = $proxy['policy_path'] ?? null;
+        if (is_string($policyPath) && $policyPath !== '') {
+            return true;
+        }
+
+        $defaults = [
+            'bind' => '127.0.0.1:8787',
+            'session_ttl' => '30m',
+            'rulepack' => 'core',
+            'stop_timeout' => '10s',
+        ];
+        foreach ($defaults as $key => $default) {
+            if (($proxy[$key] ?? $default) !== $default) {
+                return true;
+            }
+        }
+
+        $upstreamDefaults = [
+            'openai' => 'https://api.openai.com/',
+            'anthropic' => 'https://api.anthropic.com/',
+            'gemini' => 'https://generativelanguage.googleapis.com/',
+        ];
+        $upstream = $proxy['upstream'] ?? [];
+        if (! is_array($upstream)) {
+            return false;
+        }
+        foreach ($upstreamDefaults as $key => $default) {
+            if (($upstream[$key] ?? $default) !== $default) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
