@@ -114,3 +114,65 @@ TOML);
         @unlink($tmpPolicy);
     }
 });
+
+it('does not probe proxy feature when gaze.proxy is at defaults', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.0\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->doesntExpectOutputToContain('gaze proxy');
+});
+
+it('reports gaze proxy feature available when the binary supports proxy', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.proxy.policy_path', '/etc/gaze/proxy.toml');
+
+    Process::fake(function ($process) {
+        $command = is_array($process->command) ? $process->command : [];
+        if (in_array('proxy', $command, true) && in_array('--help', $command, true)) {
+            return Process::result(output: "gaze proxy\n\nUSAGE: gaze proxy <SUBCOMMAND>\n");
+        }
+
+        return Process::result(output: "gaze 0.8.0\n");
+    });
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('gaze proxy feature available');
+});
+
+it('warns with the cargo install hint when the binary lacks the proxy feature', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.proxy.policy_path', '/etc/gaze/proxy.toml');
+
+    Process::fake(function ($process) {
+        $command = is_array($process->command) ? $process->command : [];
+        if (in_array('proxy', $command, true) && in_array('--help', $command, true)) {
+            return Process::result(
+                output: '',
+                errorOutput: "error: unrecognized subcommand 'proxy'\n",
+                exitCode: 2,
+            );
+        }
+
+        return Process::result(output: "gaze 0.8.0\n");
+    });
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('cargo install gaze-cli --features proxy');
+});

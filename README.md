@@ -14,7 +14,8 @@ Use it when you need to:
 - send pseudonymized text to an LLM instead of raw PII;
 - restore model output back into owner-side text;
 - keep encrypted session blobs out of logs and public component state;
-- classify subprocess failures into caller, config, integrity, and infra buckets.
+- classify subprocess failures into caller, config, integrity, and infra buckets;
+- run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies (see [`docs/proxy.md`](./docs/proxy.md)).
 
 > **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in
 > second install — run `php artisan gaze:install-ner` to download model artifacts. See
@@ -117,6 +118,7 @@ See [Testing](./docs/testing.md) for fakes, assertions, and integration-test set
 - [Retry discipline](./docs/retry.md)
 - [Diagnostics](./docs/diagnostics.md)
 - [Exceptions](./docs/exceptions.md)
+- [Proxy daemon](./docs/proxy.md)
 - [Queue integration](./docs/queue.md)
 - [Security model](./docs/security.md)
 - [Testing](./docs/testing.md)

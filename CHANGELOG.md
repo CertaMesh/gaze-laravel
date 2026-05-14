@@ -4,6 +4,51 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-05-14
+
+Optional gaze-proxy daemon Artisan wrapper. Ships six `php artisan
+gaze:proxy:*` commands that mirror upstream's `gaze proxy {serve, start,
+stop, status, logs, restart}` surface, a `config/gaze.php` `proxy` block,
+a `DoctorCommand` feature probe, and a `BinaryInstaller` post-install
+notice. Adopters must rebuild the upstream binary with
+`cargo install gaze-cli --features proxy` to use the proxy at runtime —
+the v0.8.0 GitHub-release binary asset is built without the `proxy`
+feature.
+
+### Added
+
+- `config/gaze.php` `proxy` block (`bind`, `session_ttl`, `rulepack`,
+  `policy_path`, `upstream.{openai,anthropic,gemini}`, `stop_timeout`)
+  with matching `GAZE_PROXY_*` env overrides. Each key forwards as an
+  exact upstream CLI flag.
+- Six new Artisan commands under `Naoray\GazeLaravel\Console\Proxy\`:
+  `gaze:proxy:serve`, `:start`, `:stop`, `:status`, `:logs`, `:restart`.
+  `:status` translates `gaze-proxy not running` to a non-zero exit so
+  CI / probes can use it directly.
+- `DoctorCommand` probe for the upstream `proxy` feature availability —
+  emits a `cargo install gaze-cli --features proxy` hint when the
+  configured binary lacks the feature and the adopter has any non-default
+  `gaze.proxy.*` value. Skipped silently when proxy is unconfigured.
+- `BinaryInstaller` post-install notice that mentions the
+  `--features proxy` build path. Emitted once per fresh install.
+- `docs/proxy.md` adopter quickstart, config reference, daemon-lifecycle
+  table, security notes, and doctor-probe section.
+
+### Changed
+
+- `docs/upstream-coverage.md`: new "Proxy (v0.8.1)" section with the full
+  subcommand + flag mapping table. The `gaze proxy *` row was removed
+  from "Deferred"; only the launchd / systemd-user stubs remain in the
+  deferred table.
+- `README.md`: features list + documentation index gain a proxy entry.
+
+### Notes on deferred upstream surfaces
+
+- `gaze proxy install-launchd` / `install-systemd-user` — upstream stubs
+  these in v0.8.0 (return `"reserved for v0.8.x"`). Adapter does not yet
+  wrap them; `php artisan gaze:proxy:install` will land once upstream
+  implements the launchd / systemd integration.
+
 ## [0.8.0] - 2026-05-14
 
 Upstream `EmpireTwo/gaze` v0.8.0 adapter release. Pins the v0.8.0 binary,

@@ -99,6 +99,7 @@ final class BinaryInstaller
             self::installBinary($assetPath, $binPath);
             @chmod($binPath, 0755);
             $io->write("<info>gaze-laravel: installed gaze v{$version} → {$binPath}</info>");
+            $io->write('<comment>gaze-laravel: gaze proxy is opt-in. To use `php artisan gaze:proxy:*`, rebuild upstream with: cargo install gaze-cli --features proxy</comment>');
         } catch (\Throwable $e) {
             // Scrub the token if it ever ended up in an exception message.
             $message = $token !== null ? str_replace($token, '[redacted]', $e->getMessage()) : $e->getMessage();
