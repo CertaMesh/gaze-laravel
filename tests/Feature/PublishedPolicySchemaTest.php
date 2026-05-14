@@ -20,11 +20,15 @@ it('publishes a v0.4 multi-class policy with bundled rulepacks', function () {
     $customRecognizers = preg_match_all('/^\s*\[\[policy\.custom_recognizers\]\]/m', $body);
     expect($customRecognizers)->toBeGreaterThanOrEqual(4);
 
-    // Bundled rulepacks activated - both core and core-extended.
+    // Bundled rulepacks activated - unified `core` only (v0.8 unification).
     expect($body)
         ->toMatch('/^\s*\[policy\.rulepacks\]/m')
-        ->toContain('"core"')
-        ->toContain('"core-extended"');
+        ->toContain('"core"');
+
+    // Regression: 'core-extended' was unified into 'core' upstream in v0.8.0.
+    // A future revert that re-introduces the deprecated bundle name must not
+    // ship silently — the doctor warning + this assertion are the two gates.
+    expect($body)->not->toContain('"core-extended"');
 
     // BCP47 locales - postal.de needs de-DE, postal.us needs en-US.
     expect($body)

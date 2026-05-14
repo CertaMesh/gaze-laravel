@@ -3,11 +3,12 @@
 # Schema: v0.4 ([[policy.custom_recognizers]]). Compatible with pinned
 # upstream binary v0.6.4. Verify with `vendor/bin/gaze --version`.
 #
-# Activates rulepacks `core` (email + email-header names) and `core-extended`
-# (phone, IBAN, credit card, IP, postal codes). Adds custom recognizers for
-# money amounts, invoice/order numbers, street addresses, and orgs with
-# legal suffix. Person-name detection is delegated to the optional NER
-# model (see commented [ner] block + issue #32: php artisan gaze:install-ner).
+# Activates the unified `core` rulepack (email + email-header names, phone,
+# IBAN, credit card, IP, postal codes — `core-extended` was folded into
+# `core` upstream as of gaze v0.8.0). Adds custom recognizers for money
+# amounts, invoice/order numbers, street addresses, and orgs with legal
+# suffix. Person-name detection is delegated to the optional NER model
+# (see commented [ner] block + issue #32: php artisan gaze:install-ner).
 #
 # Locale-gating note: under `en-US`, bare 5-digit numbers tokenize as
 # postal codes (US ZIP). If your app emits 5-digit order IDs, ticket numbers,
@@ -27,7 +28,8 @@ ttl_secs = 86400
 active = ["de-DE", "en-US"]
 
 [policy.rulepacks]
-bundled = ["core", "core-extended"]
+# v0.8: 'core-extended' was unified into 'core'. Pass --locale (or set GAZE_LOCALE) to activate phone.national.* / postal.* recognizers. See https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md
+bundled = ["core"]
 
 # [ner]
 # # Optional named-entity recognition for person/org/location detection.
