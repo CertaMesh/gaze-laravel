@@ -127,31 +127,14 @@ Session blobs are encrypted at rest with Laravel's encrypter, keyed by `GAZE_ENC
 Only pseudonymized `$session->cleanText` should cross the model boundary; restore happens owner-side.
 See [Security model](./docs/security.md) for guarantees, responsibilities, and compliance boundaries.
 
-## Upgrading from 0.6.x
+## Upgrading
 
-`gaze-laravel` 0.7.0 pins the upstream `EmpireTwo/gaze` binary at **v0.7.2**
-(previously v0.6.6). Adopters who never override `GAZE_VERSION` will silently
-jump across the upstream 0.6 → 0.7 boundary on `composer update`, so review
-the impact before upgrading.
-
-- **Existing `policy.toml` files keep loading.** Upstream v0.7.2 introduces a
-  top-level `schema_version` field but soft-defaults missing values to
-  `0.1.0`, so 0.6.x policies stay drop-in. Pin explicitly with
-  `schema_version = "0.1"` at the top of `policy.toml` once you want the
-  schema-drift gate to fail closed on future contract breaks.
-- **New typed exception `GazePolicySchemaUnsupportedException`** fires when
-  the binary rejects a policy whose `major.minor` prefix does not match its
-  supported schema. The exception carries `found()` / `supported()`
-  accessors and shares the `exit=2` bucket with other config errors.
-- **Existing `GazePolicyConfigDetailException` now exposes `detail()`** —
-  upstream threads loader-cause strings (e.g.
-  `"unknown bundled rulepack: garbage"`) through the additive `detail`
-  sidecar on `{"error":"PolicyConfig","exit":2}`. Code that already catches
-  this class needs no change; new code can read `$e->detail()` directly.
-- **MCP + document subcommands are deferred.** Upstream `gaze mcp install` /
-  `gaze document clean` and new validator kinds (`Ipv4Parse`, `Ipv6Parse`,
-  `EthEip55`) are tracked as separate follow-up surfaces and intentionally
-  not yet exposed through artisan commands or facade methods.
+Per-minor walkthroughs live in [`docs/upgrading.md`](./docs/upgrading.md);
+pair them with the upstream binary's
+[UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md). The
+current pin is **v0.8.0** — see the `v0.7.x → v0.8.0` section for the
+bundle unification, deprecation warnings, and 10 new locale-gated
+entities. Older `v0.6.x → v0.7.0` notes are preserved in the same file.
 
 See [`docs/exceptions.md`](./docs/exceptions.md) and
 [`docs/upstream-coverage.md`](./docs/upstream-coverage.md) for the full

@@ -30,7 +30,9 @@ Options:
       --audit-db <AUDIT_DB>
           Optional SQLite redaction-log database path
       --safety-net <SAFETY_NET>
-          Optional observer-only privacy safety net [possible values: openai-filter]
+          Optional observer-only privacy safety net [possible values: openai-filter, kiji-distilbert]
+      --safety-net-backend <SAFETY_NET_BACKEND>
+          v0.8 backend selector. Defaults to `openai-filter`. When set with `--safety-net=<kind>`, this flag wins. Lets adopters swap the Pass-3 backend without re-typing the legacy `--safety-net` value [default: openai-filter] [possible values: openai-filter, kiji-distilbert]
       --openai-filter-command <OPENAI_FILTER_COMMAND>
           Path to the local OpenAI Privacy Filter `opf` command
       --openai-filter-checkpoint <OPENAI_FILTER_CHECKPOINT>
@@ -39,6 +41,10 @@ Options:
           OpenAI Privacy Filter operating point, when supported by the command [possible values: high-recall, balanced, high-precision]
       --openai-filter-device <OPENAI_FILTER_DEVICE>
           Device selection for the OpenAI safety-net subprocess (auto|cpu|cuda|mps). Default: auto (let opf decide) [default: auto] [possible values: auto, cpu, cuda, mps]
+      --kiji-distilbert-command <KIJI_DISTILBERT_COMMAND>
+          Path to the local Kiji DistilBERT subprocess command
+      --kiji-distilbert-model-dir <KIJI_DISTILBERT_MODEL_DIR>
+          Path to the pinned Kiji DistilBERT model directory (must contain SHA256SUMS, labels.json, model.onnx, tokenizer.json)
       --safety-net-timeout-ms <SAFETY_NET_TIMEOUT_MS>
           Safety-net subprocess timeout in milliseconds [default: 5000]
       --safety-net-input-limit-bytes <SAFETY_NET_INPUT_LIMIT_BYTES>
