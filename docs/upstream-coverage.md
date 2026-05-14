@@ -103,6 +103,37 @@ verbatim. Adopters index by string key (`$row['recognizer_version_id']`).
 A typed `AuditRow` DTO is tracked as a future ergonomics nicety, not a
 blocker.
 
+## Proxy (v0.8.1)
+
+The upstream `gaze proxy` daemon (v0.8.0, opt-in `--features proxy` build)
+is wrapped by six Artisan commands. See [`docs/proxy.md`](./proxy.md) for
+the adopter quickstart, security notes, and the doctor probe.
+
+| Upstream subcommand | Artisan surface |
+|---|---|
+| `gaze proxy serve` | `php artisan gaze:proxy:serve` |
+| `gaze proxy start` | `php artisan gaze:proxy:start` |
+| `gaze proxy stop` | `php artisan gaze:proxy:stop` |
+| `gaze proxy restart` | `php artisan gaze:proxy:restart` |
+| `gaze proxy status` | `php artisan gaze:proxy:status` |
+| `gaze proxy logs` | `php artisan gaze:proxy:logs` |
+| `gaze proxy install-launchd` | not wrapped — upstream stub in v0.8.0 (`"reserved for v0.8.x"`) |
+| `gaze proxy install-systemd-user` | not wrapped — upstream stub in v0.8.0 (`"reserved for v0.8.x"`) |
+
+| Upstream flag | Laravel surface |
+|---|---|
+| `--bind` | `gaze.proxy.bind` / `GAZE_PROXY_BIND` (default `127.0.0.1:8787`) |
+| `--session-ttl` | `gaze.proxy.session_ttl` / `GAZE_PROXY_SESSION_TTL` (default `30m`) |
+| `--rulepack` | `gaze.proxy.rulepack` / `GAZE_PROXY_RULEPACK` (default `core`) |
+| `--policy` | `gaze.proxy.policy_path` / `GAZE_PROXY_POLICY_PATH` (default `null`) |
+| `--upstream-openai` | `gaze.proxy.upstream.openai` / `GAZE_PROXY_UPSTREAM_OPENAI` |
+| `--upstream-anthropic` | `gaze.proxy.upstream.anthropic` / `GAZE_PROXY_UPSTREAM_ANTHROPIC` |
+| `--upstream-gemini` | `gaze.proxy.upstream.gemini` / `GAZE_PROXY_UPSTREAM_GEMINI` |
+| `--timeout` (stop / restart) | `gaze.proxy.stop_timeout` / `GAZE_PROXY_STOP_TIMEOUT` (default `10s`) |
+| `--force` (stop / restart) | `--force` artisan flag |
+| `--follow` (logs) | `--follow` artisan flag |
+| `--foreground-daemon` (serve) | `--foreground-daemon` artisan flag |
+
 ## Deferred
 
 | Upstream surface | Reason |
@@ -111,4 +142,4 @@ blocker.
 | `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
 | `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. Tracked separately. |
 | `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
-| `gaze proxy start \| stop \| status \| logs \| restart \| install-launchd \| install-systemd-user` | Opt-in `proxy` build feature in upstream v0.8.0 (daemon mode for chat-style ingest). Tracked for v0.8.x adapter release. Needs `config/gaze.php` proxy block + 5+ artisan commands. |
+| `gaze proxy install-launchd` / `install-systemd-user` | Upstream stubs the launchd / systemd integrations in v0.8.0 (return `"reserved for v0.8.x"`). Adapter will ship `php artisan gaze:proxy:install` once upstream implements them. |

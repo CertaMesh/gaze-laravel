@@ -154,4 +154,63 @@ return [
      * and `tolerant`. Null omits the flag and lets upstream default to `strict`.
      */
     'restore_mode' => env('GAZE_RESTORE_MODE'),
+
+    /*
+     * gaze-proxy daemon settings.
+     *
+     * Wraps the upstream `gaze proxy *` subcommands. Each key forwards as an
+     * exact `--flag` to the binary; null/empty omits the flag and lets the
+     * binary fall back to its own config file (default `~/.config/gaze/proxy.toml`).
+     *
+     * The upstream `proxy` subcommand is feature-gated. The GitHub-release
+     * binary asset is built WITHOUT `--features proxy`. Adopters that want
+     * `php artisan gaze:proxy:*` at runtime must rebuild upstream with:
+     *
+     *     cargo install gaze-cli --features proxy
+     *
+     * See `docs/proxy.md` for the full reference.
+     */
+    'proxy' => [
+        /*
+         * Loopback bind address. Format: `host:port`. Forwarded as `--bind=`.
+         */
+        'bind' => env('GAZE_PROXY_BIND', '127.0.0.1:8787'),
+
+        /*
+         * Session TTL applied to redaction-session state held by the daemon.
+         * Duration string (`30m`, `1h`, `120s`). Forwarded as `--session-ttl=`.
+         */
+        'session_ttl' => env('GAZE_PROXY_SESSION_TTL', '30m'),
+
+        /*
+         * Bundled rulepack name passed to the proxy pipeline. Forwarded as
+         * `--rulepack=`. Use `core` (default) unless you publish a custom
+         * bundle.
+         */
+        'rulepack' => env('GAZE_PROXY_RULEPACK', 'core'),
+
+        /*
+         * Optional policy.toml path forwarded as `--policy=`. Null lets the
+         * binary fall back to its default pipeline (no policy file).
+         */
+        'policy_path' => env('GAZE_PROXY_POLICY_PATH'),
+
+        /*
+         * Upstream provider URLs forwarded as `--upstream-openai=`,
+         * `--upstream-anthropic=`, `--upstream-gemini=`. Each key takes a full
+         * https:// URL. Adapter ships the canonical defaults so a fresh
+         * `php artisan gaze:proxy:start` works without further config.
+         */
+        'upstream' => [
+            'openai' => env('GAZE_PROXY_UPSTREAM_OPENAI', 'https://api.openai.com/'),
+            'anthropic' => env('GAZE_PROXY_UPSTREAM_ANTHROPIC', 'https://api.anthropic.com/'),
+            'gemini' => env('GAZE_PROXY_UPSTREAM_GEMINI', 'https://generativelanguage.googleapis.com/'),
+        ],
+
+        /*
+         * Graceful-shutdown timeout for `gaze:proxy:stop` / `:restart`.
+         * Duration string (`10s`, `30s`, `1m`). Forwarded as `--timeout=`.
+         */
+        'stop_timeout' => env('GAZE_PROXY_STOP_TIMEOUT', '10s'),
+    ],
 ];
