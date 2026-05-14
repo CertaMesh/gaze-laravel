@@ -10,6 +10,7 @@ use Illuminate\Process\Factory as ProcessFactory;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 use Naoray\GazeLaravel\Gaze;
+use Yosymfony\Toml\Toml;
 
 final class DoctorCommand extends Command
 {
@@ -49,6 +50,8 @@ final class DoctorCommand extends Command
             return self::FAILURE;
         }
 
+        $this->warnIfDeprecatedRulepack($config, $policy);
+
         try {
             $this->laravel->make('gaze.encrypter');
         } catch (\Throwable $e) {
@@ -80,5 +83,28 @@ final class DoctorCommand extends Command
         $this->components->twoColumnDetail('status', '<fg=green>OK</>');
 
         return self::SUCCESS;
+    }
+
+    private function warnIfDeprecatedRulepack(ConfigRepository $config, string $policyPath): void
+    {
+        $message = "rulepack 'core-extended' is deprecated as of gaze v0.8.0; aliases to 'core' with a runtime warning. Removal target: v0.10.0. Pass an explicit --locale (or set GAZE_LOCALE) to retain phone.national.* / postal.* coverage.";
+
+        $rulepacks = $config->get('gaze.rulepacks');
+        if (is_array($rulepacks) && in_array('core-extended', $rulepacks, true)) {
+            $this->warn($message);
+
+            return;
+        }
+
+        try {
+            $parsed = Toml::parseFile($policyPath);
+        } catch (\Throwable) {
+            return;
+        }
+
+        $bundled = $parsed['policy']['rulepacks']['bundled'] ?? null;
+        if (is_array($bundled) && in_array('core-extended', $bundled, true)) {
+            $this->warn($message);
+        }
     }
 }

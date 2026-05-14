@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.7.2.
+Living parity checklist for upstream `EmpireTwo/gaze` v0.8.0.
 
 ## Commands
 
@@ -64,6 +64,45 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.7.2.
 | `SigPipe` | `GazeSigPipeException` |
 | `PolicyOpen` | `GazePolicyOpenException` |
 
+## Coverage by locale (v0.8.0)
+
+Upstream v0.8.0 introduces 10 locale-gated entities across the new
+`locale-{br,fr,nl,in,uk}` packs plus extensions to the existing US/UK
+packs. All entities are additive — existing deployments see no
+behaviour change unless `gaze.locale` / `GAZE_LOCALE` is set to a
+matching BCP47 locale.
+
+| Entity | Locale | ValidatorKind | Tier |
+|---|---|---|---|
+| Aadhaar | IN | `AadhaarVerhoeff` | 2 (safe_default) |
+| NIR | FR | `FrNirMod97` | 2 (safe_default) |
+| Steuer-ID | DE | `DeSteuerIdMod1110` | 2 (safe_default) |
+| BSN | NL | `BsnMod11` | 2 (safe_default) |
+| CPF | BR | `CpfMod11` | 2 (safe_default) |
+| CNPJ | BR | `CnpjMod11` | 2 (safe_default) |
+| NHS number | UK | `UkNhsMod11` | 2 (safe_default) |
+| US SSN | US | `None` (cue-gated) | 3 (locale_gated) |
+| UK NINO | UK | `None` (cue-gated) | 3 (locale_gated) |
+| Indian PAN | IN | `None` (cue-gated) | 3 (locale_gated) |
+
+The Laravel adapter forwards `--locale=<bcp47>` via `gaze.locale` /
+`GAZE_LOCALE`; no code change is needed to opt in.
+
+## Audit row columns (v0.8.0)
+
+Upstream v0.8.0 adds two columns to `gaze audit query` JSON output:
+
+| Column | Notes |
+|---|---|
+| `recognizer_id` | Stable string identifier for the recognizer that produced a span. |
+| `recognizer_version_id` | `<recognizer_id>_v<N>` suffix; bumps on recognizer behaviour changes for replay-stability. |
+
+`Audit\QueryBuilder::parseRows()` returns the rows as `array<string,
+mixed>` and does not strip unknown fields — both columns flow through
+verbatim. Adopters index by string key (`$row['recognizer_version_id']`).
+A typed `AuditRow` DTO is tracked as a future ergonomics nicety, not a
+blocker.
+
 ## Deferred
 
 | Upstream surface | Reason |
@@ -71,4 +110,5 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.7.2.
 | `--context-json` | P1 design item; needs PHP API design before exposure. |
 | `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
 | `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. Tracked separately. |
-| `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in `core-extended` | Upstream v0.7.0 additions; need to be surfaced in the published `resources/policy.toml` stub. Tracked separately. |
+| `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
+| `gaze proxy start \| stop \| status \| logs \| restart \| install-launchd \| install-systemd-user` | Opt-in `proxy` build feature in upstream v0.8.0 (daemon mode for chat-style ingest). Tracked for v0.8.x adapter release. Needs `config/gaze.php` proxy block + 5+ artisan commands. |

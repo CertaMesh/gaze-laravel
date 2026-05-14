@@ -4,6 +4,60 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-05-14
+
+Upstream `EmpireTwo/gaze` v0.8.0 adapter release. Pins the v0.8.0 binary,
+surfaces the bundle unification + `safety_tier` reshape, and refreshes the
+published policy + doctor command for the deprecated `core-extended` alias.
+
+### Added
+
+- `docs/upgrading.md` — per-minor adapter upgrade guide cross-linked from
+  the README, complementing upstream `UPGRADE.md`.
+- `DoctorCommand` deprecation warning when `gaze.rulepacks` or the
+  resolved `gaze.policy_path` lists `core-extended`. Removal target:
+  v0.10.0. Skips silently on TOML parse failure (doctor is not a TOML
+  linter).
+- `docs/upstream-coverage.md` "Coverage by locale (v0.8.0)" table for
+  the 10 new Tier 2 / Tier 3 entities across `locale-{br,fr,nl,in,uk}`
+  plus the existing US / UK packs (Aadhaar, NIR, Steuer-ID, BSN, CPF,
+  CNPJ, NHS, US SSN, UK NINO, Indian PAN).
+- `docs/upstream-coverage.md` "Audit row columns (v0.8.0)" section
+  noting that `recognizer_id` + `recognizer_version_id` flow through
+  `Audit\QueryBuilder::parseRows()` verbatim — adopters index by string
+  key, no typed DTO yet.
+
+### Changed
+
+- `BinaryInstaller::PINNED_VERSION` `0.7.2` → `0.8.0`. Help-snapshot
+  fixtures re-baselined against the v0.8.0 GitHub-release binary. The
+  `GAZE_VERSION` env override remains the supported pin escape hatch.
+- `resources/policy.toml` ships `bundled = ["core"]` only — the v0.8
+  bundle unification collapsed `core-extended` into `core`. Adopters who
+  copied the published policy with `["core", "core-extended"]` see a
+  runtime deprecation warning on first `php artisan gaze:doctor` run;
+  switch to `["core"]` plus an explicit `--locale` (or `GAZE_LOCALE`) to
+  keep `phone.national.*` / `postal.*` coverage.
+- `tests/Feature/PublishedPolicySchemaTest.php` no longer asserts
+  `core-extended` is present; a new regression assertion guarantees the
+  unified bundle stays unified.
+- `tests/Contract/VariantContractTest.php` fixture header bumped to
+  v0.8.0 — variant table itself is unchanged (no new `CliError` wire
+  shapes in v0.8.0).
+
+### Notes on deferred upstream surfaces (v0.8.x family)
+
+- `gaze proxy start | stop | status | logs | restart | install-launchd |
+  install-systemd-user` daemon-mode subcommands. Adapter wrap deferred
+  to v0.8.x: needs `config/gaze.php` proxy block + 5+ artisan commands.
+- `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds and
+  `eth.address` in the published `resources/policy.toml`. Still deferred
+  from v0.7.x.
+- `gaze mcp install / doctor / serve` MCP runtime subcommands. Still
+  deferred from v0.7.x.
+- `gaze document clean` document-mode runtime. Still deferred from
+  v0.7.x.
+
 ## [0.7.0] - 2026-05-13
 
 Upstream `EmpireTwo/gaze` v0.7.x adapter release. Adopts upstream v0.7.2 as the
