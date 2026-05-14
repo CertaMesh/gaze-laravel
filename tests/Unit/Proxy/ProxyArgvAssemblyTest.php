@@ -6,7 +6,11 @@ use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Console\Proxy\ProxyCommand;
 use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
+use Symfony\Component\Process\ExecutableFinder;
 
+/**
+ * @param  list<string>  $flags
+ */
 function gpc_stubCommand(string $verb, array $flags): ProxyCommand
 {
     return new class($verb, $flags) extends ProxyCommand
@@ -61,6 +65,6 @@ it('lets BinaryResolver failures bubble out of buildArgv', function () {
     expect(fn () => $command->buildArgv($resolver, $this->app->make(ConfigRepository::class)))
         ->toThrow(GazeBinaryMissingException::class);
 })->skip(
-    fn (): bool => (new \Symfony\Component\Process\ExecutableFinder)->find('gaze') !== null,
+    fn (): bool => (new ExecutableFinder)->find('gaze') !== null,
     'gaze binary on PATH — resolver will succeed.',
 );

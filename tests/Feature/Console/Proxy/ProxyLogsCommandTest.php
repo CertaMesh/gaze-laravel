@@ -29,7 +29,7 @@ it('passes through plain log dump without --follow', function () {
 });
 
 it('forwards --follow verbatim to upstream', function () {
-    Process::fake(['*' => Process::result(output: "")]);
+    Process::fake(['*' => Process::result(output: '')]);
 
     $this->artisan('gaze:proxy:logs', ['--follow' => true])->assertExitCode(0);
 
