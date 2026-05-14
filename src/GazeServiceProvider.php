@@ -18,6 +18,7 @@ use Naoray\GazeLaravel\Console\DoctorCommand;
 use Naoray\GazeLaravel\Console\InstallNerCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyLogsCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyRestartCommand;
+use Naoray\GazeLaravel\Console\Proxy\ProxyServeCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStartCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStatusCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStopCommand;
@@ -171,6 +172,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 CanaryCommand::class,
                 BenchCommand::class,
                 InstallNerCommand::class,
+                ProxyServeCommand::class,
                 ProxyStartCommand::class,
                 ProxyStopCommand::class,
                 ProxyRestartCommand::class,
