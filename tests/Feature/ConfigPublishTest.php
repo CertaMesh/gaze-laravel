@@ -19,5 +19,11 @@ it('publishes config to application config path', function () {
     expect($published)->toBeArray()
         ->toHaveKeys(['binary', 'timeout_seconds', 'policy_path', 'blob_encryption_key', 'audit_db_path']);
 
+    expect($published)->toHaveKey('proxy');
+    expect($published['proxy'])->toBeArray()
+        ->toHaveKeys(['bind', 'session_ttl', 'rulepack', 'policy_path', 'upstream', 'stop_timeout']);
+    expect($published['proxy']['upstream'])->toBeArray()
+        ->toHaveKeys(['openai', 'anthropic', 'gemini']);
+
     @unlink($target);
 });
