@@ -52,6 +52,11 @@ final class DoctorCommand extends Command
 
         $this->warnIfDeprecatedRulepack($config, $policy);
         $this->probeProxyFeature($binary, $config, $process);
+        if (! $this->probeKijiArtifacts($config)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
 
         try {
             $this->laravel->make('gaze.encrypter');
@@ -138,6 +143,67 @@ final class DoctorCommand extends Command
             .'cargo install gaze-cli --features proxy. '
             .'Adapter v0.8.1 proxy artisan commands will error on invocation.'
         );
+    }
+
+    /**
+     * Axis-1 fail-closed pre-flight for the Kiji DistilBERT backend.
+     *
+     * Skipped silently unless `gaze.safety_net_backend === 'kiji-distilbert'`
+     * — the openai-filter backend ships its own pre-flight upstream and the
+     * default null backend selector means "let upstream choose" so we have
+     * no Kiji-specific contract to enforce.
+     *
+     * When the adopter HAS opted into Kiji, surface the same artifact
+     * requirements upstream enforces (`SHA256SUMS`, `labels.json`,
+     * `model.onnx`, `tokenizer.json`) before the binary fails the first
+     * `gaze clean` with a `SafetyNetArtifactMissing` envelope. Returns true
+     * on pass; false signals doctor should exit FAILURE.
+     */
+    private function probeKijiArtifacts(ConfigRepository $config): bool
+    {
+        $backend = $config->get('gaze.safety_net_backend');
+        if ($backend !== 'kiji-distilbert') {
+            return true;
+        }
+
+        $dir = $config->get('gaze.kiji_distilbert_model_dir');
+        if (! is_string($dir) || $dir === '') {
+            $this->components->twoColumnDetail('kiji_distilbert', '<fg=red>missing model_dir</>');
+            $this->warn(
+                'gaze.safety_net_backend=kiji-distilbert requires gaze.kiji_distilbert_model_dir '
+                .'(or GAZE_KIJI_DISTILBERT_MODEL_DIR) to point at the pinned model directory. '
+                .'Fetch it with upstream scripts/fetch-kiji-safetynet-model.sh.'
+            );
+
+            return false;
+        }
+
+        $required = ['SHA256SUMS', 'labels.json', 'model.onnx', 'tokenizer.json'];
+        $missing = [];
+        foreach ($required as $name) {
+            if (! is_file($dir.'/'.$name)) {
+                $missing[] = $name;
+            }
+        }
+
+        if ($missing !== []) {
+            $this->components->twoColumnDetail(
+                'kiji_distilbert',
+                '<fg=red>missing: '.implode(', ', $missing).'</>'
+            );
+            $this->warn(
+                'gaze.kiji_distilbert_model_dir is missing required artifacts ('
+                .implode(', ', $missing).'). Re-fetch with upstream '
+                .'scripts/fetch-kiji-safetynet-model.sh; the dir must carry 0o700 '
+                .'permissions and each file 0o600.'
+            );
+
+            return false;
+        }
+
+        $this->components->twoColumnDetail('kiji_distilbert', '<fg=green>OK</>');
+
+        return true;
     }
 
     private function proxyExplicitlyConfigured(ConfigRepository $config): bool

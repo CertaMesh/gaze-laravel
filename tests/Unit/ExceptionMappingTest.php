@@ -14,11 +14,13 @@ use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
 use Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetArtifactMissingException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
 use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
 use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
+use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
 use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
 
 /** @param class-string<GazeException> $class */
@@ -29,7 +31,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
 
     $error = $payload['error'];
     $payload['exit'] = match ($error) {
-        'PolicyConfig', 'PolicySchemaUnsupported' => 2,
+        'PolicyConfig', 'PolicySchemaUnsupported', 'SafetyNetArtifactMissing' => 2,
         'Io', 'PolicyOpen' => 4,
         'SigPipe' => 141,
         default => 3,
@@ -41,7 +43,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
             output: '',
             errorOutput: $stderr,
             exitCode: match ($error) {
-                'PolicyConfig', 'PolicySchemaUnsupported' => 2,
+                'PolicyConfig', 'PolicySchemaUnsupported', 'SafetyNetArtifactMissing' => 2,
                 'Io', 'PolicyOpen' => 4,
                 'SigPipe' => 141,
                 default => 3,
@@ -73,6 +75,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
     [['error' => 'PolicySchemaUnsupported', 'found' => '9.9.0', 'supported' => '0.1'], GazePolicySchemaUnsupportedException::class],
     [['error' => 'SafetyNetConfig', 'detail' => 'missing config'], GazeSafetyNetConfigException::class],
     [['error' => 'SafetyNet', 'variant' => 'Timeout'], GazeSafetyNetFailureException::class],
+    [['error' => 'SafetyNetArtifactMissing', 'backend' => 'kiji-distilbert', 'path' => '/var/lib/gaze/models/kiji'], GazeSafetyNetArtifactMissingException::class],
     [['error' => 'UnsupportedSessionScope', 'variant' => 'global'], GazeUnsupportedSessionScopeException::class],
     [['error' => 'Io'], GazeIoException::class],
     [['error' => 'SigPipe'], GazeSigPipeException::class],
@@ -102,6 +105,32 @@ it('exposes the upstream PolicyConfig detail sidecar through the typed exception
     }
 
     $this->fail('Expected GazePolicyConfigDetailException to be thrown.');
+});
+
+it('exposes the upstream SafetyNetArtifactMissing backend/path sidecars', function () {
+    $payload = [
+        'error' => 'SafetyNetArtifactMissing',
+        'exit' => 2,
+        'backend' => 'kiji-distilbert',
+        'path' => '/var/lib/gaze/models/kiji',
+    ];
+    $stderr = json_encode($payload, JSON_THROW_ON_ERROR).PHP_EOL;
+
+    Process::fake(['*' => Process::result(output: '', errorOutput: $stderr, exitCode: 2)]);
+
+    try {
+        $this->makeGaze()->restore($this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1), 'Hello Name_1');
+    } catch (GazeSafetyNetArtifactMissingException $e) {
+        expect($e->backend())->toBe('kiji-distilbert')
+            ->and($e->path())->toBe('/var/lib/gaze/models/kiji')
+            ->and($e)->toBeInstanceOf(NonRetryable::class)
+            ->and($e->variant?->value)->toBe('SafetyNetArtifactMissing')
+            ->and($e->variant?->exitBucket())->toBe(2);
+
+        return;
+    }
+
+    $this->fail('Expected GazeSafetyNetArtifactMissingException to be thrown.');
 });
 
 it('exposes the upstream PolicySchemaUnsupported found/supported sidecars', function () {

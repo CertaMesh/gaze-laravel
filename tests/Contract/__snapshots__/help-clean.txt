@@ -50,6 +50,8 @@ Options:
       --safety-net-input-limit-bytes <SAFETY_NET_INPUT_LIMIT_BYTES>
           Maximum clean-text bytes submitted to the safety net [default: 1048576]
       --safety-net-mode <SAFETY_NET_MODE>
-          Safety-net handling mode for suspected leaks [default: strict] [possible values: strict, tolerant]
+          Safety-net handling mode for suspected leaks [default: resolve] [possible values: strict, tolerant, redact, resolve]
+      --safety-net-fallback <SAFETY_NET_FALLBACK>
+          Fallback when safety-net resolve or redact cannot complete [default: redact] [possible values: strict, tolerant, redact]
   -h, --help
           Print help
