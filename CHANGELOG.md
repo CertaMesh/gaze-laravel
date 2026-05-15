@@ -2,6 +2,12 @@
 
 All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- docs/safety-net.md: adopter usage guide for both SafetyNet backends (OPF + Kiji), config reference, mode/fallback semantics, doctor probe, exception handling, security notes.
+
 ## [0.9.0] - 2026-05-15
 
 Upstream `EmpireTwo/gaze` v0.8.x SafetyNet reshape adopter release. Pins
