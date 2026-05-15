@@ -54,6 +54,8 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
   legacy `strict` / `tolerant`. The `tolerant` value emits a deprecation
   warning upstream.
 
+> See [docs/safety-net.md](./safety-net.md) for the adopter usage guide for both SafetyNet backends.
+
 ## v0.7.x → v0.8.0
 
 ### TL;DR
