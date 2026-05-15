@@ -120,6 +120,7 @@ See [Testing](./docs/testing.md) for fakes, assertions, and integration-test set
 - [Diagnostics](./docs/diagnostics.md)
 - [Exceptions](./docs/exceptions.md)
 - [Proxy daemon](./docs/proxy.md)
+- [SafetyNet (OPF + Kiji)](./docs/safety-net.md)
 - [Queue integration](./docs/queue.md)
 - [Security model](./docs/security.md)
 - [Testing](./docs/testing.md)

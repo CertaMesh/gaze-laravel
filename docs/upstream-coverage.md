@@ -2,6 +2,8 @@
 
 Living parity checklist for upstream `EmpireTwo/gaze` v0.8.1.
 
+> Adopter usage: [docs/safety-net.md](./safety-net.md).
+
 ## Commands
 
 | Upstream command | Laravel surface |
