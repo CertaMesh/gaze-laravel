@@ -2,16 +2,20 @@
 
 All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
 
-## [Unreleased]
+## [0.9.0] - 2026-05-15
 
 Upstream `EmpireTwo/gaze` v0.8.x SafetyNet reshape adopter release. Pins
 binary at v0.8.1, exposes the new Kiji DistilBERT safety-net backend
 (Tier 2.5), the four-valued `safety_net_mode` enum, and the typed
 `SafetyNetArtifactMissing` envelope through Laravel-native config keys,
-exception classes, and a `gaze:doctor` pre-flight. All adapter changes
-are additive — only behavioural change for adopters is the upstream
+exception classes, and a `gaze:doctor` pre-flight.
+
+MINOR bump (pre-1.0 SemVer) reflects the new adopter-facing surface —
+four config keys, four argv flags, a typed exception class, a new
+`Variant` enum case, a new `DoctorCommand` probe, plus the upstream
 default flip of `safety_net_mode` from `strict` to `resolve` (see
-`docs/upgrading.md`).
+`docs/upgrading.md`). Patch framing (v0.8.2) was incorrect: net-new
+features under pre-1.0 SemVer warrant MINOR, not PATCH.
 
 ### Added
 
@@ -34,7 +38,7 @@ default flip of `safety_net_mode` from `strict` to `resolve` (see
   `openai-filter`.
 - `docs/upstream-coverage.md` Kiji + safety-net reshape table, error
   variant row, and the doctor pre-flight note.
-- `docs/upgrading.md` v0.8.1 → v0.8.2 section explaining the upstream
+- `docs/upgrading.md` v0.8.1 → v0.9.0 section explaining the upstream
   default flip + adopter opt-in path for the new Kiji backend.
 - README features-list bullet for the Kiji DistilBERT backend.
 

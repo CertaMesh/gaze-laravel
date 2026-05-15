@@ -4,7 +4,13 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md).
 
-## v0.8.1 → v0.8.2
+## v0.8.1 → v0.9.0
+
+> Pre-1.0 SemVer MINOR bump: net-new feature surface (Kiji backend
+> selector, three Kiji + fallback flags, `SafetyNetArtifactMissing`
+> typed exception, new `Variant` case, new `DoctorCommand` probe) plus
+> the upstream default flip on `safety_net_mode`. Patch framing
+> (v0.8.2) was rejected in review — additive features land on MINOR.
 
 ### TL;DR
 
