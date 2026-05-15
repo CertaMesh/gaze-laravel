@@ -260,6 +260,10 @@ it('appends OpenAI privacy-filter argv flags when configured', function (string 
     'safety net timeout' => ['safetyNetTimeoutMs', 7500, '--safety-net-timeout-ms=7500'],
     'safety net input limit' => ['safetyNetInputLimitBytes', 123456, '--safety-net-input-limit-bytes=123456'],
     'safety net mode' => ['safetyNetMode', 'tolerant', '--safety-net-mode=tolerant'],
+    'safety net backend' => ['safetyNetBackend', 'kiji-distilbert', '--safety-net-backend=kiji-distilbert'],
+    'kiji distilbert command' => ['kijiDistilbertCommand', '/usr/local/bin/kiji-distilbert', '--kiji-distilbert-command=/usr/local/bin/kiji-distilbert'],
+    'kiji distilbert model dir' => ['kijiDistilbertModelDir', '/var/lib/gaze/models/kiji', '--kiji-distilbert-model-dir=/var/lib/gaze/models/kiji'],
+    'safety net fallback' => ['safetyNetFallback', 'redact', '--safety-net-fallback=redact'],
 ]);
 
 it('omits locale, rulepacks, safety-net flags when not configured', function () {
@@ -284,7 +288,9 @@ it('omits locale, rulepacks, safety-net flags when not configured', function () 
                 ->not->toStartWith('--openai-filter-device=')
                 ->not->toStartWith('--openai-filter-command=')
                 ->not->toStartWith('--openai-filter-checkpoint=')
-                ->not->toStartWith('--openai-filter-operating-point=');
+                ->not->toStartWith('--openai-filter-operating-point=')
+                ->not->toStartWith('--kiji-distilbert-command=')
+                ->not->toStartWith('--kiji-distilbert-model-dir=');
         }
 
         return true;

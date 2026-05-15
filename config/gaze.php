@@ -97,6 +97,34 @@ return [
     'safety_net' => (bool) env('GAZE_SAFETY_NET', false),
 
     /*
+     * Optional explicit safety-net backend selector. Valid values are
+     * `openai-filter` (Tier 2 OpenAI privacy-filter subprocess) and
+     * `kiji-distilbert` (Tier 2.5 DistilBERT NER subprocess, v0.8.x). Forwarded
+     * as `--safety-net-backend=<value>` which wins over the legacy
+     * `--safety-net=<kind>` flag when both are set. Null omits the flag and
+     * lets upstream keep the v0.6/v0.7 single-backend default of `openai-filter`.
+     */
+    'safety_net_backend' => env('GAZE_SAFETY_NET_BACKEND'),
+
+    /*
+     * Optional path to the local Kiji DistilBERT subprocess binary used when
+     * `safety_net_backend=kiji-distilbert`. Forwarded as
+     * `--kiji-distilbert-command=<value>`. Null lets the binary use its PATH
+     * lookup.
+     */
+    'kiji_distilbert_command' => env('GAZE_KIJI_DISTILBERT_COMMAND'),
+
+    /*
+     * Optional pinned-artifact directory for the Kiji DistilBERT backend. The
+     * directory must carry `SHA256SUMS`, `labels.json`, `model.onnx`, and
+     * `tokenizer.json` (0o700 dir + 0o600 files for the fail-closed Axis-1
+     * guard). Forwarded as `--kiji-distilbert-model-dir=<value>`. Null omits
+     * the flag and lets upstream surface its own typed
+     * `SafetyNetArtifactMissing` envelope on first invocation.
+     */
+    'kiji_distilbert_model_dir' => env('GAZE_KIJI_DISTILBERT_MODEL_DIR'),
+
+    /*
      * CUDA/CPU device for the safety-net model (e.g. `cuda:0`, `cpu`). Forwarded
      * as `--openai-filter-device=<value>`. Null omits the flag.
      */
@@ -143,11 +171,24 @@ return [
         : (int) env('GAZE_SAFETY_NET_INPUT_LIMIT_BYTES'),
 
     /*
-     * Optional suspected-leak handling mode. Valid values are `strict` and
-     * `tolerant`. Forwarded as `--safety-net-mode=<value>`. Null lets the binary
-     * use its default of `strict`.
+     * Optional suspected-leak handling mode. Valid values are `strict`,
+     * `tolerant`, `redact`, and `resolve`. Forwarded as
+     * `--safety-net-mode=<value>`. Null lets the binary apply its default,
+     * which flipped from `strict` to `resolve` in upstream v0.8.1. Adopters
+     * who relied on the legacy strict-as-default behaviour must set
+     * `GAZE_SAFETY_NET_MODE=strict` explicitly. `tolerant` emits a
+     * deprecation warning upstream.
      */
     'safety_net_mode' => env('GAZE_SAFETY_NET_MODE'),
+
+    /*
+     * Optional fallback when `safety_net_mode` is `redact` or `resolve` and
+     * the active backend cannot complete (timeout, oversized input, etc.).
+     * Valid values are `strict`, `tolerant`, and `redact`. Forwarded as
+     * `--safety-net-fallback=<value>`. Null lets the binary use its default
+     * of `redact`.
+     */
+    'safety_net_fallback' => env('GAZE_SAFETY_NET_FALLBACK'),
 
     /*
      * Optional restore behavior for unknown tokens. Valid values are `strict`

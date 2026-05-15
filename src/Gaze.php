@@ -26,6 +26,7 @@ use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
 use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
 use Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException;
 use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
+use Naoray\GazeLaravel\Exceptions\GazeSafetyNetArtifactMissingException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
 use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
 use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
@@ -60,6 +61,10 @@ class Gaze
         private readonly ?int $safetyNetTimeoutMs = null,
         private readonly ?int $safetyNetInputLimitBytes = null,
         private readonly ?string $safetyNetMode = null,
+        private readonly ?string $safetyNetBackend = null,
+        private readonly ?string $kijiDistilbertCommand = null,
+        private readonly ?string $kijiDistilbertModelDir = null,
+        private readonly ?string $safetyNetFallback = null,
         private readonly ?string $sessionScope = null,
         private readonly ?string $restoreMode = null,
     ) {}
@@ -133,6 +138,22 @@ class Gaze
 
         if ($this->safetyNetMode !== null && $this->safetyNetMode !== '') {
             $command[] = '--safety-net-mode='.$this->safetyNetMode;
+        }
+
+        if ($this->safetyNetBackend !== null && $this->safetyNetBackend !== '') {
+            $command[] = '--safety-net-backend='.$this->safetyNetBackend;
+        }
+
+        if ($this->kijiDistilbertCommand !== null && $this->kijiDistilbertCommand !== '') {
+            $command[] = '--kiji-distilbert-command='.$this->kijiDistilbertCommand;
+        }
+
+        if ($this->kijiDistilbertModelDir !== null && $this->kijiDistilbertModelDir !== '') {
+            $command[] = '--kiji-distilbert-model-dir='.$this->kijiDistilbertModelDir;
+        }
+
+        if ($this->safetyNetFallback !== null && $this->safetyNetFallback !== '') {
+            $command[] = '--safety-net-fallback='.$this->safetyNetFallback;
         }
 
         $result = $this->run($command, $text, 'clean');
@@ -416,6 +437,13 @@ class Gaze
                 $exitCode,
                 $stderrHash,
                 $this->stderrStringField($stderr, 'variant') ?? 'Other',
+            ),
+            Variant::SafetyNetArtifactMissing => new GazeSafetyNetArtifactMissingException(
+                "gaze {$stage} safety-net artifact missing (exit={$exitCode}, stderr_sha256={$stderrHash})",
+                $exitCode,
+                $stderrHash,
+                $this->stderrStringField($stderr, 'backend') ?? '',
+                $this->stderrStringField($stderr, 'path') ?? '',
             ),
             Variant::AuditPurgeIso8601 => new GazeAuditPurgeIso8601Exception(
                 "gaze {$stage} audit purge timestamp not ISO8601 (exit={$exitCode}, stderr_sha256={$stderrHash})",

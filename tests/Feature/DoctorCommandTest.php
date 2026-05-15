@@ -151,6 +151,95 @@ it('reports gaze proxy feature available when the binary supports proxy', functi
         ->expectsOutputToContain('gaze proxy feature available');
 });
 
+it('skips the Kiji probe when safety_net_backend is unset', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->doesntExpectOutputToContain('kiji_distilbert');
+});
+
+it('fails fast when Kiji backend is selected but model_dir is missing', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.safety_net_backend', 'kiji-distilbert');
+    $this->app['config']->set('gaze.kiji_distilbert_model_dir', null);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(1)
+        ->expectsOutputToContain('missing model_dir')
+        ->expectsOutputToContain('fetch-kiji-safetynet-model.sh');
+});
+
+it('fails fast when the Kiji model_dir is missing required artifacts', function () {
+    $dir = sys_get_temp_dir().'/gaze-kiji-doctor-'.bin2hex(random_bytes(4));
+    mkdir($dir, 0700, true);
+    // Only one of the four required artifacts present.
+    file_put_contents($dir.'/labels.json', '{}');
+
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.safety_net_backend', 'kiji-distilbert');
+    $this->app['config']->set('gaze.kiji_distilbert_model_dir', $dir);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(1)
+            ->expectsOutputToContain('missing: SHA256SUMS, model.onnx, tokenizer.json')
+            ->expectsOutputToContain('fetch-kiji-safetynet-model.sh');
+    } finally {
+        @unlink($dir.'/labels.json');
+        @rmdir($dir);
+    }
+});
+
+it('reports OK when the Kiji model_dir carries all required artifacts', function () {
+    $dir = sys_get_temp_dir().'/gaze-kiji-doctor-ok-'.bin2hex(random_bytes(4));
+    mkdir($dir, 0700, true);
+    foreach (['SHA256SUMS', 'labels.json', 'model.onnx', 'tokenizer.json'] as $name) {
+        file_put_contents($dir.'/'.$name, '');
+        chmod($dir.'/'.$name, 0600);
+    }
+
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.safety_net_backend', 'kiji-distilbert');
+    $this->app['config']->set('gaze.kiji_distilbert_model_dir', $dir);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(0)
+            ->expectsOutputToContain('kiji_distilbert')
+            ->expectsOutputToContain('OK');
+    } finally {
+        foreach (['SHA256SUMS', 'labels.json', 'model.onnx', 'tokenizer.json'] as $name) {
+            @unlink($dir.'/'.$name);
+        }
+        @rmdir($dir);
+    }
+});
+
 it('warns with the cargo install hint when the binary lacks the proxy feature', function () {
     $this->app->instance(
         BinaryResolver::class,

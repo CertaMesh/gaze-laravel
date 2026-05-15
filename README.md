@@ -15,7 +15,8 @@ Use it when you need to:
 - restore model output back into owner-side text;
 - keep encrypted session blobs out of logs and public component state;
 - classify subprocess failures into caller, config, integrity, and infra buckets;
-- run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies (see [`docs/proxy.md`](./docs/proxy.md)).
+- run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies (see [`docs/proxy.md`](./docs/proxy.md));
+- opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection.
 
 > **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in
 > second install — run `php artisan gaze:install-ner` to download model artifacts. See

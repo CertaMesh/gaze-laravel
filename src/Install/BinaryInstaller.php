@@ -12,7 +12,7 @@ use Symfony\Component\Process\Process;
 final class BinaryInstaller
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
-    public const PINNED_VERSION = '0.8.0';
+    public const PINNED_VERSION = '0.8.1';
 
     private const RELEASE_BASE = 'https://github.com/EmpireTwo/gaze/releases/download';
 

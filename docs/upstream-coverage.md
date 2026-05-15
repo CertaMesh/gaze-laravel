@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.8.0.
+Living parity checklist for upstream `EmpireTwo/gaze` v0.8.1.
 
 ## Commands
 
@@ -25,13 +25,17 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.8.0.
 | `--rulepack-bundled` | `gaze.rulepacks` / `GAZE_RULEPACKS` |
 | `--rulepack-path` | `gaze.rulepack_paths` / `GAZE_RULEPACK_PATHS` |
 | `--safety-net` | `gaze.safety_net` / `GAZE_SAFETY_NET` |
+| `--safety-net-backend` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` (v0.8.x; `openai-filter` \| `kiji-distilbert`) |
+| `--kiji-distilbert-command` | `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` (v0.8.x) |
+| `--kiji-distilbert-model-dir` | `gaze.kiji_distilbert_model_dir` / `GAZE_KIJI_DISTILBERT_MODEL_DIR` (v0.8.x) |
 | `--openai-filter-device` | `gaze.safety_net_device` / `GAZE_SAFETY_NET_DEVICE` |
 | `--openai-filter-command` | `gaze.openai_filter_command` / `GAZE_OPENAI_FILTER_COMMAND` |
 | `--openai-filter-checkpoint` | `gaze.openai_filter_checkpoint` / `GAZE_OPENAI_FILTER_CHECKPOINT` |
 | `--openai-filter-operating-point` | `gaze.openai_filter_operating_point` / `GAZE_OPENAI_FILTER_OPERATING_POINT` |
 | `--safety-net-timeout-ms` | `gaze.safety_net_timeout_ms` / `GAZE_SAFETY_NET_TIMEOUT_MS` |
 | `--safety-net-input-limit-bytes` | `gaze.safety_net_input_limit_bytes` / `GAZE_SAFETY_NET_INPUT_LIMIT_BYTES` |
-| `--safety-net-mode` | `gaze.safety_net_mode` / `GAZE_SAFETY_NET_MODE` |
+| `--safety-net-mode` | `gaze.safety_net_mode` / `GAZE_SAFETY_NET_MODE` (`strict` \| `tolerant` \| `redact` \| `resolve`; upstream default flipped `strict`→`resolve` in v0.8.1) |
+| `--safety-net-fallback` | `gaze.safety_net_fallback` / `GAZE_SAFETY_NET_FALLBACK` (v0.8.x; `strict` \| `tolerant` \| `redact`; default `redact`) |
 
 ## Restore Flags
 
@@ -53,6 +57,7 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.8.0.
 | `PolicySchemaUnsupported` | `GazePolicySchemaUnsupportedException`; `found()` + `supported()` accessors expose the typed envelope fields |
 | `SafetyNetConfig` | `GazeSafetyNetConfigException` |
 | `SafetyNet` | `GazeSafetyNetFailureException` |
+| `SafetyNetArtifactMissing` | `GazeSafetyNetArtifactMissingException`; `backend()` + `path()` accessors expose the typed envelope sidecars. Axis-1 fail-closed (exit 2) when a backend's pinned artifact (e.g. `SHA256SUMS` for the Kiji DistilBERT backend) is absent. |
 | `AuditPurgeIso8601` | `GazeAuditPurgeIso8601Exception` |
 | `UnknownToken` | `GazeUnknownTokenException` |
 | `UnsupportedSessionScope` | `GazeUnsupportedSessionScopeException` |
@@ -133,6 +138,27 @@ the adopter quickstart, security notes, and the doctor probe.
 | `--force` (stop / restart) | `--force` artisan flag |
 | `--follow` (logs) | `--follow` artisan flag |
 | `--foreground-daemon` (serve) | `--foreground-daemon` artisan flag |
+
+## SafetyNet backend & mode reshape (v0.8.1)
+
+Upstream v0.8.1 introduces a backend selector for the Pass-3 safety net
+plus a four-valued `safety_net_mode` enum and a typed fallback. All
+surfaces are exposed via `gaze.*` config keys; defaults match upstream
+when the key is null.
+
+| Knob | Upstream default | Adapter key | Notes |
+|---|---|---|---|
+| `--safety-net-backend` | `openai-filter` | `gaze.safety_net_backend` | Set to `kiji-distilbert` to opt into the Tier 2.5 DistilBERT NER subprocess. Wins over the legacy `--safety-net=<kind>` flag when both are set. |
+| `--kiji-distilbert-command` | (PATH lookup) | `gaze.kiji_distilbert_command` | Local Kiji binary path. |
+| `--kiji-distilbert-model-dir` | (none — fails closed) | `gaze.kiji_distilbert_model_dir` | Pinned-artifact directory. Required when the backend is `kiji-distilbert`. |
+| `--safety-net-mode` | `resolve` (v0.8.1; was `strict` ≤ v0.8.0) | `gaze.safety_net_mode` | Valid: `strict` \| `tolerant` \| `redact` \| `resolve`. `tolerant` emits a deprecation warning upstream. |
+| `--safety-net-fallback` | `redact` | `gaze.safety_net_fallback` | Engages when `safety_net_mode` is `redact` or `resolve` and the active backend cannot complete. |
+
+`php artisan gaze:doctor` adds a Kiji artifact pre-flight: when
+`gaze.safety_net_backend === 'kiji-distilbert'`, doctor asserts the
+model dir is set and carries `SHA256SUMS`, `labels.json`, `model.onnx`,
+and `tokenizer.json` before the binary fails the first `gaze clean`
+with a `SafetyNetArtifactMissing` envelope.
 
 ## Deferred
 
