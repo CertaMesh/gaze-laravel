@@ -2,7 +2,9 @@
 
 All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
 
-## [Unreleased]
+## [0.9.1] - 2026-05-15
+
+Documentation-only patch. Ships the adopter usage guide for SafetyNet (both backends) that should have shipped alongside v0.9.0.
 
 ### Added
 
