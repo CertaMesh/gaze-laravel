@@ -4,6 +4,50 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md).
 
+## v0.8.1 → v0.8.2
+
+### TL;DR
+
+1. **Upstream `safety_net_mode` default flipped `strict`→`resolve`.** v0.8.1
+   binaries no longer treat unset `--safety-net-mode` as `strict`; the new
+   default is `resolve`, which Pass-3 routes suspected leaks through the
+   active backend before redacting. Adopters who relied on the legacy
+   strict-as-default behaviour must set `GAZE_SAFETY_NET_MODE=strict`
+   explicitly. No code changes required on the adapter side — the binary
+   applies the new default when the flag is omitted.
+2. **Kiji DistilBERT safety-net backend (opt-in).** A new
+   `gaze.safety_net_backend` config knob accepts `kiji-distilbert` to
+   route Pass-3 through the upstream Tier 2.5 DistilBERT NER subprocess.
+   Paired with `gaze.kiji_distilbert_command` /
+   `gaze.kiji_distilbert_model_dir` so adopters can pin the local binary
+   + artifact directory.
+3. **`SafetyNetArtifactMissing` exception.** When the Kiji (or any
+   future pinned-artifact) backend can't find its required files,
+   upstream emits a typed envelope at exit 2; the adapter now throws
+   `GazeSafetyNetArtifactMissingException` with `backend()` + `path()`
+   accessors. Inherits `NonRetryable` — queue retry policy fails fast.
+4. **`gaze:doctor` Kiji pre-flight.** When `gaze.safety_net_backend` is
+   `kiji-distilbert`, doctor verifies the model directory carries
+   `SHA256SUMS`, `labels.json`, `model.onnx`, and `tokenizer.json` before
+   the binary fails closed on the first invocation.
+
+### Action required
+
+- Only if you relied on `safety_net_mode=strict` as an implicit default:
+  set `GAZE_SAFETY_NET_MODE=strict` in your environment (or
+  `gaze.safety_net_mode` in published config) to keep pre-v0.8.1
+  behaviour. Everyone else: no action.
+
+### Additive
+
+- **Four new clean flags** wrap upstream's Kiji + fallback surfaces:
+  `--safety-net-backend`, `--kiji-distilbert-command`,
+  `--kiji-distilbert-model-dir`, `--safety-net-fallback`. All four config
+  keys default to null (defer to upstream).
+- **`safety_net_mode` accepts `redact` and `resolve`** in addition to the
+  legacy `strict` / `tolerant`. The `tolerant` value emits a deprecation
+  warning upstream.
+
 ## v0.7.x → v0.8.0
 
 ### TL;DR

@@ -4,6 +4,58 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ## [Unreleased]
 
+Upstream `EmpireTwo/gaze` v0.8.x SafetyNet reshape adopter release. Pins
+binary at v0.8.1, exposes the new Kiji DistilBERT safety-net backend
+(Tier 2.5), the four-valued `safety_net_mode` enum, and the typed
+`SafetyNetArtifactMissing` envelope through Laravel-native config keys,
+exception classes, and a `gaze:doctor` pre-flight. All adapter changes
+are additive — only behavioural change for adopters is the upstream
+default flip of `safety_net_mode` from `strict` to `resolve` (see
+`docs/upgrading.md`).
+
+### Added
+
+- `config/gaze.php` four new safety-net keys (each with matching
+  `GAZE_*` env override): `safety_net_backend`, `kiji_distilbert_command`,
+  `kiji_distilbert_model_dir`, `safety_net_fallback`. Each forwards as an
+  exact upstream CLI flag; null defers to upstream defaults.
+- `Naoray\GazeLaravel\Exceptions\GazeSafetyNetArtifactMissingException`
+  (extends `GazePolicyConfigException`, exit 2,
+  `Queue\Contracts\NonRetryable`) with `backend()` + `path()` accessors
+  for the upstream `{error:"SafetyNetArtifactMissing",backend,path}`
+  envelope. New `Variant::SafetyNetArtifactMissing` case routes through
+  the exit-2 bucket.
+- `DoctorCommand` Kiji artifact pre-flight: when
+  `gaze.safety_net_backend === 'kiji-distilbert'`, doctor asserts the
+  model dir is set and contains `SHA256SUMS`, `labels.json`,
+  `model.onnx`, and `tokenizer.json`. Failures surface the upstream
+  `scripts/fetch-kiji-safetynet-model.sh` remediation hint and flip
+  doctor status to FAILURE. Silent skip when backend is unset or
+  `openai-filter`.
+- `docs/upstream-coverage.md` Kiji + safety-net reshape table, error
+  variant row, and the doctor pre-flight note.
+- `docs/upgrading.md` v0.8.1 → v0.8.2 section explaining the upstream
+  default flip + adopter opt-in path for the new Kiji backend.
+- README features-list bullet for the Kiji DistilBERT backend.
+
+### Changed
+
+- `config/gaze.php` `safety_net_mode` docblock now enumerates all four
+  valid values (`strict|tolerant|redact|resolve`) and notes the upstream
+  default flipped from `strict` to `resolve` in v0.8.1. The adapter does
+  not pin a default — passing `null` (the config default) lets the
+  binary apply its own.
+
+### Notes
+
+- Upstream PR refs (EmpireTwo/gaze): `--safety-net-backend` value-enum
+  + Kiji subprocess wiring (#216), `--kiji-distilbert-command` /
+  `--kiji-distilbert-model-dir` flag pair (#217), `safety_net_mode` →
+  `Redact` / `Resolve` enum + default flip (#221), `--safety-net-fallback`
+  value-enum (#223).
+- `BinaryInstaller::PINNED_VERSION` remains `0.8.1`. The
+  `GAZE_VERSION` env override remains the supported pin escape hatch.
+
 ## [0.8.1] - 2026-05-14
 
 Optional gaze-proxy daemon Artisan wrapper. Ships six `php artisan
