@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.9.0-rc.1.
+Living parity checklist for upstream `EmpireTwo/gaze` v0.9.0.
 
 > Adopter usage: [docs/safety-net.md](./safety-net.md).
 
