@@ -2,6 +2,28 @@
 
 All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Bump the pinned upstream `EmpireTwo/gaze` binary from v0.8.1 to v0.9.0
+  final. Restore semantics remain on the existing one-shot
+  `gaze clean` / `gaze restore` path.
+- CI exports `GAZE_VERSION=0.9.0` while continuing to skip automatic
+  binary download in wrapper-only jobs.
+
+### Added
+
+- `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` and
+  `gaze.kiji_distilbert_precision` /
+  `GAZE_KIJI_DISTILBERT_PRECISION` config keys, forwarding
+  `--kiji-backend` and `--kiji-distilbert-precision` so adopters can opt
+  into v0.9's ORT int8 Kiji path.
+- `docs/upgrading.md` documents why `gaze daemon` is not wrapped yet:
+  v0.9.0 daemon mode is clean-only JSONL and does not expose the signed
+  session blob or restore request type required by the current PHP
+  `GazeSession` contract.
+
 ## [0.9.1] - 2026-05-15
 
 Documentation-only patch. Ships the adopter usage guide for SafetyNet (both backends) that should have shipped alongside v0.9.0.

@@ -62,6 +62,8 @@ class Gaze
         private readonly ?int $safetyNetInputLimitBytes = null,
         private readonly ?string $safetyNetMode = null,
         private readonly ?string $safetyNetBackend = null,
+        private readonly ?string $kijiBackend = null,
+        private readonly ?string $kijiDistilbertPrecision = null,
         private readonly ?string $kijiDistilbertCommand = null,
         private readonly ?string $kijiDistilbertModelDir = null,
         private readonly ?string $safetyNetFallback = null,
@@ -142,6 +144,14 @@ class Gaze
 
         if ($this->safetyNetBackend !== null && $this->safetyNetBackend !== '') {
             $command[] = '--safety-net-backend='.$this->safetyNetBackend;
+        }
+
+        if ($this->kijiBackend !== null && $this->kijiBackend !== '') {
+            $command[] = '--kiji-backend='.$this->kijiBackend;
+        }
+
+        if ($this->kijiDistilbertPrecision !== null && $this->kijiDistilbertPrecision !== '') {
+            $command[] = '--kiji-distilbert-precision='.$this->kijiDistilbertPrecision;
         }
 
         if ($this->kijiDistilbertCommand !== null && $this->kijiDistilbertCommand !== '') {
