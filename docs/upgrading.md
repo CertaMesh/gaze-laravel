@@ -4,6 +4,32 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md).
 
+## v0.8.1 → v0.9.0-rc.1
+
+### TL;DR
+
+1. **Binary pin bump.** `BinaryInstaller::PINNED_VERSION` now points to
+   upstream `gaze` `0.9.0-rc.1`. This is an adopter-validation release
+   candidate; pin `GAZE_VERSION=0.8.1` temporarily if you need to hold the
+   previous binary while validating.
+2. **Kiji int8 is reachable from Laravel config.** Set
+   `GAZE_SAFETY_NET=1`, `GAZE_SAFETY_NET_BACKEND=kiji-distilbert`,
+   `GAZE_KIJI_BACKEND=ort`, and `GAZE_KIJI_DISTILBERT_PRECISION=int8`
+   alongside your Kiji model directory to use the v0.9 ORT int8 path.
+3. **Daemon restore is deferred.** Upstream `gaze daemon` in
+   v0.9.0-rc.1 is clean-only JSONL and does not return the signed
+   `session_blob` required by `Gaze::restore()`. The PHP adapter keeps the
+   one-shot clean/restore contract for reversible round trips.
+
+### Additive
+
+- `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` forwards `--kiji-backend`.
+- `gaze.kiji_distilbert_precision` /
+  `GAZE_KIJI_DISTILBERT_PRECISION` forwards
+  `--kiji-distilbert-precision`.
+- CI pins `GAZE_VERSION=0.9.0-rc.1` so installer tests and future
+  integration jobs exercise the intended upstream candidate by default.
+
 ## v0.8.1 → v0.9.0
 
 > Pre-1.0 SemVer MINOR bump: net-new feature surface (Kiji backend

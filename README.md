@@ -136,9 +136,9 @@ See [Security model](./docs/security.md) for guarantees, responsibilities, and c
 Per-minor walkthroughs live in [`docs/upgrading.md`](./docs/upgrading.md);
 pair them with the upstream binary's
 [UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md). The
-current pin is **v0.8.0** — see the `v0.7.x → v0.8.0` section for the
-bundle unification, deprecation warnings, and 10 new locale-gated
-entities. Older `v0.6.x → v0.7.0` notes are preserved in the same file.
+current pin is **v0.9.0-rc.1** — see the `v0.8.1 → v0.9.0-rc.1` section for the
+release-candidate adoption notes, Kiji ORT/int8 config, and daemon fallback
+rationale. Older upgrade notes are preserved in the same file.
 
 See [`docs/exceptions.md`](./docs/exceptions.md) and
 [`docs/upstream-coverage.md`](./docs/upstream-coverage.md) for the full
