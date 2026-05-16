@@ -8,6 +8,8 @@ This file provides guidance for AI agents (Claude Code, Codex, Cursor, etc.) whe
 
 `gaze-laravel` is the **PHP gate of [`gaze`](https://github.com/EmpireTwo/gaze)**. When upstream `gaze` ships a feature, this package exposes it via idiomatic Laravel surfaces — Facade methods, artisan commands, config keys — when it makes sense in PHP. Detection logic stays upstream; this package never re-implements pseudonymization in PHP.
 
+Project compass: [`docs/NORTH_STAR.md`](./docs/NORTH_STAR.md) — mission, principles, non-goals, SemVer policy. Cite it when implementation choices fork.
+
 Living roadmap: Solo scratchpad `convention/living-roadmap` (1550) → `roadmap/gaze-feature-coverage` (1538). Orchestrators maintain on every release.
 
 Operational implications for agents working in this repo:
