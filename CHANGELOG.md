@@ -4,6 +4,32 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Fixed
+
+## [0.10.0] - 2026-05-16
+
+Upstream `EmpireTwo/gaze` v0.9.0 final adoption release. Advances the
+pinned binary from v0.8.1 to v0.9.0 and exposes the new v0.9 Kiji int8
+ORT runtime via two adopter-facing config keys (`gaze.kiji_backend` and
+`gaze.kiji_distilbert_precision`) that forward `--kiji-backend` and
+`--kiji-distilbert-precision` to upstream. CI is pinned to
+`GAZE_VERSION=0.9.0`. `gaze daemon` wrapping is intentionally deferred —
+v0.9.0 daemon mode is clean-only JSONL and does not surface the signed
+session blob required by `Gaze::restore()`, so the current
+`GazeSession` reversibility contract (NORTH_STAR Principle 4) would
+break. Also lands the new `docs/NORTH_STAR.md` project compass that
+codifies the five adopter axes and the surface-promotion rule used to
+justify this release's SemVer bump.
+
+MINOR bump (pre-1.0 SemVer per `docs/NORTH_STAR.md`): this release
+introduces two net-new adopter config keys plus two new upstream flag
+forwards, which qualifies as net-new adopter surface and therefore a
+MINOR — not a PATCH.
+
 ### Changed
 
 - Bump the pinned upstream `EmpireTwo/gaze` binary from v0.8.1 to v0.9.0
@@ -23,6 +49,10 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
   v0.9.0 daemon mode is clean-only JSONL and does not expose the signed
   session blob or restore request type required by the current PHP
   `GazeSession` contract.
+- `docs/NORTH_STAR.md` project compass documenting the seven guiding
+  principles, the five adopter axes (Reliability, Reversibility,
+  Agentic-first, Trust, Adopter ergonomics), the surface-promotion
+  rule, and the pre-1.0 SemVer policy used to size this bump.
 
 ## [0.9.1] - 2026-05-15
 
