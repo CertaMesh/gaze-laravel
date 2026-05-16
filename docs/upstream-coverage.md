@@ -2,7 +2,7 @@
 
 Living parity checklist for upstream `EmpireTwo/gaze` v0.8.1.
 
-> Adopter usage: [docs/safety-net.md](./safety-net.md).
+> Adopter usage: [docs/safety-net.md](./safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](./NORTH_STAR.md) (surface promotion rule).
 
 ## Commands
 
