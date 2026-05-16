@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.8.1.
+Living parity checklist for upstream `EmpireTwo/gaze` v0.9.0.
 
 > Adopter usage: [docs/safety-net.md](./safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](./NORTH_STAR.md) (surface promotion rule).
 
@@ -28,6 +28,8 @@ Living parity checklist for upstream `EmpireTwo/gaze` v0.8.1.
 | `--rulepack-path` | `gaze.rulepack_paths` / `GAZE_RULEPACK_PATHS` |
 | `--safety-net` | `gaze.safety_net` / `GAZE_SAFETY_NET` |
 | `--safety-net-backend` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` (v0.8.x; `openai-filter` \| `kiji-distilbert`) |
+| `--kiji-backend` | `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` (v0.9; `subprocess` \| `ort`) |
+| `--kiji-distilbert-precision` | `gaze.kiji_distilbert_precision` / `GAZE_KIJI_DISTILBERT_PRECISION` (v0.9; `fp32` \| `int8`) |
 | `--kiji-distilbert-command` | `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` (v0.8.x) |
 | `--kiji-distilbert-model-dir` | `gaze.kiji_distilbert_model_dir` / `GAZE_KIJI_DISTILBERT_MODEL_DIR` (v0.8.x) |
 | `--openai-filter-device` | `gaze.safety_net_device` / `GAZE_SAFETY_NET_DEVICE` |

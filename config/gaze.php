@@ -99,12 +99,27 @@ return [
     /*
      * Optional explicit safety-net backend selector. Valid values are
      * `openai-filter` (Tier 2 OpenAI privacy-filter subprocess) and
-     * `kiji-distilbert` (Tier 2.5 DistilBERT NER subprocess, v0.8.x). Forwarded
+     * `kiji-distilbert` (Tier 2.5 DistilBERT NER backend). Forwarded
      * as `--safety-net-backend=<value>` which wins over the legacy
      * `--safety-net=<kind>` flag when both are set. Null omits the flag and
      * lets upstream keep the v0.6/v0.7 single-backend default of `openai-filter`.
      */
     'safety_net_backend' => env('GAZE_SAFETY_NET_BACKEND'),
+
+    /*
+     * Optional Kiji DistilBERT runtime backend. Valid values in the upstream
+     * GitHub-release binary are `subprocess` and `ort`; feature builds may add
+     * `tract` or `candle`. Forwarded as `--kiji-backend=<value>`. For v0.9
+     * int8 inference, set `GAZE_KIJI_BACKEND=ort`.
+     */
+    'kiji_backend' => env('GAZE_KIJI_BACKEND'),
+
+    /*
+     * Optional Kiji DistilBERT ONNX precision. Valid values are `fp32` and
+     * `int8`. Forwarded as `--kiji-distilbert-precision=<value>`. Upstream
+     * requires `--kiji-backend=ort` when this is `int8`.
+     */
+    'kiji_distilbert_precision' => env('GAZE_KIJI_DISTILBERT_PRECISION'),
 
     /*
      * Optional path to the local Kiji DistilBERT subprocess binary used when

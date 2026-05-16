@@ -355,9 +355,18 @@ it('throws when the .sha256 sidecar asset is missing from the release', function
 })->throws(RuntimeException::class, 'asset gaze-aarch64-apple-darwin.sha256 not found');
 
 it('short-circuits when the binary is already at the pinned version', function () {
-    $binPath = $this->tmpDir.'/gaze';
     $version = BinaryInstaller::PINNED_VERSION;
-    file_put_contents($binPath, "#!/bin/sh\necho 'gaze {$version}'\n");
+    $binPath = $this->tmpDir.'/gaze';
+    file_put_contents(
+        $binPath,
+        "#!/bin/sh\n"
+        ."if [ \"\${1:-}\" = '--version' ]; then\n"
+        ."    printf '%s\n' 'gaze {$version}'\n"
+        ."    exit 0\n"
+        ."fi\n"
+        ."printf '%s\n' \"unexpected arguments: \$*\" >&2\n"
+        ."exit 1\n",
+    );
     chmod($binPath, 0755);
 
     $io = new BufferIO;

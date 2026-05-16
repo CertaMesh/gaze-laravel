@@ -14,6 +14,8 @@ it('Gaze resolved from container forwards OpenAI privacy-filter config on clean 
         'gaze.safety_net_timeout_ms' => 7500,
         'gaze.safety_net_input_limit_bytes' => 123456,
         'gaze.safety_net_mode' => 'tolerant',
+        'gaze.kiji_backend' => 'ort',
+        'gaze.kiji_distilbert_precision' => 'int8',
     ]);
     $this->app->forgetInstance(Gaze::class);
 
@@ -34,7 +36,9 @@ it('Gaze resolved from container forwards OpenAI privacy-filter config on clean 
             ->toContain('--openai-filter-operating-point=high-precision')
             ->toContain('--safety-net-timeout-ms=7500')
             ->toContain('--safety-net-input-limit-bytes=123456')
-            ->toContain('--safety-net-mode=tolerant');
+            ->toContain('--safety-net-mode=tolerant')
+            ->toContain('--kiji-backend=ort')
+            ->toContain('--kiji-distilbert-precision=int8');
 
         return true;
     });

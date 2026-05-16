@@ -77,6 +77,8 @@ safety-net block).
 | `gaze.openai_filter_command` | `GAZE_OPENAI_FILTER_COMMAND` | `string\|null` | `null` | Absolute path to the `opf` binary. `null` lets the binary `PATH`-resolve. |
 | `gaze.openai_filter_checkpoint` | `GAZE_OPENAI_FILTER_CHECKPOINT` | `string\|null` | `null` | Model-checkpoint directory for OPF. `null` uses the binary's built-in default. |
 | `gaze.openai_filter_operating_point` | `GAZE_OPENAI_FILTER_OPERATING_POINT` | `string\|null` | `null` | Sensitivity trade-off. Valid: `high-recall`, `balanced`, `high-precision`. `null` uses the binary's default. |
+| `gaze.kiji_backend` | `GAZE_KIJI_BACKEND` | `string\|null` | `null` | Kiji runtime backend. Valid in release binaries: `subprocess`, `ort`. `int8` precision requires `ort`. |
+| `gaze.kiji_distilbert_precision` | `GAZE_KIJI_DISTILBERT_PRECISION` | `string\|null` | `null` | Kiji ONNX precision. Valid: `fp32`, `int8`. `null` defers to upstream's fp32 default. |
 | `gaze.kiji_distilbert_command` | `GAZE_KIJI_DISTILBERT_COMMAND` | `string\|null` | `null` | Absolute path to the Kiji runner. `null` lets the binary `PATH`-resolve. |
 | `gaze.kiji_distilbert_model_dir` | `GAZE_KIJI_DISTILBERT_MODEL_DIR` | `string\|null` | `null` | Pinned-artifact directory for the Kiji backend. Required when `safety_net_backend=kiji-distilbert`. Must carry `SHA256SUMS`, `labels.json`, `model.onnx`, `tokenizer.json` (`0o700` dir / `0o600` files). |
 | `gaze.safety_net_device` | `GAZE_SAFETY_NET_DEVICE` | `string\|null` | `null` | CUDA / CPU device hint forwarded as `--openai-filter-device` (e.g. `cuda:0`, `cpu`). OPF-specific. |

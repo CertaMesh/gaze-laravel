@@ -75,6 +75,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 safetyNetInputLimitBytes: is_numeric($config->get('gaze.safety_net_input_limit_bytes')) ? (int) $config->get('gaze.safety_net_input_limit_bytes') : null,
                 safetyNetMode: is_string($config->get('gaze.safety_net_mode')) && $config->get('gaze.safety_net_mode') !== '' ? $config->get('gaze.safety_net_mode') : null,
                 safetyNetBackend: is_string($config->get('gaze.safety_net_backend')) && $config->get('gaze.safety_net_backend') !== '' ? $config->get('gaze.safety_net_backend') : null,
+                kijiBackend: is_string($config->get('gaze.kiji_backend')) && $config->get('gaze.kiji_backend') !== '' ? $config->get('gaze.kiji_backend') : null,
+                kijiDistilbertPrecision: is_string($config->get('gaze.kiji_distilbert_precision')) && $config->get('gaze.kiji_distilbert_precision') !== '' ? $config->get('gaze.kiji_distilbert_precision') : null,
                 kijiDistilbertCommand: is_string($config->get('gaze.kiji_distilbert_command')) && $config->get('gaze.kiji_distilbert_command') !== '' ? $config->get('gaze.kiji_distilbert_command') : null,
                 kijiDistilbertModelDir: is_string($config->get('gaze.kiji_distilbert_model_dir')) && $config->get('gaze.kiji_distilbert_model_dir') !== '' ? $config->get('gaze.kiji_distilbert_model_dir') : null,
                 safetyNetFallback: is_string($config->get('gaze.safety_net_fallback')) && $config->get('gaze.safety_net_fallback') !== '' ? $config->get('gaze.safety_net_fallback') : null,
