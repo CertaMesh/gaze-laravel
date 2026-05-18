@@ -164,6 +164,56 @@ model dir is set and carries `SHA256SUMS`, `labels.json`, `model.onnx`,
 and `tokenizer.json` before the binary fails the first `gaze clean`
 with a `SafetyNetArtifactMissing` envelope.
 
+## Daemon (v0.11.0)
+
+Upstream `gaze daemon` is a long-lived JSONL stdio runtime. The adapter
+exposes it via the `Gaze::daemon()` Facade chain, a flat config block,
+and TWO artisan commands. See [docs/daemon.md](./daemon.md) for the
+adopter quickstart.
+
+### Commands
+
+| Upstream command | Laravel surface |
+|---|---|
+| `gaze daemon --policy=...` (foreground) | `php artisan gaze:daemon:serve` |
+| n/a (best-effort PID lookup) | `php artisan gaze:daemon:status` |
+| JSONL request `{"session_id","text"}` | `Gaze::daemon()->session($id)->clean($text)` / `Gaze::daemon()->clean($id, $text)` |
+
+`:start`, `:stop`, `:restart`, `:logs` are intentionally NOT shipped —
+supervision is OS-owned. Use systemd / Horizon / supervisord primitives.
+
+### Daemon Flags
+
+| Upstream flag | Laravel surface |
+|---|---|
+| `--policy=` | `gaze.daemon.policy_path` / `GAZE_DAEMON_POLICY_PATH` |
+| `--audit-db=` | `gaze.daemon.audit_db_path` / `GAZE_DAEMON_AUDIT_DB_PATH` |
+| `--idle-timeout=` | `gaze.daemon.idle_timeout_s` / `GAZE_DAEMON_IDLE_TIMEOUT_S` |
+| n/a (adapter-side ceiling) | `gaze.daemon.request_timeout_ms` / `GAZE_DAEMON_REQUEST_TIMEOUT_MS` (default 5000) |
+| n/a (adapter spawn override) | `gaze.daemon.binary_path` / `GAZE_DAEMON_BINARY_PATH` |
+| n/a (adapter spawn stderr) | `gaze.daemon.stderr_path` / `GAZE_DAEMON_STDERR_PATH` |
+
+Intentionally NOT shipped: `gaze.daemon.events.enabled` (reserved
+P1-violation), `gaze.daemon.extra_flags` (P3 velocity signal),
+connections-style `gaze.daemon.connections.{name}.*` (additive MINOR
+once a second adopter files).
+
+### Errors
+
+`Gaze::daemon()` calls throw the `GazeDaemonException` family. Variants
+are exposed via `DaemonErrorVariant` so adopter `match()` ladders react
+per-variant. **`default` arm is required** — new wire variants land in
+`DaemonErrorVariant::Unknown`.
+
+| Wire variant | Exception subclass | Adapter posture |
+|---|---|---|
+| `JsonMalformed` | `GazeDaemonException` | Adapter framing bug |
+| `Pipeline` | `GazeDaemonException` | Upstream fail-closed |
+| `Transport` (adapter) | `GazeDaemonTransportException` | EOF / broken pipe / session id mismatch — fail-closed, no auto-reconnect |
+| `Timeout` (adapter) | `GazeDaemonTimeoutException` | Per-request `gaze.daemon.request_timeout_ms` exceeded |
+| `Unavailable` (adapter) | `GazeDaemonFeatureUnsupportedException` | Binary missing `daemon` subverb |
+| `Unknown` (forward-compat) | `GazeDaemonException` | New upstream variant; doctor logs adopter warning |
+
 ## Deferred
 
 | Upstream surface | Reason |

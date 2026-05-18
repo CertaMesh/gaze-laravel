@@ -6,6 +6,54 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- `Gaze::daemon()` Facade method exposing the long-lived `gaze daemon`
+  JSONL runtime. Two entry shapes: composition fluent sugar
+  `Gaze::daemon()->session($id)->clean($text)` and direct hot path
+  `Gaze::daemon()->clean($sessionId, $text)` — both return the same
+  `CleanResponse` DTO and route through one request-scoped
+  `DaemonClient` per Octane request boundary.
+- TWO new artisan commands: `php artisan gaze:daemon:serve` (foreground
+  wrapper for systemd / Horizon process / supervisord; forwards
+  SIGTERM/SIGINT to the child via pcntl handlers) and `php artisan
+  gaze:daemon:status` (best-effort `pgrep -af "gaze daemon"`; help text
+  carries explicit supervisor-is-source-of-truth caveat).
+- Six flat config keys under `gaze.daemon.*`: `policy_path`,
+  `audit_db_path`, `request_timeout_ms` (default 5000),
+  `idle_timeout_s`, `binary_path`, `stderr_path`. Each backed by a
+  `GAZE_DAEMON_*` env var. All default null so the upstream binary
+  applies its own defaults; populating a key forwards the matching
+  flag. Doctor's daemon section is gated on `policy_path` being set
+  — the opt-in signal.
+- Exception family rooted at `GazeDaemonException extends
+  GazeIntegrityException` carrying `sessionId`, `raw`, and a
+  `DaemonErrorVariant` backed enum (cases: `JsonMalformed`, `Pipeline`,
+  `Transport`, `Timeout`, `Unavailable`, `Unknown` forward-compat
+  sink). Three surface-distinct subclasses ship for adopter catch
+  ladders: `GazeDaemonTransportException` (EOF / broken pipe /
+  mismatched session id; fail-closed, no auto-reconnect),
+  `GazeDaemonTimeoutException` (per-request millisecond deadline),
+  `GazeDaemonFeatureUnsupportedException` (binary missing `daemon`
+  subverb; surfaces `cargo install gaze-cli --features daemon` hint).
+  The family does NOT implement `Retryable` — adopter owns queue
+  retry policy.
+- Doctor probe extension: `gaze:doctor` pre-flights `gaze daemon
+  --help` when `gaze.daemon.policy_path` is set, checks
+  policy/audit/stderr path readability, and surfaces the cargo-install
+  hint when the binary lacks the subverb.
+- `Gaze::fake()` extension: `assertDaemonCleaned()`,
+  `assertDaemonCleanCount()`, `assertNothingDaemonCleaned()` mirror
+  the existing one-shot assertions. `Gaze::fake()->daemon()` returns a
+  `FakeDaemonManager` with `session()` / `clean()` / `calls()` so
+  adopter tests can assert daemon usage without spawning a real
+  binary.
+- `docs/daemon.md` adopter quickstart mirroring `docs/proxy.md`. Top
+  callout documents the reversibility boundary (daemon is clean-only;
+  `DaemonSession::restore()` does NOT exist).
+- `DaemonSession` is intentionally NOT serializable;
+  `__serialize()` throws `\LogicException`. Queueing a session would
+  hand a worker a stale handle to a daemon it never saw — resolve a
+  fresh `Gaze::daemon()->session($id)` per worker tick.
+
 ### Changed
 
 ### Fixed
