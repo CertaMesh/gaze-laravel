@@ -26,6 +26,8 @@ use Naoray\GazeLaravel\Console\Proxy\ProxyServeCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStartCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStatusCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStopCommand;
+use Naoray\GazeLaravel\Console\Daemon\DaemonServeCommand;
+use Naoray\GazeLaravel\Console\Daemon\DaemonStatusCommand;
 use Naoray\GazeLaravel\Install\BinaryInstaller;
 use Naoray\GazeLaravel\Install\LaravelNerFetcher;
 use Naoray\GazeLaravel\Install\NerFetcher;
@@ -233,6 +235,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 ProxyRestartCommand::class,
                 ProxyStatusCommand::class,
                 ProxyLogsCommand::class,
+                DaemonServeCommand::class,
+                DaemonStatusCommand::class,
             ]);
         }
     }
