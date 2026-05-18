@@ -16,6 +16,7 @@ use PHPUnit\Framework\Assert as PHPUnit;
  * @method static \Naoray\GazeLaravel\GazeSession clean(string $text)
  * @method static string restore(\Naoray\GazeLaravel\GazeSession $session, string $text)
  * @method static \Naoray\GazeLaravel\Audit\AuditService audit(?string $auditDbPath = null)
+ * @method static \Naoray\GazeLaravel\Daemon\DaemonManager daemon()
  *
  * @see GazeService
  */

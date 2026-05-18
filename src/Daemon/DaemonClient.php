@@ -147,38 +147,19 @@ final class DaemonClient implements DaemonClientContract
 
             $line = $this->readLine($sessionId);
 
-            $decoded = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
-            if (! is_array($decoded)) {
-                throw new GazeDaemonException(
-                    'daemon response was not a JSON object',
-                    $sessionId,
-                    ['raw_line' => $line],
-                    DaemonErrorVariant::JsonMalformed,
-                );
+            $parsed = DaemonEnvelopeParser::parse($line, $sessionId);
+
+            if ($parsed instanceof GazeDaemonException) {
+                throw $parsed;
             }
 
-            if (isset($decoded['error'])) {
-                $variant = is_string($decoded['error'])
-                    ? DaemonErrorVariant::fromWire($decoded['error'])
-                    : DaemonErrorVariant::Unknown;
-                $detail = isset($decoded['detail']) && is_string($decoded['detail'])
-                    ? $decoded['detail']
-                    : 'daemon returned typed error';
-                throw new GazeDaemonException(
-                    $detail,
-                    isset($decoded['session_id']) && is_string($decoded['session_id']) ? $decoded['session_id'] : null,
-                    $decoded,
-                    $variant,
-                );
-            }
-
-            $response = CleanResponse::fromArray($decoded);
+            $response = $parsed;
 
             if ($response->sessionId !== $sessionId) {
                 throw new GazeDaemonException(
                     "daemon echoed mismatched session_id (sent={$sessionId}, got={$response->sessionId})",
                     $sessionId,
-                    $decoded,
+                    $response->raw,
                     DaemonErrorVariant::Transport,
                 );
             }

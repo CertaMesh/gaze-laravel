@@ -259,6 +259,21 @@ class Gaze
     }
 
     /**
+     * Resolve the daemon manager for the long-lived `gaze daemon` runtime.
+     *
+     * Composition:    `Gaze::daemon()->session($id)->clean($text)`
+     * Direct hot path: `Gaze::daemon()->clean($id, $text)`
+     *
+     * The bound `DaemonClient` is request-scoped (Octane-safe) and held by
+     * the container. Sessions returned by `DaemonManager::session()` are
+     * memoised per id within the request lifetime.
+     */
+    public function daemon(): \Naoray\GazeLaravel\Daemon\DaemonManager
+    {
+        return $this->container->make(\Naoray\GazeLaravel\Daemon\DaemonManager::class);
+    }
+
+    /**
      * @internal Audit-purge process invocation. Not a generic command runner;
      * hard-scoped to the `audit purge` stage.
      *
