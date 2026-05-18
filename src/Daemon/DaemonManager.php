@@ -19,7 +19,7 @@ use Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract;
  * agent loop don't pay the DTO allocation cost. The bound client is shared
  * — sessions are addressing labels on the wire, not separate runtimes.
  */
-final class DaemonManager
+class DaemonManager
 {
     /** @var array<string, DaemonSession> */
     private array $sessions = [];

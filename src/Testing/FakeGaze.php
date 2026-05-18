@@ -21,18 +21,28 @@ final class FakeGaze extends Gaze
 
     private readonly FakeAuditService $auditService;
 
+    private readonly FakeDaemonManager $daemonManager;
+
     /**
      * @param  \Closure(string): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
+     * @param  \Closure(string, string): \Naoray\GazeLaravel\Daemon\CleanResponse|null  $daemonCleanHandler
      */
     public function __construct(
         private readonly ?\Closure $cleanHandler = null,
         private readonly ?\Closure $restoreHandler = null,
         ?\Closure $auditPurgeHandler = null,
+        ?\Closure $daemonCleanHandler = null,
     ) {
         // Deliberately skip parent constructor — fake never invokes process.
         $this->auditService = new FakeAuditService($auditPurgeHandler);
+        $this->daemonManager = new FakeDaemonManager($daemonCleanHandler);
+    }
+
+    public function daemon(): FakeDaemonManager
+    {
+        return $this->daemonManager;
     }
 
     public function clean(string $text): GazeSession

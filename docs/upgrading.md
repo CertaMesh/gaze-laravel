@@ -4,6 +4,71 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md).
 
+## v0.10.0 → v0.11.0
+
+> Pre-1.0 SemVer MINOR bump: net-new adopter surface in four legs of the
+> NORTH_STAR Principle 3 Laravel-idiom test (Facade method, artisan
+> commands, config keys, env vars). Binary pin is unchanged at upstream
+> v0.9.0 — this is purely adapter surface promotion. No breaking
+> changes to existing v0.10.0 surfaces.
+
+### TL;DR
+
+1. **Optional rebuild for daemon feature.** If the GitHub-release `gaze`
+   binary on your hosts is built without `--features daemon`, rebuild
+   with `cargo install gaze-cli --features daemon` to enable the new
+   `Gaze::daemon()` surface. The one-shot `Gaze::clean()` /
+   `Gaze::restore()` path is unaffected — daemon is purely additive.
+2. **New `Gaze::daemon()` Facade.** Use for multi-turn agent loops or
+   worker queues that need repeated low-latency redaction without
+   paying binary startup + Kiji ORT init per turn. See
+   [docs/daemon.md](./daemon.md) for the adopter quickstart, including
+   the reversibility caveat (daemon is clean-only — restore stays on
+   the one-shot signed-blob contract).
+3. **`DaemonSession` is NOT queueable.** `serialize($session)` throws
+   `\LogicException`. The bound `DaemonClient` is process-local —
+   queueing would hand a worker a stale handle to a daemon it never
+   saw. Resolve a fresh `Gaze::daemon()->session($id)` per worker
+   tick instead.
+4. **Octane / Swoole.** `DaemonClient` is bound via `app()->scoped()`,
+   so each request gets its own client and subprocess. Within a
+   request, a per-request mutex serialises concurrent fiber-resident
+   callers; mismatched `session_id` echoes surface as
+   `GazeDaemonTransportException` before payloads leak cross-tenant.
+5. **`match($variant)` requires a `default` arm.** New upstream wire
+   variants land in `DaemonErrorVariant::Unknown` rather than
+   throwing — your forward-compat handling must include a `default`
+   case or you'll hit `UnhandledMatchError` on a future binary
+   release.
+6. **Doctor probe extension.** `php artisan gaze:doctor` now surfaces a
+   daemon section when `gaze.daemon.policy_path` is set. Sections
+   include: feature-gate pre-flight (`gaze daemon --help`), policy
+   path readability, optional audit DB / stderr path writability
+   checks.
+7. **Two new artisan commands, four intentionally absent.**
+   `php artisan gaze:daemon:serve` (foreground, supervisor-friendly)
+   and `php artisan gaze:daemon:status` (best-effort PID lookup) are
+   the only daemon artisans. `:start`, `:stop`, `:restart`, `:logs`
+   are NOT shipped — supervision is OS-owned and adopters use
+   systemd / Horizon / supervisord primitives.
+
+### Migration checklist
+
+- [ ] Decide whether daemon mode benefits your workload. One-shot stays
+      first-class.
+- [ ] If using daemon: set `GAZE_DAEMON_POLICY_PATH` (or
+      `gaze.daemon.policy_path` in `config/gaze.php`).
+- [ ] If using daemon: choose a supervisor and configure it to invoke
+      `php artisan gaze:daemon:serve`. Forward `SIGTERM` for graceful
+      shutdown — the wrapper installs pcntl handlers and forwards to
+      the child.
+- [ ] Audit any code that serialises a `DaemonSession` (it throws);
+      replace with fresh per-request resolution.
+- [ ] Audit any `match($e->daemonVariant())` block to confirm the
+      `default` arm exists.
+- [ ] Run `php artisan gaze:doctor` and resolve any surfaced
+      cargo-install / path-readable warnings.
+
 ## v0.8.1 → v0.9.0
 
 > Pre-1.0 SemVer MINOR bump: binary pin advances to upstream `gaze`

@@ -34,13 +34,15 @@ final class Gaze extends Facade
      * @param  \Closure(string): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
+     * @param  \Closure(string, string): \Naoray\GazeLaravel\Daemon\CleanResponse|null  $daemonCleanHandler
      */
     public static function fake(
         ?\Closure $cleanHandler = null,
         ?\Closure $restoreHandler = null,
         ?\Closure $auditPurgeHandler = null,
+        ?\Closure $daemonCleanHandler = null,
     ): FakeGaze {
-        $fake = new FakeGaze($cleanHandler, $restoreHandler, $auditPurgeHandler);
+        $fake = new FakeGaze($cleanHandler, $restoreHandler, $auditPurgeHandler, $daemonCleanHandler);
         self::swap($fake);
 
         return $fake;
@@ -161,6 +163,58 @@ final class Gaze extends Facade
         PHPUnit::assertEmpty(
             $fake->cleanCalls(),
             'Expected Gaze::clean not to be called.',
+        );
+    }
+
+    public static function assertDaemonCleaned(?string $sessionId = null, ?string $expectedText = null): void
+    {
+        $fake = self::requireFake();
+        $calls = $fake->daemon()->calls();
+
+        if ($sessionId === null && $expectedText === null) {
+            PHPUnit::assertNotEmpty(
+                $calls,
+                'Expected Gaze::daemon()->clean() to be called at least once.',
+            );
+
+            return;
+        }
+
+        foreach ($calls as $call) {
+            $sessionMatch = $sessionId === null || $call['session_id'] === $sessionId;
+            $textMatch = $expectedText === null || $call['text'] === $expectedText;
+            if ($sessionMatch && $textMatch) {
+                PHPUnit::assertTrue(true);
+
+                return;
+            }
+        }
+
+        $criteria = $sessionId !== null ? "session_id={$sessionId}" : 'any session';
+        if ($expectedText !== null) {
+            $criteria .= " with text={$expectedText}";
+        }
+        PHPUnit::fail("Expected Gaze::daemon()->clean() to be called for {$criteria}, but it was not.");
+    }
+
+    public static function assertDaemonCleanCount(int $expected): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertCount(
+            $expected,
+            $fake->daemon()->calls(),
+            "Expected Gaze::daemon()->clean() to be called {$expected} time(s).",
+        );
+    }
+
+    public static function assertNothingDaemonCleaned(): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertEmpty(
+            $fake->daemon()->calls(),
+            'Expected Gaze::daemon()->clean() not to be called.',
         );
     }
 

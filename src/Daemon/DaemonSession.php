@@ -15,7 +15,7 @@ use Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract;
  * can't accidentally hand a worker a session bound to a daemon process the
  * worker never saw. Resolve a fresh `Gaze::daemon()` per worker tick.
  */
-final class DaemonSession
+class DaemonSession
 {
     public function __construct(
         public readonly string $sessionId,

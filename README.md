@@ -16,6 +16,19 @@ Use it when you need to:
 - keep encrypted session blobs out of logs and public component state;
 - classify subprocess failures into caller, config, integrity, and infra buckets;
 - run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies (see [`docs/proxy.md`](./docs/proxy.md));
+- run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/daemon.md`](./docs/daemon.md)):
+
+  ```php
+  use Naoray\GazeLaravel\Facades\Gaze;
+
+  // Composition (fluent sugar)
+  $session = Gaze::daemon()->session('agent-thread-a');
+  $response = $session->clean($prompt);
+
+  // Direct hot path (one PHP call = one JSONL line)
+  $response = Gaze::daemon()->clean('agent-thread-a', $prompt);
+  ```
+
 - opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection.
 
 > **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in

@@ -52,6 +52,7 @@ final class DoctorCommand extends Command
 
         $this->warnIfDeprecatedRulepack($config, $policy);
         $this->probeProxyFeature($binary, $config, $process);
+        $this->probeDaemonFeature($binary, $config, $process);
         if (! $this->probeKijiArtifacts($config)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
@@ -142,6 +143,60 @@ final class DoctorCommand extends Command
             'gaze proxy not available — rebuild upstream binary with: '
             .'cargo install gaze-cli --features proxy. '
             .'Adapter v0.8.1 proxy artisan commands will error on invocation.'
+        );
+    }
+
+    /**
+     * Pre-flight probe for the upstream `daemon` feature build flag.
+     *
+     * Skipped when `gaze.daemon.policy_path` is null — that key is the
+     * opt-in signal that the adopter intends to use daemon mode. When
+     * populated, surfaces the exact `cargo install` hint if the binary
+     * lacks the subverb.
+     */
+    private function probeDaemonFeature(string $binary, ConfigRepository $config, ProcessFactory $process): void
+    {
+        $policyPath = $config->get('gaze.daemon.policy_path');
+        if (! is_string($policyPath) || $policyPath === '') {
+            return;
+        }
+
+        if (! is_file($policyPath)) {
+            $this->components->twoColumnDetail('daemon policy', '<fg=red>missing</>');
+            $this->warn("gaze.daemon.policy_path={$policyPath} does not exist.");
+        } else {
+            $this->components->twoColumnDetail('daemon policy', $policyPath);
+        }
+
+        $auditDb = $config->get('gaze.daemon.audit_db_path');
+        if (is_string($auditDb) && $auditDb !== '') {
+            $parent = dirname($auditDb);
+            if (! is_dir($parent) || ! is_writable($parent)) {
+                $this->warn("gaze.daemon.audit_db_path parent {$parent} is not writable.");
+            }
+        }
+
+        $stderrPath = $config->get('gaze.daemon.stderr_path');
+        if (is_string($stderrPath) && $stderrPath !== '') {
+            $parent = dirname($stderrPath);
+            if (! is_dir($parent) || ! is_writable($parent)) {
+                $this->warn("gaze.daemon.stderr_path parent {$parent} is not writable.");
+            }
+        }
+
+        $result = $process->newPendingProcess()->timeout(3)->run([$binary, 'daemon', '--help']);
+        $stderr = $result->errorOutput();
+
+        if ($result->successful() && ! str_contains($stderr, 'unknown subcommand')) {
+            $this->info('gaze daemon feature available');
+
+            return;
+        }
+
+        $this->warn(
+            'gaze daemon not available — rebuild upstream binary with: '
+            .'cargo install gaze-cli --features daemon. '
+            .'Adapter v0.11.0 daemon artisan commands and Gaze::daemon() Facade will error on invocation.'
         );
     }
 
