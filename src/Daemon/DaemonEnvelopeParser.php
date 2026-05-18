@@ -21,9 +21,6 @@ use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
  */
 final class DaemonEnvelopeParser
 {
-    /**
-     * @return CleanResponse|GazeDaemonException
-     */
     public static function parse(string $line, ?string $expectedSessionId = null): CleanResponse|GazeDaemonException
     {
         try {

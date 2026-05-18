@@ -11,6 +11,7 @@ use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\Facades\Log;
 use Naoray\GazeLaravel\Audit\AuditService;
+use Naoray\GazeLaravel\Daemon\DaemonManager;
 use Naoray\GazeLaravel\Exceptions\GazeAuditPurgeIso8601Exception;
 use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
 use Naoray\GazeLaravel\Exceptions\GazeEmptyInputException;
@@ -268,9 +269,9 @@ class Gaze
      * the container. Sessions returned by `DaemonManager::session()` are
      * memoised per id within the request lifetime.
      */
-    public function daemon(): \Naoray\GazeLaravel\Daemon\DaemonManager
+    public function daemon(): DaemonManager
     {
-        return $this->container->make(\Naoray\GazeLaravel\Daemon\DaemonManager::class);
+        return $this->container->make(DaemonManager::class);
     }
 
     /**

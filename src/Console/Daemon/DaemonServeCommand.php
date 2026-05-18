@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Naoray\GazeLaravel\Console\Daemon;
 
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
-use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Contracts\Process\InvokedProcess;
+use Illuminate\Process\Factory as ProcessFactory;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 

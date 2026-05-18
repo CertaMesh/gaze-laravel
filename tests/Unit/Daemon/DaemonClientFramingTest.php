@@ -4,19 +4,10 @@ declare(strict_types=1);
 
 use Naoray\GazeLaravel\Daemon\DaemonClient;
 
-function daemonClientFramingFakePair(string $response): array
-{
-    $stdin = fopen('php://temp', 'w+');
-    $stdout = fopen('php://temp', 'w+');
-    fwrite($stdout, $response);
-    rewind($stdout);
-
-    return [$stdin, $stdout];
-}
-
 it('frames one JSON request + newline and decodes one response', function () {
-    [$stdin, $stdout] = daemonClientFramingFakePair(
-        json_encode(['session_id' => 's1', 'clean_text' => 'masked', 'manifest' => [], 'tokens' => []])."\n"
+    $stdin = gl_memoryStream();
+    $stdout = gl_memoryStream(
+        gl_jsonEncode(['session_id' => 's1', 'clean_text' => 'masked', 'manifest' => [], 'tokens' => []])."\n"
     );
 
     $client = DaemonClient::withStreams($stdin, $stdout);
@@ -29,13 +20,14 @@ it('frames one JSON request + newline and decodes one response', function () {
     rewind($stdin);
     $sent = stream_get_contents($stdin);
     expect($sent)->toEndWith("\n");
-    $decoded = json_decode(rtrim($sent), true);
+    $decoded = json_decode(rtrim((string) $sent), true);
     expect($decoded)->toBe(['session_id' => 's1', 'text' => 'hello']);
 });
 
 it('preserves UTF-8 multibyte characters in the request payload', function () {
-    [$stdin, $stdout] = daemonClientFramingFakePair(
-        json_encode([
+    $stdin = gl_memoryStream();
+    $stdout = gl_memoryStream(
+        gl_jsonEncode([
             'session_id' => 'utf',
             'clean_text' => 'パスワード <Email_1> 秘密',
             'manifest' => [],
@@ -48,15 +40,16 @@ it('preserves UTF-8 multibyte characters in the request payload', function () {
 
     rewind($stdin);
     $sent = stream_get_contents($stdin);
-    $decoded = json_decode(rtrim($sent), true);
+    $decoded = json_decode(rtrim((string) $sent), true);
 
     expect($decoded['text'])->toBe('メール: ascii@example.com 文末');
     expect($response->cleanText)->toBe('パスワード <Email_1> 秘密');
 });
 
 it('does not trim newlines or whitespace embedded inside the request text', function () {
-    [$stdin, $stdout] = daemonClientFramingFakePair(
-        json_encode(['session_id' => 'nl', 'clean_text' => 'ok', 'manifest' => [], 'tokens' => []])."\n"
+    $stdin = gl_memoryStream();
+    $stdout = gl_memoryStream(
+        gl_jsonEncode(['session_id' => 'nl', 'clean_text' => 'ok', 'manifest' => [], 'tokens' => []])."\n"
     );
 
     $client = DaemonClient::withStreams($stdin, $stdout);
@@ -64,7 +57,7 @@ it('does not trim newlines or whitespace embedded inside the request text', func
 
     rewind($stdin);
     $sent = stream_get_contents($stdin);
-    $decoded = json_decode(rtrim($sent), true);
+    $decoded = json_decode(rtrim((string) $sent), true);
 
     expect($decoded['text'])->toBe("line1\nline2\n  trailing  ");
 });

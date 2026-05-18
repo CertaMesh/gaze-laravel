@@ -44,6 +44,7 @@ it('preserves unknown forward-compat fields in raw', function () {
 it('is readonly', function () {
     $response = CleanResponse::fromArray(['session_id' => 'x', 'clean_text' => '']);
 
+    // @phpstan-ignore-next-line property.readOnlyAssignNotInScope (intentional — assert readonly throws)
     expect(fn () => $response->sessionId = 'mutated')
         ->toThrow(Error::class);
 });

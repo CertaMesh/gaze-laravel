@@ -106,3 +106,38 @@ function gl_buildFixtureTarGz(string $tmpDir, string $stagingDir, array $files):
 
     return $gzPath;
 }
+
+/**
+ * Open a writable in-memory stream pre-seeded with the given content.
+ * Used by the daemon unit tests so PHPStan sees a non-false resource.
+ *
+ * @return resource
+ */
+function gl_memoryStream(string $initial = '')
+{
+    $handle = fopen('php://temp', 'w+');
+    if (! is_resource($handle)) {
+        throw new RuntimeException('failed to open php://temp');
+    }
+
+    if ($initial !== '') {
+        fwrite($handle, $initial);
+        rewind($handle);
+    }
+
+    return $handle;
+}
+
+/**
+ * Encode a value as JSON, asserting success so PHPStan narrows away the
+ * `false` branch in test-side fixtures.
+ */
+function gl_jsonEncode(mixed $value, int $flags = 0): string
+{
+    $encoded = json_encode($value, $flags);
+    if ($encoded === false) {
+        throw new RuntimeException('failed to encode JSON fixture');
+    }
+
+    return $encoded;
+}

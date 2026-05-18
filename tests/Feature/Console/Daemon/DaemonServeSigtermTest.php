@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Process\InvokedProcess;
+use Illuminate\Process\ProcessResult;
+use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Console\Daemon\DaemonServeCommand;
+use Symfony\Component\Process\Process;
 
 /**
  * Signal-forward contract: the installSignalForwarders() handler invokes
@@ -16,11 +19,15 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
         $this->markTestSkipped('pcntl extension not available');
     }
 
+    /** @var array<int, int> $signalsReceived */
     $signalsReceived = [];
 
     $invoked = new class($signalsReceived) implements InvokedProcess
     {
-        public function __construct(private array &$signals) {}
+        /**
+         * @param  array<int, int>  $signals
+         */
+        public function __construct(public array &$signals) {}
 
         public function id()
         {
@@ -61,12 +68,16 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
 
         public function wait(?callable $output = null)
         {
-            return null;
+            return new ProcessResult(
+                new Process(['true'])
+            );
         }
 
         public function waitUntil(?callable $output = null)
         {
-            return null;
+            return new ProcessResult(
+                new Process(['true'])
+            );
         }
     };
 
@@ -77,9 +88,11 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
     $reflection->invoke($command, $invoked);
 
     $handler = pcntl_signal_get_handler(SIGTERM);
-    expect($handler)->toBeCallable();
+    expect(is_callable($handler))->toBeTrue();
 
-    $handler(SIGTERM);
+    if (is_callable($handler)) {
+        $handler(SIGTERM);
+    }
 
     expect($signalsReceived)->toBe([SIGTERM]);
 
@@ -89,13 +102,13 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
 });
 
 it('returns the child exit code without orphaning the child', function () {
-    \Illuminate\Support\Facades\Process::fake([
-        '*' => \Illuminate\Support\Facades\Process::result(output: '', exitCode: 143),
+    Illuminate\Support\Facades\Process::fake([
+        '*' => Illuminate\Support\Facades\Process::result(output: '', exitCode: 143),
     ]);
 
     $this->app->instance(
-        \Naoray\GazeLaravel\BinaryResolver::class,
-        new \Naoray\GazeLaravel\BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     config()->set('gaze.daemon.policy_path', '/etc/gaze/policy.toml');
 

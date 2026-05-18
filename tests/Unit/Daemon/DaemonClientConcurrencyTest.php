@@ -15,26 +15,26 @@ use Naoray\GazeLaravel\Daemon\DaemonSession;
  * line up with their session ids — no payload swap.
  */
 it('serialises 2 fibers across 2 sessions without payload swap', function () {
-    $stdin = fopen('php://temp', 'w+');
-    $stdout = fopen('php://temp', 'w+');
+    $stdin = gl_memoryStream();
 
     // Pre-fill the fake stdout with two queued responses keyed to the two
     // fibers' session ids. The client's request() routine reads one line
     // per call, so as long as the mutex serialises the calls, the first
     // call gets line 1 and the second gets line 2.
-    fwrite($stdout, json_encode([
-        'session_id' => 'thread-a',
-        'clean_text' => 'CLEAN_A',
-        'manifest' => [],
-        'tokens' => [],
-    ])."\n");
-    fwrite($stdout, json_encode([
-        'session_id' => 'thread-b',
-        'clean_text' => 'CLEAN_B',
-        'manifest' => [],
-        'tokens' => [],
-    ])."\n");
-    rewind($stdout);
+    $stdout = gl_memoryStream(
+        gl_jsonEncode([
+            'session_id' => 'thread-a',
+            'clean_text' => 'CLEAN_A',
+            'manifest' => [],
+            'tokens' => [],
+        ])."\n"
+        .gl_jsonEncode([
+            'session_id' => 'thread-b',
+            'clean_text' => 'CLEAN_B',
+            'manifest' => [],
+            'tokens' => [],
+        ])."\n"
+    );
 
     $client = DaemonClient::withStreams($stdin, $stdout);
 

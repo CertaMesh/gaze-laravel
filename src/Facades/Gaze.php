@@ -7,6 +7,7 @@ namespace Naoray\GazeLaravel\Facades;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Facade;
 use Naoray\GazeLaravel\Audit\AuditPurgeResult;
+use Naoray\GazeLaravel\Daemon\CleanResponse;
 use Naoray\GazeLaravel\Gaze as GazeService;
 use Naoray\GazeLaravel\GazeSession;
 use Naoray\GazeLaravel\Testing\FakeGaze;
@@ -34,7 +35,7 @@ final class Gaze extends Facade
      * @param  \Closure(string): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
-     * @param  \Closure(string, string): \Naoray\GazeLaravel\Daemon\CleanResponse|null  $daemonCleanHandler
+     * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
      */
     public static function fake(
         ?\Closure $cleanHandler = null,

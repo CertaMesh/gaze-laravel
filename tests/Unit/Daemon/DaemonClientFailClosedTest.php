@@ -8,8 +8,8 @@ use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
 use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
 
 it('throws GazeDaemonTransportException on EOF from daemon stdout', function () {
-    $stdin = fopen('php://temp', 'w+');
-    $stdout = fopen('php://temp', 'r+');
+    $stdin = gl_memoryStream();
+    $stdout = gl_memoryStream();
     // empty stdout = immediate EOF
 
     $client = DaemonClient::withStreams($stdin, $stdout);
@@ -19,8 +19,8 @@ it('throws GazeDaemonTransportException on EOF from daemon stdout', function () 
 });
 
 it('does not auto-reconnect after EOF — second request still throws', function () {
-    $stdin = fopen('php://temp', 'w+');
-    $stdout = fopen('php://temp', 'r+');
+    $stdin = gl_memoryStream();
+    $stdout = gl_memoryStream();
 
     $client = DaemonClient::withStreams($stdin, $stdout);
 
@@ -34,15 +34,13 @@ it('does not auto-reconnect after EOF — second request still throws', function
 });
 
 it('throws when daemon echoes a different session_id (no silent payload swap)', function () {
-    $stdin = fopen('php://temp', 'w+');
-    $stdout = fopen('php://temp', 'w+');
-    fwrite($stdout, json_encode([
+    $stdin = gl_memoryStream();
+    $stdout = gl_memoryStream(gl_jsonEncode([
         'session_id' => 'OTHER',
         'clean_text' => 'wrong-tenant',
         'manifest' => [],
         'tokens' => [],
     ])."\n");
-    rewind($stdout);
 
     $client = DaemonClient::withStreams($stdin, $stdout);
 

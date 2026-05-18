@@ -6,11 +6,17 @@ use Illuminate\Config\Repository as ConfigRepository;
 use Naoray\GazeLaravel\BinaryResolver;
 use Naoray\GazeLaravel\Console\Daemon\DaemonServeCommand;
 
+/**
+ * @param  array<string, mixed>  $daemon
+ */
 function configRepoForServe(array $daemon): ConfigRepository
 {
     return new ConfigRepository(['gaze' => ['daemon' => $daemon]]);
 }
 
+/**
+ * @param  array<string, string|null>  $options
+ */
 function commandWithOptions(array $options): DaemonServeCommand
 {
     $command = new DaemonServeCommand;
@@ -19,6 +25,9 @@ function commandWithOptions(array $options): DaemonServeCommand
     // a lightweight stub that mimics InputInterface::getOption().
     $stub = new class($options)
     {
+        /**
+         * @param  array<string, string|null>  $options
+         */
         public function __construct(private array $options) {}
 
         public function getOption(string $name): mixed

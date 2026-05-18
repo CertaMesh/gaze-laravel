@@ -7,14 +7,15 @@ use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
 use Naoray\GazeLaravel\Exceptions\GazeDaemonTimeoutException;
 
 it('throws GazeDaemonTimeoutException when stdout produces no line in time', function () {
-    $stdin = fopen('php://temp', 'w+');
+    $stdin = gl_memoryStream();
 
     // A socket pair with no writer keeps stdout open but never delivers data
     // — stream_select() will block until our deadline expires.
     $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, 0);
-    expect($pair)->toBeArray();
+    if ($pair === false) {
+        throw new RuntimeException('stream_socket_pair failed');
+    }
     [$ourEnd, $emptyEnd] = $pair;
-    // intentionally keep $emptyEnd open but never write to it.
 
     $client = DaemonClient::withStreams($stdin, $ourEnd, requestTimeoutMs: 50);
 
