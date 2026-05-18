@@ -10,6 +10,20 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Fixed
 
+## [0.11.1] - 2026-05-18
+
+### Changed
+
+- `docs/daemon.md` opener aligned with upstream PR #276 terminology
+  reframe (gaze daemon → stdio server in the LSP / MCP tradition).
+  Verb, flags, wire shape, error envelopes, and audit-source literals
+  are unchanged.
+
+### Fixed
+
+- Stale upstream-spec link in `docs/daemon.md` See-also section
+  (`docs/adopter/daemon-quickstart.md` → `docs/getting-started/daemon-adapter.md`).
+
 ## [0.11.0] - 2026-05-18
 
 ### Added

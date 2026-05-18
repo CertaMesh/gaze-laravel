@@ -7,6 +7,13 @@ and any configured model load hot across requests. Adopters call into
 the daemon from a multi-turn agent loop or worker without paying the
 binary startup + model cold-start cost on every turn.
 
+Upstream reframes this runtime as a stdio server in the LSP / MCP /
+language-server-protocol tradition — a foreground child process
+inheriting stdin/stdout from its supervisor — rather than a Unix
+daemon in the strict sense (no fork, no detach, no PID file). The
+subcommand verb remains `gaze daemon` through gaze v0.9.x; the Facade,
+config keys, and exception types in this package keep that name.
+
 > **Reversibility caveat.** Daemon mode is **clean-only**. The protocol
 > does NOT emit the signed `session_blob` that one-shot `Gaze::clean()`
 > produces, and there is no `restore` request type. `DaemonSession` does
@@ -289,5 +296,5 @@ No real binary is spawned; the fake handler returns a deterministic
 
 - [Upstream coverage matrix](./upstream-coverage.md) — daemon
   command/flag/exception mapping.
-- [Upstream `gaze daemon` spec](https://github.com/EmpireTwo/gaze/blob/main/docs/adopter/daemon-quickstart.md) — JSONL protocol, eviction, graceful shutdown.
+- [Upstream `gaze daemon` spec](https://github.com/EmpireTwo/gaze/blob/main/docs/getting-started/daemon-adapter.md) — JSONL protocol, eviction, graceful shutdown.
 - [docs/upgrading.md](./upgrading.md) — v0.11.0 upgrade notes.
