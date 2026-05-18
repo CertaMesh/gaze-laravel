@@ -14,6 +14,8 @@ use Naoray\GazeLaravel\Audit\AuditService;
 use Naoray\GazeLaravel\Console\BenchCommand;
 use Naoray\GazeLaravel\Console\CanaryCommand;
 use Naoray\GazeLaravel\Console\CheckCommand;
+use Naoray\GazeLaravel\Console\Daemon\DaemonServeCommand;
+use Naoray\GazeLaravel\Console\Daemon\DaemonStatusCommand;
 use Naoray\GazeLaravel\Console\DoctorCommand;
 use Naoray\GazeLaravel\Console\InstallNerCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyLogsCommand;
@@ -22,6 +24,10 @@ use Naoray\GazeLaravel\Console\Proxy\ProxyServeCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStartCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStatusCommand;
 use Naoray\GazeLaravel\Console\Proxy\ProxyStopCommand;
+use Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract;
+use Naoray\GazeLaravel\Daemon\DaemonClient;
+use Naoray\GazeLaravel\Daemon\DaemonManager;
+use Naoray\GazeLaravel\Exceptions\GazeDaemonFeatureUnsupportedException;
 use Naoray\GazeLaravel\Install\BinaryInstaller;
 use Naoray\GazeLaravel\Install\LaravelNerFetcher;
 use Naoray\GazeLaravel\Install\NerFetcher;
@@ -83,6 +89,51 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 restoreMode: is_string($config->get('gaze.restore_mode')) && $config->get('gaze.restore_mode') !== '' ? $config->get('gaze.restore_mode') : null,
                 container: $app,
             );
+        });
+
+        $this->app->scoped(DaemonClientContract::class, function (Application $app): DaemonClientContract {
+            /** @var ConfigRepository $config */
+            $config = $app->make('config');
+
+            $policyPath = $config->get('gaze.daemon.policy_path');
+            if (! is_string($policyPath) || $policyPath === '') {
+                throw new GazeDaemonFeatureUnsupportedException(
+                    'gaze.daemon.policy_path is not configured. Set GAZE_DAEMON_POLICY_PATH (or config) to enable daemon mode.'
+                );
+            }
+
+            $binaryPath = $config->get('gaze.daemon.binary_path');
+            if (! is_string($binaryPath) || $binaryPath === '') {
+                $binaryPath = $app->make(BinaryResolver::class)->resolve();
+            }
+
+            $flags = [];
+            $flags[] = '--policy='.$policyPath;
+            $idle = $config->get('gaze.daemon.idle_timeout_s');
+            if (is_numeric($idle)) {
+                $flags[] = '--idle-timeout='.((int) $idle);
+            }
+            $auditDbPath = $config->get('gaze.daemon.audit_db_path');
+            if (is_string($auditDbPath) && $auditDbPath !== '') {
+                $flags[] = '--audit-db='.$auditDbPath;
+            }
+
+            $requestTimeoutMs = $config->get('gaze.daemon.request_timeout_ms', 5000);
+            $requestTimeoutMs = is_numeric($requestTimeoutMs) ? (int) $requestTimeoutMs : 5000;
+
+            $stderrPath = $config->get('gaze.daemon.stderr_path');
+            $stderrPath = is_string($stderrPath) && $stderrPath !== '' ? $stderrPath : null;
+
+            return new DaemonClient(
+                binary: $binaryPath,
+                flags: $flags,
+                requestTimeoutMs: $requestTimeoutMs,
+                stderrPath: $stderrPath,
+            );
+        });
+
+        $this->app->scoped(DaemonManager::class, function (Application $app): DaemonManager {
+            return new DaemonManager($app->make(DaemonClientContract::class));
         });
 
         $this->app->singleton(AuditService::class, function (Application $app): AuditService {
@@ -184,6 +235,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 ProxyRestartCommand::class,
                 ProxyStatusCommand::class,
                 ProxyLogsCommand::class,
+                DaemonServeCommand::class,
+                DaemonStatusCommand::class,
             ]);
         }
     }
@@ -197,6 +250,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             BinaryResolver::class,
             Gaze::class,
             AuditService::class,
+            DaemonClientContract::class,
+            DaemonManager::class,
             HttpClientInterface::class,
             LaravelNerFetcher::class,
             NerFetcher::class,

@@ -269,4 +269,71 @@ return [
          */
         'stop_timeout' => env('GAZE_PROXY_STOP_TIMEOUT', '10s'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Daemon
+    |--------------------------------------------------------------------------
+    |
+    | Flat configuration for the long-lived `gaze daemon` JSONL stdio runtime.
+    | All keys default to null so the upstream binary applies its own
+    | defaults; populating a key forwards the value as the matching flag.
+    |
+    | The upstream `daemon` subcommand may be feature-gated. When the binary
+    | lacks the feature, `php artisan gaze:daemon:serve` will fail at first
+    | invocation. Doctor's `--deep` probe pre-flights this and surfaces:
+    |
+    |     cargo install gaze-cli --features daemon
+    |
+    | See `docs/daemon.md` for the full reference.
+    |
+    | Connections-style configuration (`gaze.daemon.connections.{name}.*`) is
+    | intentionally not shipped — it's an additive MINOR promotion once a
+    | second adopter files for multi-daemon orchestration.
+    */
+    'daemon' => [
+        /*
+         * Policy TOML path forwarded as `--policy=`. Null skips the flag and
+         * lets the binary fall back to its default pipeline (no policy).
+         *
+         * Doctor's daemon section is skipped when this key is null — that is
+         * the opt-in signal that the adopter intends to use daemon mode.
+         */
+        'policy_path' => env('GAZE_DAEMON_POLICY_PATH'),
+
+        /*
+         * Audit DB path forwarded as `--audit-db=`. Daemon-emitted rows
+         * stamp `provenance_stage = "daemon"`. Null leaves audit disabled.
+         */
+        'audit_db_path' => env('GAZE_DAEMON_AUDIT_DB_PATH'),
+
+        /*
+         * Per-request timeout the adapter applies to each JSONL round-trip.
+         * Integer milliseconds. Default 5000ms. Cold first request may want
+         * a higher value when the upstream pipeline includes Kiji ORT init.
+         *
+         * NOTE: this is an adapter-side ceiling, not an upstream flag.
+         */
+        'request_timeout_ms' => env('GAZE_DAEMON_REQUEST_TIMEOUT_MS', 5000),
+
+        /*
+         * Daemon idle timeout forwarded as `--idle-timeout=`. Integer
+         * seconds. Null lets the binary apply its default.
+         */
+        'idle_timeout_s' => env('GAZE_DAEMON_IDLE_TIMEOUT_S'),
+
+        /*
+         * Override path for the `gaze` binary used by `gaze:daemon:serve`.
+         * Falls back to `BinaryResolver` resolution when null.
+         */
+        'binary_path' => env('GAZE_DAEMON_BINARY_PATH'),
+
+        /*
+         * Optional file path the daemon stderr is appended to when invoked
+         * via `gaze:daemon:serve`. Null leaves stderr inherited from the
+         * supervisor (systemd / Horizon / supervisord). Spec mandates stderr
+         * is the log surface — no `--log-file` flag exists upstream.
+         */
+        'stderr_path' => env('GAZE_DAEMON_STDERR_PATH'),
+    ],
 ];
