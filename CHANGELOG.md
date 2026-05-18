@@ -6,6 +6,14 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+### Changed
+
+### Fixed
+
+## [0.11.0] - 2026-05-18
+
+### Added
+
 - `Gaze::daemon()` Facade method exposing the long-lived `gaze daemon`
   JSONL runtime. Two entry shapes: composition fluent sugar
   `Gaze::daemon()->session($id)->clean($text)` and direct hot path
