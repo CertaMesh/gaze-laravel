@@ -22,10 +22,12 @@ use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
  */
 class GazeDaemonException extends GazeIntegrityException
 {
+    /**
+     * @param  array<string, mixed>  $raw
+     */
     public function __construct(
         string $message,
         public readonly ?string $sessionId,
-        /** @var array<string, mixed> */
         public readonly array $raw,
         public readonly DaemonErrorVariant $daemonVariant,
         ?\Throwable $previous = null,
@@ -56,7 +58,14 @@ class GazeDaemonException extends GazeIntegrityException
     }
 
     /**
-     * @return array{daemon_variant:string, session_id:?string, raw:array<string,mixed>}
+     * Daemon-shaped log context override. Returns a structurally different
+     * payload than the parent (`{exit_code, error_variant, stderr_sha256}`)
+     * — daemon errors are stdout envelopes, not stderr hashes — so the
+     * shape carries `{daemon_variant, session_id, raw}` instead. Adopters
+     * that pipe `toLogContext()` into structured logs branch on
+     * `instanceof GazeDaemonException` to read the daemon shape.
+     *
+     * @return array<string, mixed>
      */
     public function toLogContext(): array
     {

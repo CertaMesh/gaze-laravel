@@ -16,10 +16,12 @@ use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
  */
 final class GazeDaemonFeatureUnsupportedException extends GazeDaemonException
 {
+    /**
+     * @param  array<string, mixed>  $raw
+     */
     public function __construct(
         string $message = 'gaze daemon subcommand unavailable; rebuild with: cargo install gaze-cli --features daemon',
         ?string $sessionId = null,
-        /** @var array<string, mixed> */
         array $raw = [],
         ?\Throwable $previous = null,
     ) {

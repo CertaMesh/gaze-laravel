@@ -16,10 +16,12 @@ use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
  */
 final class GazeDaemonTransportException extends GazeDaemonException
 {
+    /**
+     * @param  array<string, mixed>  $raw
+     */
     public function __construct(
         string $message,
         ?string $sessionId = null,
-        /** @var array<string, mixed> */
         array $raw = [],
         ?\Throwable $previous = null,
     ) {

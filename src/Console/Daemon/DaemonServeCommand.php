@@ -35,7 +35,7 @@ final class DaemonServeCommand extends DaemonCommand
             return self::FAILURE;
         }
 
-        $invoked = $process->forever()->start($argv, function (string $type, string $buffer): void {
+        $invoked = $process->newPendingProcess()->forever()->start($argv, function (string $type, string $buffer): void {
             $this->output->write($buffer);
         });
 
