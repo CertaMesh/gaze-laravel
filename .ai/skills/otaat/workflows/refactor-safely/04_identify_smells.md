@@ -1,0 +1,1 @@
+Read `.otat/characterization.md` and the code. List what's wrong and why — code smells, duplication, unclear naming, tangled responsibilities, missing abstractions. Write `.otat/smells.md`. Do NOT suggest fixes or solutions.

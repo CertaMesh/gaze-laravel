@@ -1,0 +1,1 @@
+Read `.otat/pr_diff.txt`. Review for security: SQL injection, XSS, CSRF, auth/authz checks, secrets exposure, input validation, OWASP top 10. Write findings to `.otat/review_security.md`. If no security concerns, say so explicitly.

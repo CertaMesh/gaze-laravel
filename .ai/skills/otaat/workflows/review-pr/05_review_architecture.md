@@ -1,0 +1,1 @@
+Read `.otat/pr_understanding.md` and `.otat/pr_diff.txt`. Review the architectural choices: does this change fit the codebase patterns? Is it in the right place? Does it introduce unnecessary complexity? Write findings to `.otat/review_architecture.md`.

@@ -1,0 +1,64 @@
+format_version: 1
+kind: ProjectLock
+generated_by: scribe
+entries:
+    - name: north-star
+      source_registry: Naoray/skills
+      commit_sha: 0785fd93eb91c994ab2f84aa8481a694c29bfa43
+      content_hash: 52819c93a2abf11ce4391c281185efd1e6ae63683c3c39963aeff9ff753544a0
+      install_command_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      source_key: github:naoray/skills
+      source:
+        type: github
+        repo: Naoray/skills
+        url: https://github.com/Naoray/skills
+        host: github.com
+      resolved_rev: 0785fd93eb91c994ab2f84aa8481a694c29bfa43
+      source_repo: Naoray/skills
+      path: north-star
+      type: skill
+    - name: orchestrator-mode
+      source_registry: Naoray/skills
+      commit_sha: 45251ee59a71fbd1eab97a502fb9adbd50217334
+      content_hash: d128e1ac7f3a01721233898e848d807e66d37568228ba1ba99238a4947b2c1c2
+      install_command_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      source_key: github:naoray/skills
+      source:
+        type: github
+        repo: Naoray/skills
+        url: https://github.com/Naoray/skills
+        host: github.com
+      resolved_rev: 45251ee59a71fbd1eab97a502fb9adbd50217334
+      source_repo: Naoray/skills
+      path: orchestrator-mode
+      type: skill
+    - name: solo-multi-agent-brainstorm
+      source_registry: lord-eagle/skills
+      commit_sha: 2ce0b2774058715bdb65f8ec2c39a4c2ac2ab2d4
+      content_hash: f522deb72b1f8e1d4fbd7281fec4e0e0935cf8cbe9da016d1d82a4666ae17b9d
+      install_command_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      source_key: github:lord-eagle/skills
+      source:
+        type: github
+        repo: lord-eagle/skills
+        url: https://github.com/lord-eagle/skills
+        host: github.com
+      resolved_rev: 2ce0b2774058715bdb65f8ec2c39a4c2ac2ab2d4
+      source_repo: lord-eagle/skills
+      path: solo-multi-agent-brainstorm
+      type: skill
+    - name: solo-orchestration
+      source_registry: Artistfy/hq
+      commit_sha: 65efc908b18a573d2e74dd3594597bcac8df2ef9
+      content_hash: 6ec97f74f28ed71f16cb6dac866447a6065df3f2536501abaec049be8ebd4adb
+      install_command_hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      source_key: github:artistfy/hq
+      source:
+        type: github
+        repo: Artistfy/hq
+        url: https://github.com/Artistfy/hq
+        host: github.com
+      resolved_rev: 65efc908b18a573d2e74dd3594597bcac8df2ef9
+      source_repo: lord-eagle/skills
+      path: solo-orchestration
+      type: skill

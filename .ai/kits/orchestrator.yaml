@@ -1,0 +1,11 @@
+apiVersion: scribe/v1
+kind: Kit
+name: orchestrator
+description: Multi-agent orchestration — solo dispatch, handoff, parallel agents, OtaaT.
+skills:
+  - orchestrator-mode
+  - orchestrator-handoff
+  - north-star
+  - solo-orchestration
+  - solo-multi-agent-brainstorm
+  - otaat

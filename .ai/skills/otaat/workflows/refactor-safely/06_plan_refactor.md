@@ -1,0 +1,1 @@
+Read `.otat/smells.md` and `.otat/characterization.md`. Plan the refactoring as a sequence of small, independent transformations. Each transformation should be completable in one step and testable independently. Write `.otat/refactor_plan.md` with numbered transformations. Each entry: what to transform, which files, expected test impact (should stay green).
