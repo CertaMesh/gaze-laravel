@@ -1,0 +1,1 @@
+Read `.otat/characterization.md`. Write characterization tests that pin the current behavior. Every observable behavior should have a test. These tests must ALL pass right now. Run the suite to confirm.

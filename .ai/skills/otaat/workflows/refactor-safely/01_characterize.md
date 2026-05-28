@@ -1,0 +1,1 @@
+Read `.otat/context.md`. Document what the code currently does — its observable behavior, inputs/outputs, side effects. Write `.otat/characterization.md`. Do NOT suggest changes. Only describe what IS.

@@ -1,0 +1,1 @@
+Read `.otat/pr_metadata.json` and `.otat/pr_diff.txt`. Understand the intent: what problem does this PR solve? What's the approach? Write `.otat/pr_understanding.md` with: purpose, approach taken, scope of changes. Do NOT evaluate quality yet — only understand.

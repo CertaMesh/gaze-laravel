@@ -1,0 +1,1 @@
+Read `.otat/review_architecture.md`, `.otat/review_correctness.md`, `.otat/review_security.md`, `.otat/test_status.txt`, and the linter output. Compile into a structured review. Write `.otat/review.md` with sections: Summary, Must Fix (blocking), Should Fix (non-blocking), Nits, Questions for Author. Each item should reference specific files and line numbers from the diff.

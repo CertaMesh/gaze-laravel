@@ -1,0 +1,6 @@
+apiVersion: scribe/v1
+kind: Kit
+name: laravel-package
+description: Laravel package authoring conventions.
+skills:
+  - init-laravel-pkg

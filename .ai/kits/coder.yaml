@@ -1,0 +1,13 @@
+apiVersion: scribe/v1
+kind: Kit
+name: coder
+description: Universal practical dev hygiene — tests, cleanup, flow review, simplification.
+skills:
+  - tdd
+  - run-tests
+  - new-tests
+  - audit-tests
+  - cleanup
+  - finalize-work
+  - flow-review
+  - anvil-agent

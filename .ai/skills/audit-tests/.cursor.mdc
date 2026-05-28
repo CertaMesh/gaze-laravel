@@ -1,0 +1,650 @@
+---
+description: Audit existing tests for plausibility, identify dumb tests that give false confidence, and surface gaps where critical behavior is untested.
+alwaysApply: false
+---
+
+# Test Quality Audit
+
+Audit existing tests for plausibility, identify "dumb" tests that give false confidence, and surface gaps where critical behavior is untested.
+
+## The Core Problem
+
+A test suite that passes is not the same as a test suite that protects you. Research (Vahabzadeh et al., ICSE 2015) found that 35–45% of tests in real projects are **overly weak** — they run code without meaningfully verifying outcomes. Tautological tests, over-mocked tests, and happy-path-only coverage all create the illusion of safety while leaving real failure modes undetected.
+
+## What This Command Detects
+
+| Pattern | Description |
+|---------|-------------|
+| **Tautological assertions** | Tests that assert what they set up — always pass regardless of implementation |
+| **Missing assertions** | Tests that execute code but make no meaningful assertions |
+| **Over-mocked tests** | So many fakes/mocks that the actual application logic is never exercised |
+| **Happy-path only** | No test for validation errors, unauthorized access, missing data, or edge cases |
+| **Duplicate tests** | Multiple tests that verify the exact same scenario from the same angle |
+| **Coverage gaps** | Models, actions, services, and routes with zero test coverage |
+| **Vacuous architecture tests** | Architecture tests that pass because patterns/classes no longer exist |
+| **Dataset abuse** | `->with([...])` datasets with many entries that all hit the same path |
+
+## Phase 1: Discover the Test Suite
+
+1. **Map the test structure**:
+   - Find all test files (`tests/`, `spec/`, `__tests__/`)
+   - Identify the framework (Pest, PHPUnit, Jest, pytest, RSpec, etc.)
+   - Count Feature vs Unit vs architecture tests
+   - Identify test helpers, factories, and shared fixtures
+
+2. **Map the production codebase**:
+   - List all models, controllers, actions, services, jobs, events, listeners
+   - List all routes (HTTP verbs, paths, middleware)
+   - Identify critical business paths (auth, payments, data mutation)
+
+3. **Identify tech stack nuances**:
+   - Pest: `it()`, `test()`, `->with()`, `beforeEach`, `describe`, `arch()`
+   - PHPUnit: `/** @test */`, `@dataProvider`, `setUp()`
+   - Jest/Vitest: `describe`, `it`, `expect`, `mock`, `spyOn`
+   - pytest: `def test_`, `@pytest.mark`, `fixture`
+   - Mocha/Jasmine: `describe`, `it`, `beforeEach`
+
+## Phase 2: Parallel Audit (Using Subagents)
+
+**Launch these subagents in parallel** using `Agent` with `subagent_type=Explore`:
+
+---
+
+### Subagent 1: Tautological & Trivially-Passing Tests
+
+```
+Audit this test suite for tests that always pass regardless of implementation correctness.
+
+Tech stack: [from Phase 1]
+Test files: [from Phase 1]
+
+## TAUTOLOGICAL ASSERTIONS (Critical)
+A tautological test asserts exactly what was set up — it tests Eloquent/the framework, not our code.
+
+Examples (Pest/PHP):
+```php
+// BAD: just tests that Eloquent stores what you set
+$user = User::factory()->create(['name' => 'John']);
+expect($user->name)->toBe('John');
+
+// BAD: tests the factory, not business logic
+$order = Order::factory()->create(['status' => 'pending']);
+expect($order->status)->toBe('pending');
+
+// GOOD: tests that our code transforms or validates something
+$order = Order::factory()->create();
+$order->complete();
+expect($order->status)->toBe('completed')
+    ->and($order->completed_at)->not->toBeNull();
+```
+
+Examples (JavaScript):
+```typescript
+// BAD: always true
+expect(1 + 1).toBe(2);
+expect(user.id).toBe(user.id);
+
+// BAD: just tests assignment
+const obj = { name: 'test' };
+expect(obj.name).toBe('test');
+```
+
+## SELF-REFERENTIAL ASSERTIONS (High)
+Tests that compare a value to itself or to a value derived from the same call:
+```php
+// BAD
+expect($user->full_name)->toBe($user->first_name . ' ' . $user->last_name);
+// This always passes — it's just reimplementing the accessor in the test
+
+// GOOD
+expect($user->full_name)->toBe('John Doe'); // hardcoded expected value
+```
+
+## ASSERTION-ON-INPUT (High)
+Tests that assert on data they directly controlled:
+```php
+// BAD: asserts on data we just passed in
+$response = $this->post('/users', ['email' => 'test@example.com']);
+$response->assertJson(['email' => 'test@example.com']);
+// This only verifies the response echoes back the input, not that it was stored or processed
+
+// GOOD
+$response = $this->post('/users', ['email' => 'test@example.com']);
+assertDatabaseHas('users', ['email' => 'test@example.com']);
+```
+
+## MAGIC NUMBER TESTS (Medium)
+Tests where the "expected" value is the same magic number used in the production code:
+```php
+// If production code has: const MAX_RETRIES = 3;
+// And test has: expect($job->tries)->toBe(3); // just mirrors the constant
+// This doesn't protect against the constant changing to a bad value
+```
+
+For each finding, report:
+- file:line reference
+- The test name
+- Why it's tautological
+- What meaningful assertion should replace it
+- Severity: Critical (always passes) / High (rarely catches bugs) / Medium (low signal)
+```
+
+---
+
+### Subagent 2: Missing or Weak Assertions
+
+```
+Audit this test suite for tests with missing, insufficient, or meaningless assertions.
+
+Tech stack: [from Phase 1]
+Test files: [from Phase 1]
+
+## ASSERTION-FREE TESTS (Critical)
+Tests that call code but assert nothing:
+
+Pest/PHP:
+```php
+// BAD: no assertions
+it('sends the notification', function () {
+    $user = User::factory()->create();
+    $user->sendWelcomeEmail();
+    // Nothing asserted — test passes even if email was never sent
+});
+
+// GOOD
+it('sends the notification', function () {
+    Mail::fake();
+    $user = User::factory()->create();
+    $user->sendWelcomeEmail();
+    Mail::assertSent(WelcomeEmail::class, fn($m) => $m->hasTo($user->email));
+});
+```
+
+JavaScript:
+```typescript
+// BAD
+it('fetches users', async () => {
+    const result = await fetchUsers();
+    // No expect() called
+});
+```
+
+## SINGLE-ASSERTION TESTS ON COMPLEX OPERATIONS (High)
+Operations that change multiple things but only one outcome is verified:
+```php
+// BAD: confirms order completed, but doesn't check side effects
+it('completes the order', function () {
+    $order = Order::factory()->create();
+    $order->complete();
+    expect($order->status)->toBe('completed');
+    // Missing: completed_at timestamp, notification sent, inventory decremented, etc.
+});
+```
+
+## `assertOk` / `assertStatus(200)` WITHOUT CONTENT VERIFICATION (Medium)
+HTTP tests that only check status code without verifying the response body:
+```php
+// WEAK: only proves the route doesn't crash
+$this->get('/dashboard')->assertOk();
+
+// BETTER
+$this->get('/dashboard')
+    ->assertOk()
+    ->assertSee('Dashboard')
+    ->assertJsonStructure(['data' => ['id', 'name']]);
+```
+
+## `assertDatabaseHas` WITHOUT CHECKING RELATED STATE (Medium)
+Database assertions that verify one record exists but miss related state changes:
+```php
+// INCOMPLETE
+$this->post('/orders', $data);
+assertDatabaseHas('orders', ['status' => 'pending']);
+// Missing: was the customer notified? Was the inventory reserved?
+```
+
+## EXCEPTION SWALLOWING TESTS (High)
+Tests using try/catch that hide failures:
+```php
+// BAD: exception swallowed, test always passes
+it('parses the value', function () {
+    try {
+        $result = Parser::parse('invalid');
+        expect($result)->toBeNull();
+    } catch (\Exception $e) {
+        // silently passes
+    }
+});
+```
+
+For each finding, report:
+- file:line reference
+- The test name
+- What's missing from the assertions
+- Risk: what real bugs would this test miss?
+- Severity
+```
+
+---
+
+### Subagent 3: Over-Mocked & Fake-Heavy Tests
+
+```
+Audit this test suite for tests so reliant on mocks that the real application logic is never exercised.
+
+Tech stack: [from Phase 1]
+Test files: [from Phase 1]
+
+## MOCK-HEAVY TESTS (High)
+When more than 50% of the test setup is mocking behavior, the test often becomes a test of the mock configuration, not the code:
+
+```php
+// BAD: every dependency is mocked — the actual logic path is untested
+it('processes the payment', function () {
+    $gateway = Mockery::mock(PaymentGateway::class);
+    $gateway->shouldReceive('charge')->andReturn(true);
+    $notifier = Mockery::mock(Notifier::class);
+    $notifier->shouldReceive('send')->once();
+    $logger = Mockery::mock(Logger::class);
+    $logger->shouldReceive('info')->once();
+
+    $processor = new PaymentProcessor($gateway, $notifier, $logger);
+    $processor->process($amount);
+    // Everything is mocked — if the actual PaymentGateway is broken, this still passes
+});
+
+// BETTER: Only mock external I/O, test real logic
+it('processes the payment', function () {
+    Http::fake(['stripe.com/*' => Http::response(['status' => 'succeeded'], 200)]);
+    $order = Order::factory()->create();
+    $order->processPayment();
+    expect($order->fresh()->status)->toBe('paid');
+});
+```
+
+## MOCKING ELOQUENT / ORM (Critical)
+Mocking the database instead of using real test databases creates dangerous divergence:
+```php
+// BAD: Eloquent is mocked — schema changes, relationships, scopes all invisible
+$user = Mockery::mock(User::class);
+$user->shouldReceive('find')->andReturn(new User(['id' => 1]));
+```
+
+Prefer `RefreshDatabase` with real factories over mocking models.
+
+## VERIFYING MOCKS NOT BEHAVIOR (High)
+Tests that only verify that a method was called, without checking what it did:
+```php
+// BAD: only proves the method was called, not that the outcome is correct
+$mailer->shouldReceive('send')->once();
+// What was sent? Was it the right email? Right recipient?
+
+// GOOD
+Mail::fake();
+Mail::assertSent(OrderConfirmation::class, function ($mail) use ($order) {
+    return $mail->hasTo($order->customer->email)
+        && $mail->order->id === $order->id;
+});
+```
+
+## FAKE OVERUSE IN FEATURE TESTS (Medium)
+Feature tests that fake so much they become unit tests in disguise:
+- Multiple `Event::fake()` without asserting on events
+- `Queue::fake()` but never asserting jobs were dispatched with correct data
+- `Storage::fake()` but never verifying file contents
+
+For each finding, report:
+- file:line reference
+- Test name
+- What is mocked vs what is real
+- What real failure modes this test would miss
+- Recommendation: move to integration test, or refine assertions
+```
+
+---
+
+### Subagent 4: Happy-Path Only & Missing Edge Cases
+
+```
+Audit this test suite for critical test scenarios that are completely absent.
+
+Tech stack: [from Phase 1]
+Test files: [from Phase 1]
+
+## AUTHORIZATION GAPS (Critical)
+Any route, action, or resource that:
+- Has no test for unauthorized access
+- Has no test for accessing another user's data (IDOR)
+- Has no test for unauthenticated requests
+
+Detection:
+1. List all routes with auth middleware
+2. Find tests that call those routes
+3. Flag routes where NO test checks ->assertForbidden() or ->assertUnauthorized()
+
+## VALIDATION GAPS (High)
+For each form/request that has validation rules:
+- Is there a test for missing required fields?
+- Is there a test for invalid format (bad email, too-long string)?
+- Is there a test for boundary values (min/max length)?
+
+```php
+// For a route that requires 'email' and 'name', both tests should exist:
+it('rejects missing email', fn() => ...->assertJsonValidationErrors('email'));
+it('rejects invalid email format', fn() => ...->assertJsonValidationErrors('email'));
+```
+
+## NULL / EMPTY DATA GAPS (High)
+Operations that could receive null, empty collections, or missing related models:
+- Does the code handle `null` FK references?
+- Is there a test for empty collections?
+- Is there a test for the zero/0/empty-string edge case?
+
+## ERROR & EXCEPTION PATHS (High)
+For code paths with try/catch or that can throw:
+- Is there a test that triggers the exception path?
+- Is there a test for what happens when an external service fails?
+
+## "ONLY ONE USER" TESTS (Medium)
+Tests that create only one model of a type and query it — always succeeds but would miss ordering, filtering, or relationship issues visible with 2+ records:
+```php
+// WEAK: always returns the one record, can't catch ordering bugs
+$order = Order::factory()->create();
+$result = Order::latest()->first();
+expect($result->id)->toBe($order->id);
+
+// BETTER: create 2+, verify the right one is returned
+$old = Order::factory()->create(['created_at' => now()->subDay()]);
+$new = Order::factory()->create();
+expect(Order::latest()->first()->id)->toBe($new->id);
+```
+
+## HAPPY-PATH DUPLICATION (Medium)
+Multiple tests that all exercise the success path from slightly different angles, when edge cases are entirely absent:
+```php
+// If you have 5 tests for "successful order creation" and 0 for "failed order creation",
+// the suite is unbalanced
+```
+
+For each gap found, report:
+- What is missing (describe the scenario that has no test)
+- Where it should be tested (which file/class)
+- Risk level: what could go wrong in production?
+- Example test skeleton to address the gap
+```
+
+---
+
+### Subagent 5: Duplicate Tests & Dataset Abuse
+
+```
+Audit this test suite for redundant tests that provide no additional coverage.
+
+Tech stack: [from Phase 1]
+Test files: [from Phase 1]
+
+## EXACT DUPLICATE TESTS (High)
+Tests with different names but identical setup, action, and assertion:
+```php
+// These two tests are identical in behavior:
+it('stores the user', function () {
+    $data = ['name' => 'John', 'email' => 'john@example.com'];
+    $this->post('/users', $data)->assertCreated();
+});
+
+it('creates a new user successfully', function () {
+    $data = ['name' => 'Jane', 'email' => 'jane@example.com'];
+    $this->post('/users', $data)->assertCreated();
+});
+// Both test POST /users with valid data — same coverage, different fixture values
+```
+
+## DATASET ABUSE (Medium)
+`->with()` / `@dataProvider` datasets that vary input but all exercise the same code path:
+```php
+// BAD: all of these are valid emails — they all go through the same path
+it('accepts valid email', function (string $email) {
+    $this->post('/register', ['email' => $email])->assertCreated();
+})->with(['a@b.com', 'test@example.com', 'user+tag@domain.org', 'x@y.z']);
+// Having 4 valid email variants adds no new coverage — 1 is enough
+
+// GOOD: dataset tests different BEHAVIORS, not different fixture values
+it('handles email', function (string $email, int $expectedStatus) {
+    $this->post('/register', ['email' => $email])->assertStatus($expectedStatus);
+})->with([
+    'valid email' => ['user@example.com', 201],
+    'missing @ sign' => ['notanemail', 422],
+    'missing domain' => ['user@', 422],
+    'empty string' => ['', 422],
+]);
+```
+
+## NEAR-DUPLICATE TESTS ACROSS FILES (Medium)
+Same scenario tested in both Feature and Unit tests with identical coverage:
+- If a feature test already fully covers a scenario end-to-end, a unit test for the same scenario adds no value
+
+## REDUNDANT ARCHITECTURE TESTS (Medium, Pest-specific)
+Architecture tests checking for classes/patterns that no longer exist in the project:
+```php
+// BAD: if there are no Repository classes, this test is vacuously true
+arch('repositories extend BaseRepository')
+    ->expect('App\Repositories')
+    ->toExtend(BaseRepository::class);
+// Passes because the namespace is empty, not because the rule is followed
+```
+
+How to detect:
+1. Find all `arch()` tests
+2. For each namespace referenced, check if any classes actually exist there
+3. Flag `arch()` tests where the target namespace has zero classes
+
+## MIRRORED INVERSE TESTS WITHOUT INDEPENDENCE (Low)
+```php
+// These two tests will always agree — if one fails, both fail
+it('returns true for active users', fn() => expect(User::factory()->active()->create()->isActive())->toBeTrue());
+it('returns false for inactive users', fn() => expect(User::factory()->inactive()->create()->isActive())->toBeFalse());
+// If isActive() always returns true, the second test catches it — this pairing IS valuable
+// Flag ONLY when the two tests use the same factory state
+```
+
+For each finding, report:
+- file:line references (both/all duplicates)
+- Why they're duplicant (same path, same assertion, different fixture values)
+- Which test to keep, which to remove or transform
+- Suggestion: consolidate with dataset, or replace one with an edge-case test
+```
+
+---
+
+### Subagent 6: Coverage Gap Analysis
+
+```
+Map the production codebase against the test suite to identify classes, routes, and behaviors with zero test coverage.
+
+Tech stack: [from Phase 1]
+
+## STEP 1: INVENTORY PRODUCTION CODE
+List all of the following that exist in the production codebase (skip vendor/):
+
+PHP/Laravel:
+- Models: `app/Models/**/*.php`
+- Actions: `app/Actions/**/*.php`
+- Services: `app/Services/**/*.php`
+- Jobs: `app/Jobs/**/*.php`
+- Events + Listeners: `app/Events/`, `app/Listeners/`
+- Mail: `app/Mail/**/*.php`
+- Notifications: `app/Notifications/**/*.php`
+- Commands: `app/Console/Commands/**/*.php`
+- Filament Resources + Pages: `app/Filament/**/*.php`
+- Routes: all files in `routes/`
+
+TypeScript/JavaScript:
+- Components, pages, hooks, utils, services
+
+## STEP 2: INVENTORY TEST COVERAGE
+For each production class, check whether ANY test file:
+- Imports or references the class name
+- Tests the route it backs
+- Tests its primary behavior indirectly
+
+A class has "coverage" if:
+- There's a test file named after it (UserTest.php, CreateOrderTest.php)
+- It appears in at least one `use` import in a test file
+- It's indirectly tested via a route/feature test that must invoke it
+
+A class has "no coverage" if:
+- No test file imports it, references it, or names a test after it
+- No route test exercises its path
+
+## STEP 3: IDENTIFY CRITICAL GAPS
+
+### Priority 1 — Zero coverage on critical classes
+These should always be tested:
+- All classes in `app/Actions/`
+- All Jobs with business logic
+- All Models with custom methods (beyond Eloquent defaults)
+- Auth-related paths
+- Payment/billing flows
+- Data validation / sanitization
+
+### Priority 2 — Zero coverage on mutation routes
+HTTP routes that:
+- POST / PUT / PATCH / DELETE
+- Require authentication
+- Modify database state
+... and have no corresponding test
+
+### Priority 3 — Low coverage on high-risk code
+- Classes with many conditional branches (if/else chains)
+- Classes that changed frequently (check git log)
+- Error/exception handling paths
+
+## STEP 4: OUTPUT
+
+For each gap, report:
+- Class/file path
+- What it does (brief description)
+- Coverage status: None / Partial / Indirect only
+- Priority: Critical / High / Medium
+- Suggested test type: Feature / Unit
+- Example test description (what should be tested)
+
+Summary table:
+```markdown
+| Category | Total | Covered | Uncovered | Coverage % |
+|----------|-------|---------|-----------|------------|
+| Models | X | X | X | X% |
+| Actions | X | X | X | X% |
+| Jobs | X | X | X | X% |
+| Routes (GET) | X | X | X | X% |
+| Routes (POST/PUT/DELETE) | X | X | X | X% |
+```
+```
+
+---
+
+## Phase 3: Generate Report
+
+Once all subagents complete, combine findings into a unified report:
+
+```markdown
+# Test Quality Audit Report
+
+## Executive Summary
+- **Total tests**: X
+- **Audits run**: Tautology, Missing Assertions, Over-mocked, Happy-path gaps, Duplicates, Coverage
+- **Scope**: [recent/full]
+- **Total findings**: X
+- **Critical**: X | **High**: X | **Medium**: X | **Low**: X
+
+## Test Quality Score: X/100
+(100 = every test is plausible, assertions are meaningful, coverage is complete)
+
+---
+
+## Findings by Priority
+
+### Critical (False Confidence — Fix Now)
+| # | Category | Test | Location | Issue |
+|---|----------|------|----------|-------|
+| 1 | Tautological | 'stores the user' | UserTest.php:12 | Asserts what factory set |
+| 2 | Missing assertion | 'sends email' | NotifyTest.php:5 | No Mail::assertSent() |
+
+### High (Significant Gaps)
+...
+
+### Medium (Quality Improvements)
+...
+
+### Low (Consider Fixing)
+...
+
+---
+
+## Coverage Gaps
+
+### Untested Critical Classes
+| Class | Path | Priority |
+|-------|------|----------|
+| CreateOrderAction | app/Actions/... | Critical |
+
+### Untested Routes
+| Route | Method | Auth | Priority |
+|-------|--------|------|----------|
+| /orders/{id}/cancel | DELETE | Yes | High |
+
+---
+
+## Breakdown by Audit
+
+### Tautological Tests (X found)
+...
+
+### Missing Assertions (X found)
+...
+
+### Over-mocked Tests (X found)
+...
+
+### Happy-path Gaps (X found)
+...
+
+### Duplicate Tests (X found)
+...
+
+### Coverage Gaps (X classes/routes uncovered)
+...
+
+---
+
+## Recommended Action Plan
+1. **This sprint**: Fix Critical — remove false-confidence tests, add real assertions (X items)
+2. **Next sprint**: Address High gaps — authorization tests, validation error tests (X items)
+3. **Backlog**: Refactor over-mocked tests to integration tests (X items)
+4. **Housekeeping**: Consolidate duplicate tests, prune vacuous arch tests (X items)
+```
+
+## Phase 4: Fix Options
+
+Present to the user:
+
+1. **Delete false-confidence tests** — Remove tautological/assertion-free tests that give misleading green checks
+2. **Strengthen existing tests** — Add missing assertions to tests that are structurally sound but incomplete
+3. **Add missing edge case tests** — Create tests for authorization, validation errors, and null handling
+4. **Consolidate duplicates** — Merge duplicate tests into datasets that cover multiple paths
+5. **Generate test stubs** — Create empty test functions for coverage gaps with descriptive names and comments
+6. **Report only** — Just the audit report, no changes
+
+When fixing:
+- Prioritize removing false confidence (Critical) before adding new tests
+- Run the test suite after each change to ensure nothing breaks
+- When adding assertions to existing tests, prefer running them first to verify the assertion actually can fail
+
+## Notes
+
+- A passing test is not necessarily a good test — prioritize meaningful assertions over raw count
+- Tautological tests are more dangerous than missing tests because they hide the gap behind green checks
+- "Coverage %" from tools like PHPUnit or Istanbul counts line hits, not semantic coverage — this audit catches what tools miss
+- Architecture tests (`arch()` in Pest) should be re-validated whenever namespaces are refactored
+- Over-mocked tests belong in code reviewed alongside production code changes — they're often written by the same author as the code being tested, making blind spots likely
+- Re-run this audit after major refactors to catch tests that became vacuous
