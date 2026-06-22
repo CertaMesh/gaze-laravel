@@ -252,7 +252,7 @@ GAZE_AUDIT_DB_PATH=/var/www/html/storage/app/gaze/audit.sqlite
 
 - Both the web process and the queue worker must have read/write access to the file. The binary creates files in mode `0600`; widen permissions via deploy tooling if processes run under different OS users.
 - Audit logging is non-transactional with the clean response. A successful `clean` may occasionally omit an audit row. Treat audit rows as advisory and reconcile on a schedule if complete-trail guarantees are required.
-- Do not cross-join audit rows with `GazeSession::$cleanText`. The `recognizer_id`, `pii_class`, and token slot fields in audit rows are re-identification side channels. See [audit.md](./audit.md) for the full atomicity and re-identification warning.
+- Do not cross-join audit rows with `GazeSession::$cleanText`. The `recognizer_id`, `pii_class`, and token slot fields in audit rows are re-identification side channels. See [audit.md](../how-to/audit-query-export.md) for the full atomicity and re-identification warning.
 
 ---
 

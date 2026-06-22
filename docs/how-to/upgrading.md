@@ -1,7 +1,7 @@
 # Upgrading
 
 Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
-[CHANGELOG.md](../CHANGELOG.md) and the upstream binary's
+[CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md).
 
 ## v0.10.0 → v0.11.0
@@ -169,7 +169,7 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 - **Versioned recognizer IDs on audit rows.** `Audit\QueryBuilder`
   returns the new `recognizer_id` + `recognizer_version_id` columns
   verbatim — no code change needed. See
-  [`docs/upstream-coverage.md`](./upstream-coverage.md) for the column
+  [`docs/upstream-coverage.md`](../reference/upstream-coverage.md) for the column
   semantics.
 - **`PolicySchemaUnsupported` typed exception.** Already shipped in
   v0.7.0; v0.8 binaries are the first to emit it for schemas the

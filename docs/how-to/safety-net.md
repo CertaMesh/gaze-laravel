@@ -257,11 +257,11 @@ hits a queue job that would otherwise dead-letter on
 
 ## See also
 
-- [Upstream coverage matrix](./upstream-coverage.md) — full upstream-flag ↔
+- [Upstream coverage matrix](../reference/upstream-coverage.md) — full upstream-flag ↔
   Laravel-surface mapping for SafetyNet and every other CLI surface.
 - [Upgrading](./upgrading.md) — per-minor adapter upgrade guide, including
   the `strict → resolve` default flip.
-- [Exceptions](./exceptions.md) — full typed exception reference with exit
+- [Exceptions](../reference/exceptions.md) — full typed exception reference with exit
   buckets and retry-contract semantics.
-- [Queue integration](./queue.md) — `GazeRetryPolicy` deep-dive, alert
+- [Queue integration](./queue-integration.md) — `GazeRetryPolicy` deep-dive, alert
   routing, and backoff schedule conventions.

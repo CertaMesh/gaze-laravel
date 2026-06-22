@@ -294,7 +294,7 @@ No real binary is spawned; the fake handler returns a deterministic
 
 ## See also
 
-- [Upstream coverage matrix](./upstream-coverage.md) — daemon
+- [Upstream coverage matrix](../reference/upstream-coverage.md) — daemon
   command/flag/exception mapping.
 - [Upstream `gaze daemon` spec](https://github.com/EmpireTwo/gaze/blob/main/docs/getting-started/daemon-adapter.md) — JSONL protocol, eviction, graceful shutdown.
 - [docs/upgrading.md](./upgrading.md) — v0.11.0 upgrade notes.

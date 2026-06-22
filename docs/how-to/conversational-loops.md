@@ -1,6 +1,6 @@
 # Conversational-loop guidance
 
-This page expands the conversational-loop guidance from the [README](../README.md). Use it when chat, tool-calling, or planner-executor flows need repeatable token handling across turns.
+This page expands the conversational-loop guidance from the [README](../../README.md). Use it when chat, tool-calling, or planner-executor flows need repeatable token handling across turns.
 
 Multi-turn agents (chat UIs, tool-calling loops, planner-executor agents) do not get persistent tokens in the current adapter contract. Each turn produces its own blob. Two patterns work; pick one and stick with it per conversation.
 

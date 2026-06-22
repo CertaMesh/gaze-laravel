@@ -111,7 +111,7 @@ adopter-set proxy configuration (any deviation from the package's default
 
 ## See also
 
-- [Upstream coverage matrix](./upstream-coverage.md) — full upstream-flag
+- [Upstream coverage matrix](../reference/upstream-coverage.md) — full upstream-flag
   ↔ Laravel-surface mapping.
 - [Upstream `gaze-proxy` README](https://github.com/EmpireTwo/gaze/blob/main/crates/gaze-proxy/README.md) — daemon internals, adapter contract, request/response shape.
 - [Upstream proxy-runtime architecture](https://github.com/EmpireTwo/gaze/blob/main/docs/architecture/proxy-runtime.md) — tokio runtime, adapter trait, request lifecycle.

@@ -1,6 +1,6 @@
 # Retry Discipline
 
-This page expands the retry discipline guidance from the [README](../README.md). For the full queue guide, see [Queue integration](./queue.md).
+This page expands the retry discipline guidance from the [README](../../README.md). For the full queue guide, see [Queue integration](./queue-integration.md).
 
 Consumer jobs must `use Queueable, InteractsWithQueue` traits.
 
