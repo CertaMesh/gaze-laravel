@@ -6,6 +6,26 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- Restore-decision telemetry surface (MINOR). Opt-in, forwards-only — adds no
+  detection or PII logic in PHP:
+  - Config key `gaze.restore_telemetry` (env `GAZE_RESTORE_TELEMETRY`), default
+    `null` (telemetry off = upstream default).
+  - `Gaze::restore()` forwards `--telemetry` when enabled, plus
+    `--audit-db=<gaze.audit_db_path>` when that path is set (telemetry with no
+    audit-db path still forwards `--telemetry` so the binary uses its default
+    sink). Wire shape is byte-identical when the key is null/false.
+  - `Naoray\GazeLaravel\Audit\QueryBuilder::onlyRestoreEvents()` — fluent filter
+    forwarding `--restore-events` to `gaze audit query`.
+  - `gaze:doctor` probe for restore-telemetry audit-db writability: skipped
+    silently when off; warns (never hard-fails) when on but `gaze.audit_db_path`
+    is unset or its parent dir is not writable.
+
+  CAVEAT: two upstream audit columns — `restore_fresh_pii_count` and
+  `restore_manifest_bypass_count` — are ALWAYS 0 through the stock gaze CLI,
+  because gaze-cli's `run_restore` never enables the Phase-B DLP builder. This
+  surface ships for restore-decision and unknown-token audit trails, NOT for
+  outbound-DLP fresh-PII detection. Do not rely on it for DLP.
+
 ### Changed
 
 - Bump the pinned upstream `gaze` binary from `0.9.0` to `0.11.1`
