@@ -70,6 +70,7 @@ class Gaze
         private readonly ?string $safetyNetFallback = null,
         private readonly ?string $sessionScope = null,
         private readonly ?string $restoreMode = null,
+        private readonly bool $restoreTelemetry = false,
     ) {}
 
     public function clean(string $text): GazeSession
@@ -236,6 +237,23 @@ class Gaze
 
         if ($this->restoreMode !== null && $this->restoreMode !== '') {
             $command[] = '--restore-mode='.$this->restoreMode;
+        }
+
+        // Restore-decision telemetry: forward --telemetry so the binary records
+        // restore-decision / unknown-token audit rows, plus --audit-db when an
+        // audit sink is configured (telemetry with no audit-db still forwards
+        // --telemetry so the binary uses its own default sink).
+        //
+        // CAVEAT: restore_fresh_pii_count / restore_manifest_bypass_count are
+        // ALWAYS 0 through the stock gaze CLI — run_restore never enables the
+        // Phase-B DLP builder. This is a restore-decision audit trail, not
+        // outbound-DLP fresh-PII detection.
+        if ($this->restoreTelemetry) {
+            $command[] = '--telemetry';
+
+            if ($this->auditDbPath !== null && $this->auditDbPath !== '') {
+                $command[] = '--audit-db='.$this->auditDbPath;
+            }
         }
 
         $result = $this->run($command, $payload, 'restore');
