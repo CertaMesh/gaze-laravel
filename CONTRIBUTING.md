@@ -10,7 +10,7 @@ changes small, tested, and easy to review.
 Clone the repository:
 
 ```bash
-git clone https://github.com/EmpireTwo/gaze-laravel.git
+git clone https://github.com/CertaMesh/gaze-laravel.git
 cd gaze-laravel
 ```
 
@@ -108,7 +108,7 @@ GAZE_BINARY=/path/to/gaze composer test
 Live NER artifact smoke tests are opt-in and require the documented environment
 variables.
 
-See `docs/testing.md` for the full testing workflow.
+See `docs/how-to/testing.md` for the full testing workflow.
 
 ## Documentation
 
@@ -118,7 +118,7 @@ The README is promo-only. Keep detailed setup, behavior, and troubleshooting
 notes in `docs/`.
 
 When adding or changing environment variables, update
-`docs/configuration.md`.
+`docs/reference/configuration.md`.
 
 When behavior changes affect users, update the relevant doc page in the same
 PR.
@@ -127,7 +127,7 @@ PR.
 
 Use the bug report issue template:
 
-https://github.com/EmpireTwo/gaze-laravel/issues/new/choose
+https://github.com/CertaMesh/gaze-laravel/issues/new/choose
 
 Include:
 

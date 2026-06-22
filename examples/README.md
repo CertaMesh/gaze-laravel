@@ -4,7 +4,7 @@ Runnable, copy-paste starting points for `gaze-laravel`. Every example follows
 the same rule: **only `$session->cleanText` crosses the model boundary; the
 `GazeSession` (encrypted `ciphertext` + the token↔real-value `entries`) stays
 server-side, and `Gaze::restore()` is owner-side.** Detection lives upstream in
-the [`gaze`](https://github.com/EmpireTwo/gaze) binary — this package only
+the [`gaze`](https://github.com/CertaMesh/gaze) binary — this package only
 exposes it through Laravel surfaces (Facade, artisan, config).
 
 | Example | What it shows |
