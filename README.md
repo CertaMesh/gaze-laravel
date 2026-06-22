@@ -31,22 +31,7 @@ Use it when you need to:
 - send pseudonymized text to an LLM instead of raw PII;
 - restore model output back into owner-side text;
 - keep encrypted session blobs out of logs and public component state;
-- classify subprocess failures into caller, config, integrity, and infra buckets;
-- run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies (see [`docs/proxy.md`](./docs/proxy.md));
-- run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/daemon.md`](./docs/daemon.md)):
-
-  ```php
-  use Naoray\GazeLaravel\Facades\Gaze;
-
-  // Composition (fluent sugar)
-  $session = Gaze::daemon()->session('agent-thread-a');
-  $response = $session->clean($prompt);
-
-  // Direct hot path (one PHP call = one JSONL line)
-  $response = Gaze::daemon()->clean('agent-thread-a', $prompt);
-  ```
-
-- opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection.
+- classify subprocess failures into caller, config, integrity, and infra buckets.
 
 > **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in
 > second install — run `php artisan gaze:install-ner` to download model artifacts. See
@@ -100,12 +85,12 @@ See [Configuration](./docs/configuration.md) for the full env var + config publi
 ## Usage
 
 ```php
-use Naoray\GazeLaravel\Gaze;
+use Naoray\GazeLaravel\Facades\Gaze;
 
-$session = $gaze->clean($request->string('body'));
-$reply = $llm->complete($session->cleanText);
+$session = Gaze::clean($request->string('body'));
+$reply   = $llm->complete($session->cleanText);
 
-return $gaze->restore($session, $reply);
+return Gaze::restore($session, $reply);
 ```
 
 ### Per-rule detection entries
@@ -134,6 +119,33 @@ and parsing the binary snapshot header by hand.
 See [Exceptions](./docs/exceptions.md) for the exit bucket and typed exception reference.
 
 See [Testing](./docs/testing.md) for fakes, assertions, and integration-test setup.
+
+## Advanced
+
+These surfaces are opt-in. Reach for them once the basic clean / restore round-trip is in place.
+
+### HTTP proxy daemon
+
+Run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies. See [`docs/proxy.md`](./docs/proxy.md).
+
+### JSONL stdio daemon — agent loops & worker queues
+
+Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/daemon.md`](./docs/daemon.md)):
+
+```php
+use Naoray\GazeLaravel\Facades\Gaze;
+
+// Composition (fluent sugar)
+$session = Gaze::daemon()->session('agent-thread-a');
+$response = $session->clean($prompt);
+
+// Direct hot path (one PHP call = one JSONL line)
+$response = Gaze::daemon()->clean('agent-thread-a', $prompt);
+```
+
+### Kiji safety-net backend
+
+Opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection. See [`docs/safety-net.md`](./docs/safety-net.md).
 
 ## Documentation
 
