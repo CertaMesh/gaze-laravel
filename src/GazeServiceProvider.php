@@ -30,6 +30,7 @@ use CertaMesh\Gaze\Install\NerFetcher;
 use CertaMesh\Gaze\Install\NerInstaller;
 use CertaMesh\Gaze\Install\NerManifest;
 use CertaMesh\Gaze\Install\PolicyTomlPatcher;
+use CertaMesh\Gaze\Install\SafetyNetConfigurator;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
@@ -177,6 +178,10 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             return new PolicyTomlPatcher(baseDir: $app->basePath());
         });
 
+        $this->app->singleton(SafetyNetConfigurator::class, function (Application $app): SafetyNetConfigurator {
+            return new SafetyNetConfigurator($app->basePath('.env'));
+        });
+
         $this->app->singleton(NerInstaller::class, function (Application $app): NerInstaller {
             return new NerInstaller(
                 fetcher: $app->make(NerFetcher::class),
@@ -265,6 +270,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             NerManifest::class,
             NerInstaller::class,
             PolicyTomlPatcher::class,
+            SafetyNetConfigurator::class,
             'gaze.encrypter',
         ];
     }
