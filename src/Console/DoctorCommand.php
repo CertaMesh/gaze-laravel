@@ -95,7 +95,7 @@ final class DoctorCommand extends Command
 
     private function warnIfDeprecatedRulepack(ConfigRepository $config, string $policyPath): void
     {
-        $message = "rulepack 'core-extended' is deprecated as of gaze v0.8.0; aliases to 'core' with a runtime warning. Removal target: v0.10.0. Pass an explicit --locale (or set GAZE_LOCALE) to retain phone.national.* / postal.* coverage.";
+        $message = "rulepack 'core-extended' is deprecated as of gaze v0.8.0; aliases to 'core' with a runtime warning. Upstream still ships this soft alias through v0.11.x; removal is deferred (no firm target announced). Pass an explicit --locale (or set GAZE_LOCALE) to retain phone.national.* / postal.* coverage.";
 
         $rulepacks = $config->get('gaze.rulepacks');
         if (is_array($rulepacks) && in_array('core-extended', $rulepacks, true)) {
