@@ -11,7 +11,7 @@ namespace Naoray\GazeLaravel;
  * describes one tokenized span: which PII class fired, the original raw value,
  * its pseudonymous token, and the collision family.
  *
- * @see https://github.com/EmpireTwo/gaze
+ * @see https://github.com/CertaMesh/gaze
  */
 final readonly class Entry
 {
