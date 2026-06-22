@@ -8,6 +8,13 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Changed
 
+- Bump the pinned upstream `gaze` binary from `0.9.0` to `0.11.1`
+  (`BinaryInstaller::PINNED_VERSION`, CI `GAZE_VERSION`). Adopts upstream
+  NER fail-closed (#290/#293) and byte-exact restore (#295) purely via the
+  binary — no adapter logic change, no new flag. Restore wire shape and
+  exit-code buckets are unchanged. Aligns the downloaded binary with the
+  daemon surface shipped in the v0.11.0 adapter release.
+
 ### Fixed
 
 ### Security
