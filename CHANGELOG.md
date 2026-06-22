@@ -10,6 +10,15 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Fixed
 
+### Security
+
+- Repoint the pinned upstream `gaze` binary download base and the NER
+  `SHA256SUMS.ner` manifest URL from the vacated `EmpireTwo/gaze` GitHub
+  org to the canonical `CertaMesh/gaze`. The old name relied on GitHub's
+  rename 301-redirect, which is not canonical and becomes a supply-chain
+  takeover vector if the handle is re-registered.
+  (`BinaryInstaller::RELEASE_BASE`, `GazeServiceProvider` NER fetch.)
+
 ## [0.11.1] - 2026-05-18
 
 ### Changed
