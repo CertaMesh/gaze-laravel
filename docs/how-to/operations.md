@@ -1,6 +1,6 @@
 # Operations
 
-This page expands the operations guidance from the [README](../README.md). Use it to wire health checks, telemetry exclusions, and failed-job pruning.
+This page expands the operations guidance from the [README](../../README.md). Use it to wire health checks, telemetry exclusions, and failed-job pruning.
 
 `php artisan gaze:check` verifies binary resolution and encrypter wiring.
 

@@ -75,7 +75,7 @@ adapter minor once upstream implements the integrations.
 ## Security
 
 Mirrors the upstream
-[`gaze-proxy` README security model](https://github.com/EmpireTwo/gaze/blob/main/crates/gaze-proxy/README.md):
+[`gaze-proxy` README security model](https://github.com/CertaMesh/gaze/blob/main/crates/gaze-proxy/README.md):
 
 - **Bind to loopback.** The default `127.0.0.1:8787` is intentional; do
   not expose the proxy on a routable interface. There is no built-in
@@ -111,7 +111,7 @@ adopter-set proxy configuration (any deviation from the package's default
 
 ## See also
 
-- [Upstream coverage matrix](./upstream-coverage.md) — full upstream-flag
+- [Upstream coverage matrix](../reference/upstream-coverage.md) — full upstream-flag
   ↔ Laravel-surface mapping.
-- [Upstream `gaze-proxy` README](https://github.com/EmpireTwo/gaze/blob/main/crates/gaze-proxy/README.md) — daemon internals, adapter contract, request/response shape.
-- [Upstream proxy-runtime architecture](https://github.com/EmpireTwo/gaze/blob/main/docs/architecture/proxy-runtime.md) — tokio runtime, adapter trait, request lifecycle.
+- [Upstream `gaze-proxy` README](https://github.com/CertaMesh/gaze/blob/main/crates/gaze-proxy/README.md) — daemon internals, adapter contract, request/response shape.
+- [Upstream proxy-runtime architecture](https://github.com/CertaMesh/gaze/blob/main/docs/architecture/proxy-runtime.md) — tokio runtime, adapter trait, request lifecycle.

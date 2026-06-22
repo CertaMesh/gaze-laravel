@@ -1,6 +1,6 @@
 # Livewire — bad vs good
 
-This page expands the Livewire integration guidance from the [README](../README.md). Keep public component state token-clean, and keep `GazeSession` values method-scoped.
+This page expands the Livewire integration guidance from the [README](../../README.md). Keep public component state token-clean, and keep `GazeSession` values method-scoped.
 
 Livewire serializes public component properties to the client between updates. Putting raw PII or the session blob on a public property leaks both surfaces. Here is the same flow shown wrong-then-right.
 

@@ -1,6 +1,6 @@
 # Enabling NER
 
-This page expands the NER install guidance from the [README](../README.md). Use it when you want named-entity recognition in addition to regex and rulepack detection.
+This page expands the NER install guidance from the [README](../../README.md). Use it when you want named-entity recognition in addition to regex and rulepack detection.
 
 By default gaze-laravel runs in regex/rulepack mode. Enable named-entity recognition with:
 
