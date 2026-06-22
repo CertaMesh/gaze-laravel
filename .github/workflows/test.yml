@@ -18,7 +18,7 @@ jobs:
 
     env:
       GAZE_SKIP_BINARY_DOWNLOAD: "1"
-      GAZE_VERSION: "0.9.0"
+      GAZE_VERSION: "0.11.1"
 
     steps:
       - name: Checkout
