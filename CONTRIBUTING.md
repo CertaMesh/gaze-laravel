@@ -10,7 +10,7 @@ changes small, tested, and easy to review.
 Clone the repository:
 
 ```bash
-git clone https://github.com/EmpireTwo/gaze-laravel.git
+git clone https://github.com/CertaMesh/gaze-laravel.git
 cd gaze-laravel
 ```
 
@@ -127,7 +127,7 @@ PR.
 
 Use the bug report issue template:
 
-https://github.com/EmpireTwo/gaze-laravel/issues/new/choose
+https://github.com/CertaMesh/gaze-laravel/issues/new/choose
 
 Include:
 
