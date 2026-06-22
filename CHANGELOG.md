@@ -13,6 +13,29 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- `php artisan gaze:install` umbrella command (MINOR). Provisions a Laravel app
+  to use gaze end-to-end — binary, config, policy, NER model, safety-net backend
+  — in one idempotent pass, ending on a `gaze:doctor` gate and a per-step summary
+  table. Interactive prompts plus non-interactive flags: `--no-interaction`,
+  `--force`, `--force-policy`, `--skip-binary`, `--skip-ner`, `--skip-safety-net`,
+  `--safety-net=opf|kiji|none`, `--kiji-model-dir=`, `--ner-variant=`,
+  `--ner-locale=`, `--no-doctor`. The final gate runs `gaze:doctor` as a real
+  subprocess so it reflects the freshly written `.env`; an existing `policy.toml`
+  is never clobbered without `--force-policy`; a failed run rolls `.env` back to
+  its pre-install state.
+- `gaze:install:binary` (MINOR). Installs the pinned gaze binary from artisan
+  (not only via the Composer plugin); `--force` re-downloads. Defers to any
+  binary that already resolves (`GAZE_BINARY`, `vendor/bin`, or PATH) and treats
+  an unsupported platform as a skip-with-guidance success when a binary otherwise
+  resolves, so adopters who build from source are never hard-failed.
+- `gaze:install:safety-net` (MINOR). Wires the OPF (openai-filter) or Kiji
+  DistilBERT backend into `.env` idempotently; `--safety-net=`, `--kiji-model-dir=`,
+  `--opf-command=`, `--opf-checkpoint=`, `--force`, `--print`. The Kiji model dir
+  is validated against the pinned artifact set BEFORE `.env` is written (the same
+  contract `gaze:doctor` enforces), so a write never leaves doctor red. OPF is a
+  local subprocess: its command/checkpoint paths are wired and the command warns
+  that doctor cannot verify the subprocess. `--print` redacts secret-shaped keys.
+  Kiji model artifacts remain upstream-provided (doctor validates the dir).
 - Laravel 13 support (MINOR). `^13.0` added to all `illuminate/*` constraints;
   `orchestra/testbench` widened to `^11.0`; `symfony/http-client` widened to
   `^7.0 || ^8.0` (matching `symfony/process`). PHP requirement stays `^8.2` so
@@ -41,6 +64,16 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Changed
 
+- `gaze:install-ner` renamed to `gaze:install:ner` (MINOR). The old name keeps
+  working as a deprecated alias, so existing scripts are unaffected. A new `--yes`
+  flag confirms a headless install WITHOUT re-downloading the model or overwriting
+  `policy.toml` — distinct from `--force`, which still re-downloads/overwrites.
+- Binary download/verify logic extracted from `BinaryInstaller` into a
+  framework-agnostic `BinaryDownloader` service (no behaviour change). The
+  Composer plugin auto-install path is byte-identical — it still resolves and
+  pins the release base in production before delegating, and the per-message
+  stdout/stderr channel is preserved. `gaze:install:binary` reuses the same
+  single download/checksum path.
 - Bump the pinned upstream `gaze` binary from `0.9.0` to `0.11.1`
   (`BinaryInstaller::PINNED_VERSION`, CI `GAZE_VERSION`). Adopts upstream
   NER fail-closed (#290/#293) and byte-exact restore (#295) purely via the
