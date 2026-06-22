@@ -4,8 +4,8 @@
 [![Total Downloads](https://img.shields.io/packagist/dt/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
 ![PHP Version](https://img.shields.io/badge/PHP-%5E8.2-777BB4?style=flat-square&logo=php&logoColor=white)
 ![Laravel Version](https://img.shields.io/badge/Laravel-11%20%7C%7C%2012-FF2D20?style=flat-square&logo=laravel&logoColor=white)
-[![Tests](https://img.shields.io/github/actions/workflow/status/EmpireTwo/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/actions/workflows/test.yml)
-[![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/blob/main/LICENSE)
+[![Tests](https://img.shields.io/github/actions/workflow/status/CertaMesh/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/CertaMesh/gaze-laravel/actions/workflows/test.yml)
+[![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/CertaMesh/gaze-laravel/blob/main/LICENSE)
 
 > Pseudonymize PII / PHI / secrets before they cross the LLM boundary — one `Gaze::clean()` call out, `Gaze::restore()` back, fully reversible owner-side.
 
@@ -24,7 +24,9 @@ return Gaze::restore($session, $reply);
 
 **What this gives you:** the model never sees real data, yet your app restores it losslessly — tokens map back through a signed, encrypted-at-rest session blob. Subprocess failures arrive as typed, exit-bucketed exceptions, and the same call runs inside queues and long-lived agent loops, not just a single HTTP request.
 
-Laravel adapter for the [`gaze`](https://github.com/EmpireTwo/gaze) CLI contract.
+See [`examples/clean-before-openai.php`](./examples/clean-before-openai.php) for a runnable end-to-end clean → OpenAI → restore example.
+
+Laravel adapter for the [`gaze`](https://github.com/CertaMesh/gaze) CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow for Laravel apps. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
 
@@ -37,9 +39,9 @@ Use it when you need to:
 
 > **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in
 > second install — run `php artisan gaze:install-ner` to download model artifacts. See
-> [`docs/ner.md`](docs/ner.md) for trade-offs.
+> [`docs/explanation/ner.md`](./docs/explanation/ner.md) for trade-offs.
 
-**New here?** Start with the [getting started guide](./docs/getting-started.md).
+**New here?** Start with the [getting started guide](./docs/tutorials/getting-started.md).
 
 ## Requirements
 
@@ -82,7 +84,7 @@ Installer env overrides:
 - `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release; use cautiously because the pinned version is contract-tested.
 - `GAZE_RELEASE_BASE=https://...` — release base override for fixture or staging release hosts.
 
-See [Configuration](./docs/configuration.md) for the full env var + config publishing reference.
+See [Configuration](./docs/reference/configuration.md) for the full env var + config publishing reference.
 
 ## Usage
 
@@ -118,9 +120,9 @@ $firstClass = $session->entries[0]->class ?? null;
 This surface replaces the previous pattern of decrypting `$session->ciphertext`
 and parsing the binary snapshot header by hand.
 
-See [Exceptions](./docs/exceptions.md) for the exit bucket and typed exception reference.
+See [Exceptions](./docs/reference/exceptions.md) for the exit bucket and typed exception reference.
 
-See [Testing](./docs/testing.md) for fakes, assertions, and integration-test setup.
+See [Testing](./docs/how-to/testing.md) for fakes, assertions, and integration-test setup.
 
 ## How is this different from regex / generic anonymization libraries?
 
@@ -139,11 +141,11 @@ These surfaces are opt-in. Reach for them once the basic clean / restore round-t
 
 ### HTTP proxy daemon
 
-Run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies. See [`docs/proxy.md`](./docs/proxy.md).
+Run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies. See [`docs/how-to/proxy-daemon.md`](./docs/how-to/proxy-daemon.md).
 
 ### JSONL stdio daemon — agent loops & worker queues
 
-Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/daemon.md`](./docs/daemon.md)):
+Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/how-to/proxy-daemon.md`](./docs/how-to/proxy-daemon.md)):
 
 ```php
 use Naoray\GazeLaravel\Facades\Gaze;
@@ -158,45 +160,46 @@ $response = Gaze::daemon()->clean('agent-thread-a', $prompt);
 
 ### Kiji safety-net backend
 
-Opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection. See [`docs/safety-net.md`](./docs/safety-net.md).
+Opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection. See [`docs/how-to/safety-net.md`](./docs/how-to/safety-net.md).
 
 ## Documentation
 
-- [Getting started](./docs/getting-started.md)
-- [Configuration](./docs/configuration.md)
-- [Architecture](./docs/architecture.md)
-- [Audit query / export](./docs/audit.md)
-- [Blob lifecycle](./docs/blob-lifecycle.md)
-- [NER install](./docs/ner.md)
-- [Livewire integration](./docs/livewire.md)
-- [Conversational-loop patterns](./docs/conversational-loop.md)
-- [Operations](./docs/operations.md)
-- [Retry discipline](./docs/retry.md)
-- [Diagnostics](./docs/diagnostics.md)
-- [Exceptions](./docs/exceptions.md)
-- [Proxy daemon](./docs/proxy.md)
-- [SafetyNet (OPF + Kiji)](./docs/safety-net.md)
-- [Queue integration](./docs/queue.md)
-- [Security model](./docs/security.md)
-- [Testing](./docs/testing.md)
+- [Documentation index](./docs/README.md)
+- [Getting started](./docs/tutorials/getting-started.md)
+- [Configuration](./docs/reference/configuration.md)
+- [Architecture](./docs/explanation/architecture.md)
+- [Audit query / export](./docs/how-to/audit-query-export.md)
+- [Blob lifecycle](./docs/explanation/blob-lifecycle.md)
+- [NER install](./docs/explanation/ner.md)
+- [Livewire integration](./docs/how-to/livewire-integration.md)
+- [Conversational-loop patterns](./docs/how-to/conversational-loops.md)
+- [Operations](./docs/how-to/operations.md)
+- [Retry discipline](./docs/how-to/retry.md)
+- [Diagnostics](./docs/reference/diagnostics.md)
+- [Exceptions](./docs/reference/exceptions.md)
+- [Proxy daemon](./docs/how-to/proxy-daemon.md)
+- [SafetyNet (OPF + Kiji)](./docs/how-to/safety-net.md)
+- [Queue integration](./docs/how-to/queue-integration.md)
+- [Security model](./docs/explanation/security.md)
+- [Testing](./docs/how-to/testing.md)
 
 ## Security
 
 Session blobs are encrypted at rest with Laravel's encrypter, keyed by `GAZE_ENCRYPTION_KEY` or `APP_KEY`.
 Only pseudonymized `$session->cleanText` should cross the model boundary; restore happens owner-side.
-See [Security model](./docs/security.md) for guarantees, responsibilities, and compliance boundaries.
+See [Security model](./docs/explanation/security.md) for guarantees, responsibilities, and compliance boundaries.
 
 ## Upgrading
 
-Per-minor walkthroughs live in [`docs/upgrading.md`](./docs/upgrading.md);
+Per-minor walkthroughs live in [`docs/how-to/upgrading.md`](./docs/how-to/upgrading.md);
 pair them with the upstream binary's
-[UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md). The
+[UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md). The
 current pin is **v0.9.0** — see the `v0.8.1 → v0.9.0` section for the
 adoption notes, Kiji ORT/int8 config, and daemon fallback rationale.
 Older upgrade notes are preserved in the same file.
 
-See [`docs/exceptions.md`](./docs/exceptions.md) and
-[`docs/upstream-coverage.md`](./docs/upstream-coverage.md) for the full
+See [`docs/reference/exceptions.md`](./docs/reference/exceptions.md) and
+[`docs/reference/upstream-coverage.md`](./docs/reference/upstream-coverage.md) for the full
 exception table and upstream parity matrix.
 
 ## Known limitations
