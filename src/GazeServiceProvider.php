@@ -11,6 +11,7 @@ use CertaMesh\Gaze\Console\CheckCommand;
 use CertaMesh\Gaze\Console\Daemon\DaemonServeCommand;
 use CertaMesh\Gaze\Console\Daemon\DaemonStatusCommand;
 use CertaMesh\Gaze\Console\DoctorCommand;
+use CertaMesh\Gaze\Console\Install\InstallBinaryCommand;
 use CertaMesh\Gaze\Console\InstallNerCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyLogsCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyRestartCommand;
@@ -22,6 +23,7 @@ use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 use CertaMesh\Gaze\Daemon\DaemonClient;
 use CertaMesh\Gaze\Daemon\DaemonManager;
 use CertaMesh\Gaze\Exceptions\GazeDaemonFeatureUnsupportedException;
+use CertaMesh\Gaze\Install\BinaryDownloader;
 use CertaMesh\Gaze\Install\BinaryInstaller;
 use CertaMesh\Gaze\Install\LaravelNerFetcher;
 use CertaMesh\Gaze\Install\NerFetcher;
@@ -43,6 +45,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/gaze.php', 'gaze');
+
+        $this->app->singleton(BinaryDownloader::class);
 
         $this->app->singleton(BinaryResolver::class, function (Application $app): BinaryResolver {
             /** @var ConfigRepository $config */
@@ -229,6 +233,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 DoctorCommand::class,
                 CanaryCommand::class,
                 BenchCommand::class,
+                InstallBinaryCommand::class,
                 InstallNerCommand::class,
                 ProxyServeCommand::class,
                 ProxyStartCommand::class,
@@ -248,6 +253,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
     public function provides(): array
     {
         return [
+            BinaryDownloader::class,
             BinaryResolver::class,
             Gaze::class,
             AuditService::class,

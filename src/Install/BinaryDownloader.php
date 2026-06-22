@@ -21,8 +21,12 @@ use Symfony\Component\Process\Process;
  * Composer plugin ({@see BinaryInstaller}) and the `gaze:install:binary`
  * artisan command. The `https://`-per-hop recheck and the cross-host
  * Authorization strip were moved here verbatim.
+ *
+ * Not `final`: the artisan commands inject this via the container and tests
+ * substitute a subclass stub, so the download pipeline can be exercised without
+ * the network.
  */
-final class BinaryDownloader
+class BinaryDownloader
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
     public const PINNED_VERSION = '0.11.1';
