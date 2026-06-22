@@ -56,6 +56,7 @@ abstract class TestCase extends OrchestraTestCase
         ?string $safetyNetFallback = null,
         ?string $sessionScope = null,
         ?string $restoreMode = null,
+        bool $restoreTelemetry = false,
     ): Gaze {
         $app = $this->applicationInstance();
 
@@ -89,6 +90,7 @@ abstract class TestCase extends OrchestraTestCase
             safetyNetFallback: $safetyNetFallback,
             sessionScope: $sessionScope,
             restoreMode: $restoreMode,
+            restoreTelemetry: $restoreTelemetry,
             container: $app,
         );
     }

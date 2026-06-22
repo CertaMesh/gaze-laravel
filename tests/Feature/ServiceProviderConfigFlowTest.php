@@ -43,3 +43,36 @@ it('Gaze resolved from container forwards OpenAI privacy-filter config on clean 
         return true;
     });
 });
+
+it('defaults gaze.restore_telemetry to null (telemetry off) when env is unset', function () {
+    expect(config('gaze.restore_telemetry'))->toBeNull();
+});
+
+it('container-resolved Gaze forwards --telemetry and --audit-db when restore_telemetry config is enabled', function () {
+    config([
+        'gaze.binary' => '/fake/gaze',
+        'gaze.restore_telemetry' => true,
+        'gaze.audit_db_path' => '/var/lib/gaze/audit.sqlite',
+    ]);
+    $this->app->forgetInstance(Gaze::class);
+
+    Process::fake([
+        '*' => Process::result(output: json_encode(['text' => 'Email_1'], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Email_1', 'blob', 1);
+    $this->app->make(Gaze::class)->restore($session, 'Email_1');
+
+    Process::assertRan(function ($process): bool {
+        $command = is_array($process->command) ? $process->command : [];
+        if (! in_array('restore', $command, true)) {
+            return false;
+        }
+
+        expect($command)
+            ->toContain('--telemetry')
+            ->toContain('--audit-db=/var/lib/gaze/audit.sqlite');
+
+        return true;
+    });
+});

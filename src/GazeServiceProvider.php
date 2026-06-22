@@ -87,6 +87,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 kijiDistilbertModelDir: is_string($config->get('gaze.kiji_distilbert_model_dir')) && $config->get('gaze.kiji_distilbert_model_dir') !== '' ? $config->get('gaze.kiji_distilbert_model_dir') : null,
                 safetyNetFallback: is_string($config->get('gaze.safety_net_fallback')) && $config->get('gaze.safety_net_fallback') !== '' ? $config->get('gaze.safety_net_fallback') : null,
                 restoreMode: is_string($config->get('gaze.restore_mode')) && $config->get('gaze.restore_mode') !== '' ? $config->get('gaze.restore_mode') : null,
+                restoreTelemetry: (bool) $config->get('gaze.restore_telemetry', false),
                 container: $app,
             );
         });
