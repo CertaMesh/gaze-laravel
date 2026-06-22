@@ -47,6 +47,14 @@ class EmailDraftController extends Controller
 
 → [Blob lifecycle, Livewire patterns, queue jobs, conversational-loop guidance](../../README.md#blob-lifecycle)
 
+> **Heads up — one session-id per isolation boundary.** Once you move beyond
+> a single request into multi-turn or multi-tenant flows, give each
+> conversation / tenant / trust domain its **own** session-id; never reuse a
+> shared or global id across independent contexts. The id keys the pseudonym
+> namespace, so reusing it makes tokens linkable across conversations — a
+> GDPR Art. 4(5) failure. Internalize this before you design session scoping:
+> [daemon § Session-id is a pseudonym-namespace boundary](../how-to/daemon.md#session-id-is-a-pseudonym-namespace-boundary).
+
 ## 4. Test with fakes
 
 ```php
