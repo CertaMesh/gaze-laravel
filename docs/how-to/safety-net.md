@@ -31,8 +31,9 @@ GAZE_OPENAI_FILTER_COMMAND=/usr/local/bin/opf
 ```
 
 `GAZE_OPENAI_FILTER_COMMAND` is optional when `opf` is already on `PATH`. See
-the upstream [OPF README](https://github.com/CertaMesh/gaze/tree/main/crates/gaze-safety-net-openai-filter)
-for the Python install and weights-fetch steps.
+the upstream [OpenAI-filter safety-net docs](https://github.com/CertaMesh/gaze/blob/main/docs/explanation/safety-net/safety-nets.md)
+for the `opf` backend — install it from a pinned upstream release, then fetch
+its model weights.
 
 ## Quick start (Kiji DistilBERT)
 
