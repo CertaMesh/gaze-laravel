@@ -5,6 +5,23 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/EmpireTwo/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/actions/workflows/test.yml)
 [![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/blob/main/LICENSE)
 
+> Pseudonymize PII / PHI / secrets before they cross the LLM boundary — one `Gaze::clean()` call out, `Gaze::restore()` back, fully reversible owner-side.
+
+```php
+use Naoray\GazeLaravel\Facades\Gaze;
+
+// 1. Strip PII / PHI / secrets before the prompt leaves your app.
+$session = Gaze::clean($request->string('body'));
+
+// 2. Send only pseudonymized text across the model boundary.
+$reply = $llm->complete($session->cleanText);
+
+// 3. Restore the real values owner-side, once the model has replied.
+return Gaze::restore($session, $reply);
+```
+
+**What this gives you:** the model never sees real data, yet your app restores it losslessly — tokens map back through a signed, encrypted-at-rest session blob. Subprocess failures arrive as typed, exit-bucketed exceptions, and the same call runs inside queues and long-lived agent loops, not just a single HTTP request.
+
 Laravel adapter for the [`gaze`](https://github.com/EmpireTwo/gaze) CLI contract.
 
 `gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow for Laravel apps. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
