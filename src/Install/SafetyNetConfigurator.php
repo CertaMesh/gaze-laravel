@@ -21,6 +21,12 @@ final class SafetyNetConfigurator
 {
     public function __construct(private readonly string $envPath) {}
 
+    /** The `.env` path this configurator writes — used by the umbrella to snapshot/rollback. */
+    public function envPath(): string
+    {
+        return $this->envPath;
+    }
+
     /**
      * Build the `.env` pairs for a safety-net backend.
      *

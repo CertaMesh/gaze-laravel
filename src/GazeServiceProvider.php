@@ -12,6 +12,7 @@ use CertaMesh\Gaze\Console\Daemon\DaemonServeCommand;
 use CertaMesh\Gaze\Console\Daemon\DaemonStatusCommand;
 use CertaMesh\Gaze\Console\DoctorCommand;
 use CertaMesh\Gaze\Console\Install\InstallBinaryCommand;
+use CertaMesh\Gaze\Console\Install\InstallCommand;
 use CertaMesh\Gaze\Console\Install\InstallSafetyNetCommand;
 use CertaMesh\Gaze\Console\InstallNerCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyLogsCommand;
@@ -239,6 +240,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 DoctorCommand::class,
                 CanaryCommand::class,
                 BenchCommand::class,
+                InstallCommand::class,
                 InstallBinaryCommand::class,
                 InstallSafetyNetCommand::class,
                 InstallNerCommand::class,
