@@ -132,6 +132,43 @@ composition chain but skips the intermediate `DaemonSession` allocation.
 Prefer this when you have the session id in scope already and don't
 need a long-lived `DaemonSession` handle.
 
+## Session-id is a pseudonym-namespace boundary
+
+> **One session-id per logical isolation boundary — per conversation, per
+> tenant, per trust domain. Never reuse a single shared/global id across
+> independent contexts.**
+
+The `$id` you pass to `Gaze::daemon()->session($id)` /
+`Gaze::daemon()->clean($id, $text)` is an **adopter-supplied string**, and
+it does more than route a request: it keys the pseudonym counter namespace.
+Every span cleaned under the same session-id draws from one shared counter
+pool, so the *same* real value maps to the *same* token across every call
+sharing that id.
+
+That is exactly what you want **inside** one conversation (turn 4 can refer
+to the entity minted in turn 1). It becomes a **linkability bug** the moment
+the id spans contexts that should stay isolated: reuse one id across two
+independent conversations — or two tenants — and their pseudonyms become
+**cross-conversation linkable**. An observer who sees both transcripts can
+re-link `PERSON_1` in conversation A to `PERSON_1` in conversation B. That
+is a GDPR Art. 4(5) pseudonymization failure — data becomes re-linkable
+across contexts it was supposed to be isolated from (upstream #277 / #275).
+
+Rule of thumb:
+
+- **One conversation / thread → one session-id.** Derive it from the
+  conversation primary key, never a constant.
+- **Multi-tenant → fold tenant identity into the id** (e.g.
+  `tenant-{id}:conversation-{id}`) so two tenants can never share a
+  namespace.
+- **Never a global/app-wide constant** like `"default"` or `"gaze"` across
+  unrelated requests.
+
+See the [GDPR adopter guidance](../explanation/gdpr.md) for why
+re-linkability is the central pseudonymization risk, and
+[conversational-loops](./conversational-loops.md) for the sibling
+"never sanitize once, trust forever" sharp edge.
+
 ## Error Variants
 
 `Gaze::daemon()` calls throw an exception family rooted at
@@ -236,7 +273,7 @@ ORDER BY occurred_at DESC;
 ```
 
 The schema is documented in upstream
-[`docs/architecture/daemon-mode.md`](https://github.com/CertaMesh/gaze/blob/main/docs/architecture/daemon-mode.md).
+[`docs/explanation/daemon/daemon-mode.md`](https://github.com/CertaMesh/gaze/blob/main/docs/explanation/daemon/daemon-mode.md).
 
 ## Doctor Probe
 
@@ -296,5 +333,5 @@ No real binary is spawned; the fake handler returns a deterministic
 
 - [Upstream coverage matrix](../reference/upstream-coverage.md) — daemon
   command/flag/exception mapping.
-- [Upstream `gaze daemon` spec](https://github.com/CertaMesh/gaze/blob/main/docs/getting-started/daemon-adapter.md) — JSONL protocol, eviction, graceful shutdown.
+- [Upstream `gaze daemon` spec](https://github.com/CertaMesh/gaze/blob/main/docs/explanation/daemon/daemon-mode.md) — JSONL protocol, eviction, graceful shutdown.
 - [docs/upgrading.md](./upgrading.md) — v0.11.0 upgrade notes.
