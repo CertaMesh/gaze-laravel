@@ -4,7 +4,7 @@ The project compass. Decision tie-breaker when implementation choices fork. Auto
 
 ## Mission
 
-`gaze-laravel` is the **PHP gate of [`gaze`](https://github.com/EmpireTwo/gaze)**. It exposes upstream pseudonymization, audit, proxy, and safety-net capabilities through idiomatic Laravel surfaces — Facade methods, artisan commands, config keys, typed exceptions, queue contracts. Detection, NER, validators, and policy semantics live in the Rust crate; this package never re-implements them. The package's job is to make the upstream CLI contract feel native to a Laravel adopter so PII / PHI / secret pseudonymization for LLM and agent pipelines is one `Gaze::clean()` / `Gaze::restore()` call away.
+`gaze-laravel` is the **PHP gate of [`gaze`](https://github.com/CertaMesh/gaze)**. It exposes upstream pseudonymization, audit, proxy, and safety-net capabilities through idiomatic Laravel surfaces — Facade methods, artisan commands, config keys, typed exceptions, queue contracts. Detection, NER, validators, and policy semantics live in the Rust crate; this package never re-implements them. The package's job is to make the upstream CLI contract feel native to a Laravel adopter so PII / PHI / secret pseudonymization for LLM and agent pipelines is one `Gaze::clean()` / `Gaze::restore()` call away.
 
 ## Target users
 

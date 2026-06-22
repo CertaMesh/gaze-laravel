@@ -2,7 +2,7 @@
 
 Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
-[UPGRADE.md](https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md).
+[UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
 ## v0.10.0 → v0.11.0
 
@@ -186,7 +186,7 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 
 ## v0.6.x → v0.7.0
 
-`gaze-laravel` 0.7.0 pinned the upstream `EmpireTwo/gaze` binary at
+`gaze-laravel` 0.7.0 pinned the upstream `CertaMesh/gaze` binary at
 **v0.7.2** (previously v0.6.6). Adopters who never override
 `GAZE_VERSION` silently jumped across the upstream 0.6 → 0.7 boundary
 on `composer update`.

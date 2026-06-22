@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.9.0.
+Living parity checklist for upstream `CertaMesh/gaze` v0.9.0.
 
 > Adopter usage: [docs/safety-net.md](../how-to/safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](../NORTH_STAR.md) (surface promotion rule).
 

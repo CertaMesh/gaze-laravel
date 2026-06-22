@@ -236,7 +236,7 @@ ORDER BY occurred_at DESC;
 ```
 
 The schema is documented in upstream
-[`docs/architecture/daemon-mode.md`](https://github.com/EmpireTwo/gaze/blob/main/docs/architecture/daemon-mode.md).
+[`docs/architecture/daemon-mode.md`](https://github.com/CertaMesh/gaze/blob/main/docs/architecture/daemon-mode.md).
 
 ## Doctor Probe
 
@@ -296,5 +296,5 @@ No real binary is spawned; the fake handler returns a deterministic
 
 - [Upstream coverage matrix](../reference/upstream-coverage.md) — daemon
   command/flag/exception mapping.
-- [Upstream `gaze daemon` spec](https://github.com/EmpireTwo/gaze/blob/main/docs/getting-started/daemon-adapter.md) — JSONL protocol, eviction, graceful shutdown.
+- [Upstream `gaze daemon` spec](https://github.com/CertaMesh/gaze/blob/main/docs/getting-started/daemon-adapter.md) — JSONL protocol, eviction, graceful shutdown.
 - [docs/upgrading.md](./upgrading.md) — v0.11.0 upgrade notes.
