@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Documentation
+    url: https://github.com/EmpireTwo/gaze-laravel/tree/main/docs
+    about: Read the docs (install, configuration, gaze:doctor) before filing an issue.
   - name: Security vulnerability
     url: https://github.com/EmpireTwo/gaze-laravel/security/advisories/new
     about: Report security issues privately via GitHub Security Advisories.
