@@ -14,7 +14,7 @@ final class BinaryInstaller
     /** Pinned per gaze-laravel release. Bumped intentionally. */
     public const PINNED_VERSION = '0.9.0';
 
-    private const RELEASE_BASE = 'https://github.com/EmpireTwo/gaze/releases/download';
+    private const RELEASE_BASE = 'https://github.com/CertaMesh/gaze/releases/download';
 
     /**
      * Composer script handler kept as a thin shim so root composer.json
@@ -58,7 +58,7 @@ final class BinaryInstaller
 
         if ($target === 'x86_64-apple-darwin') {
             // TODO(gaze-v0.7): mention `cargo install gaze-cli` once published to crates.io.
-            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only on Intel; clone https://github.com/EmpireTwo/gaze and run `cargo install --path crates/gaze-cli`, then set GAZE_BINARY.</error>');
+            $io->writeError('<error>gaze-laravel: pre-built macOS binaries are arm64-only on Intel; clone https://github.com/CertaMesh/gaze and run `cargo install --path crates/gaze-cli`, then set GAZE_BINARY.</error>');
 
             return;
         }
