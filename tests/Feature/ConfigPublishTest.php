@@ -4,6 +4,22 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
 
+it('publishes policy.toml via the gaze-policy tag', function () {
+    $target = base_path('policy.toml');
+    @unlink($target);
+
+    try {
+        Artisan::call('vendor:publish', [
+            '--tag' => 'gaze-policy',
+            '--force' => true,
+        ]);
+
+        expect($target)->toBeFile();
+    } finally {
+        @unlink($target);
+    }
+});
+
 it('publishes config to application config path', function () {
     $target = $this->app->configPath('gaze.php');
     @unlink($target);

@@ -15,17 +15,26 @@ use Illuminate\Contracts\Foundation\Application;
 
 final class InstallNerCommand extends Command
 {
-    protected $signature = 'gaze:install-ner
+    protected $signature = 'gaze:install:ner
         {--variant=int8 : Quantization variant (int8 only in v0)}
         {--dest= : Override destination dir (default: storage/app/gaze-ner/davlan-mbert-ner-hrl-int8)}
         {--locale= : BCP47 locale hint to embed in [ner] block}
         {--update-policy : Write [ner] block to gaze.policy_path}
-        {--force : Confirm install non-interactively and overwrite existing destination/policy}
+        {--force : Confirm install non-interactively AND re-download/overwrite existing destination/policy}
+        {--yes : Confirm a headless install without re-downloading or overwriting (distinct from --force)}
         {--check : Verify existing install without downloading}
         {--dry-run : Preview without writing}
         {--no-progress : Suppress progress output}';
 
-    protected $description = 'Install the pinned ONNX NER model and optionally wire policy.toml.';
+    /**
+     * @var list<string>
+     *
+     * `gaze:install-ner` is the pre-PR-2 name, kept as a deprecated alias so the
+     * rename stays a MINOR change. Prefer the canonical `gaze:install:ner`.
+     */
+    protected $aliases = ['gaze:install-ner'];
+
+    protected $description = 'Install the pinned ONNX NER model and optionally wire policy.toml (legacy alias: gaze:install-ner).';
 
     public function handle(NerInstaller $installer, ConfigRepository $config, Application $app): int
     {
@@ -88,12 +97,16 @@ final class InstallNerCommand extends Command
 
     private function confirmIfNeeded(NerInstallerOptions $options): bool
     {
-        if ((bool) $this->option('force')) {
+        // --yes confirms the install without implying re-download/overwrite;
+        // --force confirms AND re-downloads/overwrites. The umbrella passes the
+        // confirm-only signal so a headless run never re-fetches the 184MB model
+        // or clobbers a hand-edited policy.toml [ner] block.
+        if ((bool) $this->option('force') || (bool) $this->option('yes')) {
             return true;
         }
 
         if (! $this->input->isInteractive()) {
-            $this->error('non-interactive; pass --force to confirm install');
+            $this->error('non-interactive; pass --force or --yes to confirm install');
 
             return false;
         }

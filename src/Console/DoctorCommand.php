@@ -7,6 +7,7 @@ namespace CertaMesh\Gaze\Console;
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Install\KijiArtifacts;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Process\Factory as ProcessFactory;
@@ -234,13 +235,9 @@ final class DoctorCommand extends Command
             return false;
         }
 
-        $required = ['SHA256SUMS', 'labels.json', 'model.onnx', 'tokenizer.json'];
-        $missing = [];
-        foreach ($required as $name) {
-            if (! is_file($dir.'/'.$name)) {
-                $missing[] = $name;
-            }
-        }
+        // Single source of truth shared with gaze:install:safety-net (CB4): the
+        // pre-write gate and this post-write probe validate the same artifacts.
+        $missing = KijiArtifacts::missing($dir);
 
         if ($missing !== []) {
             $this->components->twoColumnDetail(

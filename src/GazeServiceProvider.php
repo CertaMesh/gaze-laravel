@@ -11,6 +11,9 @@ use CertaMesh\Gaze\Console\CheckCommand;
 use CertaMesh\Gaze\Console\Daemon\DaemonServeCommand;
 use CertaMesh\Gaze\Console\Daemon\DaemonStatusCommand;
 use CertaMesh\Gaze\Console\DoctorCommand;
+use CertaMesh\Gaze\Console\Install\InstallBinaryCommand;
+use CertaMesh\Gaze\Console\Install\InstallCommand;
+use CertaMesh\Gaze\Console\Install\InstallSafetyNetCommand;
 use CertaMesh\Gaze\Console\InstallNerCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyLogsCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyRestartCommand;
@@ -22,12 +25,14 @@ use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 use CertaMesh\Gaze\Daemon\DaemonClient;
 use CertaMesh\Gaze\Daemon\DaemonManager;
 use CertaMesh\Gaze\Exceptions\GazeDaemonFeatureUnsupportedException;
+use CertaMesh\Gaze\Install\BinaryDownloader;
 use CertaMesh\Gaze\Install\BinaryInstaller;
 use CertaMesh\Gaze\Install\LaravelNerFetcher;
 use CertaMesh\Gaze\Install\NerFetcher;
 use CertaMesh\Gaze\Install\NerInstaller;
 use CertaMesh\Gaze\Install\NerManifest;
 use CertaMesh\Gaze\Install\PolicyTomlPatcher;
+use CertaMesh\Gaze\Install\SafetyNetConfigurator;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
@@ -43,6 +48,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/gaze.php', 'gaze');
+
+        $this->app->singleton(BinaryDownloader::class);
 
         $this->app->singleton(BinaryResolver::class, function (Application $app): BinaryResolver {
             /** @var ConfigRepository $config */
@@ -173,6 +180,10 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             return new PolicyTomlPatcher(baseDir: $app->basePath());
         });
 
+        $this->app->singleton(SafetyNetConfigurator::class, function (Application $app): SafetyNetConfigurator {
+            return new SafetyNetConfigurator($app->basePath('.env'));
+        });
+
         $this->app->singleton(NerInstaller::class, function (Application $app): NerInstaller {
             return new NerInstaller(
                 fetcher: $app->make(NerFetcher::class),
@@ -229,6 +240,9 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 DoctorCommand::class,
                 CanaryCommand::class,
                 BenchCommand::class,
+                InstallCommand::class,
+                InstallBinaryCommand::class,
+                InstallSafetyNetCommand::class,
                 InstallNerCommand::class,
                 ProxyServeCommand::class,
                 ProxyStartCommand::class,
@@ -248,6 +262,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
     public function provides(): array
     {
         return [
+            BinaryDownloader::class,
             BinaryResolver::class,
             Gaze::class,
             AuditService::class,
@@ -259,6 +274,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             NerManifest::class,
             NerInstaller::class,
             PolicyTomlPatcher::class,
+            SafetyNetConfigurator::class,
             'gaze.encrypter',
         ];
     }
