@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\NerPolicyConflictException;
-use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
+use CertaMesh\Gaze\Install\NerPolicyConflictException;
+use CertaMesh\Gaze\Install\PolicyTomlPatcher;
 
 beforeEach(function () {
     $this->fixtures = __DIR__.'/../../Fixtures/policy';

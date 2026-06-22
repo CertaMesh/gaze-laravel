@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
+use CertaMesh\Gaze\Daemon\CleanResponse;
 
 it('accepts a spec-shaped decoded payload', function () {
     $decoded = [

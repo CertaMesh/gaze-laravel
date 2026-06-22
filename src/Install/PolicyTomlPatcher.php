@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Install;
+namespace CertaMesh\Gaze\Install;
 
 use Yosymfony\Toml\Exception\ParseException;
 use Yosymfony\Toml\Toml;

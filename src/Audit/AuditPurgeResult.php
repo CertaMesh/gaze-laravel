@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Audit;
+namespace CertaMesh\Gaze\Audit;
 
 final readonly class AuditPurgeResult
 {

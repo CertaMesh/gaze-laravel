@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console\Daemon;
+namespace CertaMesh\Gaze\Console\Daemon;
 
+use CertaMesh\Gaze\BinaryResolver;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
-use Naoray\GazeLaravel\BinaryResolver;
 
 /**
  * Base for the gaze:daemon:* artisan wrappers.

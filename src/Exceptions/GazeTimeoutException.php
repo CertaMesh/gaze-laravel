@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Queue\Contracts\RetryableWithAlert;
+use CertaMesh\Gaze\Queue\Contracts\RetryableWithAlert;
 
 class GazeTimeoutException extends GazeInfraException implements RetryableWithAlert {}

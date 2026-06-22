@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\GazeSession;
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\GazeSession;
 
 it('does not serialize plaintext session blobs into the payload', function () {
     $session = new GazeSession(

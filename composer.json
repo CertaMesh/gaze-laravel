@@ -48,25 +48,25 @@
     },
     "autoload": {
         "psr-4": {
-            "Naoray\\GazeLaravel\\": "src/"
+            "CertaMesh\\Gaze\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Naoray\\GazeLaravel\\Tests\\": "tests/"
+            "CertaMesh\\Gaze\\Tests\\": "tests/"
         },
         "files": [
             "tests/Helpers.php"
         ]
     },
     "extra": {
-        "class": "Naoray\\GazeLaravel\\Install\\GazeInstallerPlugin",
+        "class": "CertaMesh\\Gaze\\Install\\GazeInstallerPlugin",
         "branch-alias": {
             "dev-main": "0.x-dev"
         },
         "laravel": {
-            "providers": ["Naoray\\GazeLaravel\\GazeServiceProvider"],
-            "aliases": {"Gaze": "Naoray\\GazeLaravel\\Facades\\Gaze"}
+            "providers": ["CertaMesh\\Gaze\\GazeServiceProvider"],
+            "aliases": {"Gaze": "CertaMesh\\Gaze\\Facades\\Gaze"}
         }
     },
     "type": "composer-plugin",

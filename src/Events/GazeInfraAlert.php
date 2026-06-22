@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Events;
+namespace CertaMesh\Gaze\Events;
 
 final readonly class GazeInfraAlert
 {

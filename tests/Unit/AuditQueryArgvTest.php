@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Audit\QueryBuilder;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Audit\QueryBuilder;
 
 it('forwards --restore-events when onlyRestoreEvents() is set', function () {
     Process::fake([

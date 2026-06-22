@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console\Daemon;
+namespace CertaMesh\Gaze\Console\Daemon;
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Process\InvokedProcess;
 use Illuminate\Process\Factory as ProcessFactory;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 
 /**
  * Foreground `gaze daemon` wrapper, suitable for systemd / supervisord /

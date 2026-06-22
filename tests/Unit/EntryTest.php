@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Entry;
+use CertaMesh\Gaze\Entry;
 
 it('constructs from required upstream fields with nullable family', function () {
     $entry = new Entry(

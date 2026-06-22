@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 
 /**
  * Per-request timeout exceeded for `gaze daemon` JSONL round-trip.

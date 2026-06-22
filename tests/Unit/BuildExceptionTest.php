@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeIoException;
+use CertaMesh\Gaze\Exceptions\GazeSigPipeException;
+use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
-use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
 
 it('maps stderr fixtures into typed exceptions', function () {
     Process::fake([

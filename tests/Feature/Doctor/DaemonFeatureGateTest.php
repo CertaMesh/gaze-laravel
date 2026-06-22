@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\BinaryResolver;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\BinaryResolver;
 
 beforeEach(function () {
     $this->app->instance(

@@ -1,6 +1,6 @@
 # Exception Reference
 
-All exceptions live under `Naoray\GazeLaravel\Exceptions`. They form a typed hierarchy that maps directly to `gaze` binary exit codes and stderr JSON variants.
+All exceptions live under `CertaMesh\Gaze\Exceptions`. They form a typed hierarchy that maps directly to `gaze` binary exit codes and stderr JSON variants.
 
 ## Hierarchy
 
@@ -92,7 +92,7 @@ All exceptions live under `Naoray\GazeLaravel\Exceptions`. They form a typed hie
 ```php
 try {
     $session = Gaze::clean($text);
-} catch (\Naoray\GazeLaravel\Exceptions\GazeException $e) {
+} catch (\CertaMesh\Gaze\Exceptions\GazeException $e) {
     if ($e->isCallerBug()) {
         // Bad input — do not retry; surface to the caller.
         throw new \InvalidArgumentException('Input cannot be processed: '.$e->getMessage(), previous: $e);
@@ -122,7 +122,7 @@ contract break see the version mismatch directly:
 ```php
 try {
     $session = Gaze::clean($text);
-} catch (\Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException $e) {
+} catch (\CertaMesh\Gaze\Exceptions\GazePolicySchemaUnsupportedException $e) {
     report(new \RuntimeException(sprintf(
         'policy.toml schema_version %s is unsupported; binary expects prefix %s',
         $e->found(),
@@ -159,16 +159,16 @@ pinning by adding `schema_version = "0.1"` to the top of `policy.toml`.
 Both implement `RequiresFreshClean`. The `requiresFreshClean(): bool` method returns `true`, which is a signal to your job handler that the session blob is permanently unrecoverable and the only path forward is to re-run `Gaze::clean()` on the original plaintext. The `GazeRetryPolicy` itself does not automate this re-run — your job must implement the re-clean logic:
 
 ```php
-use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
+use CertaMesh\Gaze\Queue\Contracts\RequiresFreshClean;
 
-} catch (\Naoray\GazeLaravel\Exceptions\GazeException $e) {
+} catch (\CertaMesh\Gaze\Exceptions\GazeException $e) {
     if ($e instanceof RequiresFreshClean) {
         // Re-clean from original text and re-enqueue.
         dispatch(new ProcessDocumentJob($this->originalText));
         $this->fail($e);
         return;
     }
-    \Naoray\GazeLaravel\Queue\GazeRetryPolicy::dispatch($e, $this);
+    \CertaMesh\Gaze\Queue\GazeRetryPolicy::dispatch($e, $this);
 }
 ```
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console\Daemon;
+namespace CertaMesh\Gaze\Console\Daemon;
 
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;

@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeBlobExpiredException;
+use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidBlobVersionException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidEncodingException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidSignatureException;
+use CertaMesh\Gaze\Exceptions\GazeIoException;
+use CertaMesh\Gaze\Exceptions\GazePipelineException;
+use CertaMesh\Gaze\Exceptions\GazePolicyConfigDetailException;
+use CertaMesh\Gaze\Exceptions\GazePolicyConfigException;
+use CertaMesh\Gaze\Exceptions\GazePolicyOpenException;
+use CertaMesh\Gaze\Exceptions\GazePolicySchemaUnsupportedException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetArtifactMissingException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Exceptions\GazeSigPipeException;
+use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
+use CertaMesh\Gaze\Exceptions\GazeUnsupportedSessionScopeException;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
+use CertaMesh\Gaze\Queue\Contracts\RequiresFreshClean;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
-use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
-use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazePipelineException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
-use Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetArtifactMissingException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
-use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
-use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
-use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
-use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
 
 /** @param class-string<GazeException> $class */
 it('maps variants to their dedicated exception classes', function (array $payload, string $class) {

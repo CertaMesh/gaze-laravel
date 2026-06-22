@@ -152,7 +152,7 @@ first user request.
 ## Exception handling
 
 SafetyNet failures map onto three typed exceptions. All three sit under the
-`Naoray\GazeLaravel\Exceptions\` namespace and share the
+`CertaMesh\Gaze\Exceptions\` namespace and share the
 `GazeException::toLogContext()` shape.
 
 | Exception | When raised | Exit | Retry policy | Accessors |
@@ -167,9 +167,9 @@ retry / fail / alert lanes:
 ```php
 use Illuminate\Bus\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
-use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Facades\Gaze;
-use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Facades\Gaze;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
 
 final class CleanRequestJob
 {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\NerInstallException;
-use Naoray\GazeLaravel\Install\NerLockHeldException;
-use Naoray\GazeLaravel\Install\NerShaMismatchException;
-use Naoray\GazeLaravel\Install\NerVariantUnknownException;
+use CertaMesh\Gaze\Install\NerInstallException;
+use CertaMesh\Gaze\Install\NerLockHeldException;
+use CertaMesh\Gaze\Install\NerShaMismatchException;
+use CertaMesh\Gaze\Install\NerVariantUnknownException;
 
 it('all NER install exceptions extend NerInstallException', function () {
     expect(is_subclass_of(NerVariantUnknownException::class, NerInstallException::class))->toBeTrue();

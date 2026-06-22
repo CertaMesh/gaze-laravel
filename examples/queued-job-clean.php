@@ -23,12 +23,12 @@ declare(strict_types=1);
 |     PII is never written to the queue.
 */
 
+use CertaMesh\Gaze\Facades\Gaze;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Naoray\GazeLaravel\Facades\Gaze;
 
 final class SummarizeUserNote implements ShouldQueue
 {

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonClient;
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Daemon\DaemonClient;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
 
 it('throws GazeDaemonTransportException on EOF from daemon stdout', function () {
     $stdin = gl_memoryStream();

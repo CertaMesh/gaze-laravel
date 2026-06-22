@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\BinaryInstaller;
+use CertaMesh\Gaze\Install\BinaryInstaller;
 use Symfony\Component\Process\Process;
 
 const HELP_SNAPSHOTS = [

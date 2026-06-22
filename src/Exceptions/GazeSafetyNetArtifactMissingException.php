@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
-use Naoray\GazeLaravel\Variant;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
+use CertaMesh\Gaze\Variant;
 
 /**
  * Pinned-artifact contract violation: a safety-net backend was requested but

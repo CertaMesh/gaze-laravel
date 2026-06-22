@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Queue;
+namespace CertaMesh\Gaze\Queue;
 
+use CertaMesh\Gaze\Events\GazeInfraAlert;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
+use CertaMesh\Gaze\Queue\Contracts\Retryable;
+use CertaMesh\Gaze\Queue\Contracts\RetryableWithAlert;
 use Illuminate\Support\Facades\Event;
-use Naoray\GazeLaravel\Events\GazeInfraAlert;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
-use Naoray\GazeLaravel\Queue\Contracts\Retryable;
-use Naoray\GazeLaravel\Queue\Contracts\RetryableWithAlert;
 
 final class GazeRetryPolicy
 {

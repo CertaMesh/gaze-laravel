@@ -8,8 +8,8 @@ Consumer jobs must `use Queueable, InteractsWithQueue` traits.
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
 
 class DraftReplyJob implements ShouldQueue
 {

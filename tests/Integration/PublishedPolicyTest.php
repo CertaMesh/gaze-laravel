@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Gaze;
+use CertaMesh\Gaze\Gaze;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 
 beforeEach(function () {
     $this->tmpDir = sys_get_temp_dir().'/gaze-laravel-'.bin2hex(random_bytes(6));

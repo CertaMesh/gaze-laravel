@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Install;
+namespace CertaMesh\Gaze\Install;
 
-use Naoray\GazeLaravel\Install\Lock\LockGuard;
+use CertaMesh\Gaze\Install\Lock\LockGuard;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 

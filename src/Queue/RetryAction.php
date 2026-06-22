@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Queue;
+namespace CertaMesh\Gaze\Queue;
 
 enum RetryAction
 {

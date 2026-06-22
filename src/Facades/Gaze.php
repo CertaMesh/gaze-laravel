@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Facades;
+namespace CertaMesh\Gaze\Facades;
 
 use Carbon\CarbonInterface;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\Gaze as GazeService;
+use CertaMesh\Gaze\GazeSession;
+use CertaMesh\Gaze\Testing\FakeGaze;
 use Illuminate\Support\Facades\Facade;
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\Gaze as GazeService;
-use Naoray\GazeLaravel\GazeSession;
-use Naoray\GazeLaravel\Testing\FakeGaze;
 use PHPUnit\Framework\Assert as PHPUnit;
 
 /**
- * @method static \Naoray\GazeLaravel\GazeSession clean(string $text)
- * @method static string restore(\Naoray\GazeLaravel\GazeSession $session, string $text)
- * @method static \Naoray\GazeLaravel\Audit\AuditService audit(?string $auditDbPath = null)
- * @method static \Naoray\GazeLaravel\Daemon\DaemonManager daemon()
+ * @method static \CertaMesh\Gaze\GazeSession clean(string $text)
+ * @method static string restore(\CertaMesh\Gaze\GazeSession $session, string $text)
+ * @method static \CertaMesh\Gaze\Audit\AuditService audit(?string $auditDbPath = null)
+ * @method static \CertaMesh\Gaze\Daemon\DaemonManager daemon()
  *
  * @see GazeService
  */

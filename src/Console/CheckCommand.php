@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console;
+namespace CertaMesh\Gaze\Console;
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Process\Factory as ProcessFactory;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 
 final class CheckCommand extends Command
 {

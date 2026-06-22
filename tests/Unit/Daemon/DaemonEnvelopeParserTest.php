@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\Daemon\DaemonEnvelopeParser;
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTimeoutException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\Daemon\DaemonEnvelopeParser;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
 
 it('returns CleanResponse for success envelopes', function () {
     $line = gl_jsonEncode([

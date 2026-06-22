@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Install\BinaryInstaller;
 use Composer\IO\BufferIO;
-use Naoray\GazeLaravel\Install\BinaryInstaller;
 
 beforeEach(function () {
     $this->tmpDir = sys_get_temp_dir().'/gaze-laravel-installer-'.bin2hex(random_bytes(6));

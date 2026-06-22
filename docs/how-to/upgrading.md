@@ -34,7 +34,7 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
    `restore_policy`, `restore_decision`, `restore_unknown_token_count`,
    `restore_manifest_bypass_count`, `restore_fresh_pii_count`,
    `restore_phase_mask`. Query restore-only rows with
-   `Naoray\GazeLaravel\Audit\QueryBuilder::onlyRestoreEvents()` (forwards
+   `CertaMesh\Gaze\Audit\QueryBuilder::onlyRestoreEvents()` (forwards
    `--restore-events`). Default `null` = off = upstream default (no telemetry).
 4. **Telemetry caveat — audit trail, NOT DLP.** `restore_fresh_pii_count` and
    `restore_manifest_bypass_count` are **always `0`** through the stock CLI:

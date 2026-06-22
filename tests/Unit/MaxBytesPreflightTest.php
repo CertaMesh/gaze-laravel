@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeInputTooLargeException;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Exceptions\GazeInputTooLargeException;
 
 it('throws before forking when input exceeds max bytes', function () {
     Process::fake();

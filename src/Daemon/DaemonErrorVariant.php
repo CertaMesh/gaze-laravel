@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Daemon;
+namespace CertaMesh\Gaze\Daemon;
 
 /**
  * Wire-error taxonomy for `gaze daemon` JSONL responses.

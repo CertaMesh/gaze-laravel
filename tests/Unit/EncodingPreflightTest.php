@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeInvalidEncodingException;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
 
 it('throws before forking on invalid utf-8 input', function () {
     Process::fake();
