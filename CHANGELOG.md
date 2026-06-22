@@ -37,6 +37,12 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Fixed
 
+- Correct the stale `gaze:doctor` core-extended deprecation notice. It
+  claimed "Removal target: v0.10.0", but upstream never removed the pack —
+  it still soft-aliases `core-extended` → `core` with a runtime warning
+  through v0.11.x. Message now states removal is deferred. Probe severity
+  is unchanged (still a warning, not an error).
+
 ### Security
 
 - Repoint the pinned upstream `gaze` binary download base and the NER
