@@ -2,6 +2,8 @@
 
 [![Latest Stable Version](https://img.shields.io/packagist/v/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
 [![Total Downloads](https://img.shields.io/packagist/dt/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
+![PHP Version](https://img.shields.io/badge/PHP-%5E8.2-777BB4?style=flat-square&logo=php&logoColor=white)
+![Laravel Version](https://img.shields.io/badge/Laravel-11%20%7C%7C%2012-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 [![Tests](https://img.shields.io/github/actions/workflow/status/EmpireTwo/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/actions/workflows/test.yml)
 [![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/EmpireTwo/gaze-laravel/blob/main/LICENSE)
 
@@ -119,6 +121,17 @@ and parsing the binary snapshot header by hand.
 See [Exceptions](./docs/exceptions.md) for the exit bucket and typed exception reference.
 
 See [Testing](./docs/testing.md) for fakes, assertions, and integration-test setup.
+
+## How is this different from regex / generic anonymization libraries?
+
+| | Regex / generic anonymization libs | `gaze-laravel` |
+| --- | --- | --- |
+| **Detection** | Hand-maintained PHP regex, usually English-centric | Upstream Rust `gaze` — NER + validated rulepacks + locale packs, never re-implemented in PHP |
+| **Reversibility** | One-way redaction; the original is gone | Tokens map back owner-side through a signed, encrypted-at-rest session blob |
+| **Failures** | Generic exceptions or silent pass-through | Typed exceptions bucketed by exit class (caller / config / integrity / infra) |
+| **Runtime fit** | Built for a single HTTP request | Queue-aware, with a long-lived daemon for multi-turn agent loops |
+
+**Not what you're after?** This is *not* in-process PHP detection — the Rust crate is the source of truth — and *not* a generic subprocess wrapper; it is specific to `gaze`. See the [North Star non-goals](./docs/NORTH_STAR.md#non-goals).
 
 ## Advanced
 
