@@ -1,0 +1,68 @@
+name: "📦 Binary install / platform issue"
+description: "Report trouble installing or locating the gaze Rust binary"
+title: "[binary-install]: "
+labels: ["binary-install"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pre-built binaries cover **Linux x86_64** and **macOS arm64**. Other targets build from source.
+        Run `php artisan gaze:doctor` first — it surfaces binary/pin gaps and is the fastest way to diagnose.
+  - type: dropdown
+    id: os_arch
+    attributes:
+      label: OS / architecture
+      description: Which platform are you installing on?
+      options:
+        - Linux x86_64
+        - macOS arm64
+        - Other (build from source)
+    validations:
+      required: true
+  - type: input
+    id: binary_version
+    attributes:
+      label: gaze binary version / pin
+      description: The gaze binary version or pin you are trying to install (e.g. v0.9.0).
+    validations:
+      required: true
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Install method
+      description: How is the binary being provisioned?
+      options:
+        - composer plugin auto-install
+        - manual / GAZE_BINARY env
+    validations:
+      required: true
+  - type: input
+    id: gaze_binary_env
+    attributes:
+      label: GAZE_BINARY value (if set)
+      description: The path in your GAZE_BINARY env var, if you set one. Leave blank if unset.
+    validations:
+      required: false
+  - type: textarea
+    id: doctor_output
+    attributes:
+      label: "`php artisan gaze:doctor` output"
+      description: Paste the full output of `php artisan gaze:doctor`.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: error_output
+    attributes:
+      label: Error output / what failed
+      description: Paste the error output or describe what failed during install.
+      render: shell
+    validations:
+      required: true
+  - type: checkboxes
+    id: existing
+    attributes:
+      label: Existing issues
+      options:
+        - label: Have you checked existing issues?
+          required: true
