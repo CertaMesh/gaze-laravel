@@ -1,13 +1,13 @@
 {
     "name": "empiretwo/gaze-laravel",
-    "description": "Laravel adapter for the Gaze PII sanitization binary.",
+    "description": "Redact PII, PHI & secrets before they reach OpenAI/Anthropic/Gemini — one Gaze::clean()/Gaze::restore() call. Reversible, signed-encrypted pseudonymization for Laravel LLM & agent pipelines (GDPR/EU AI Act).",
     "license": "Apache-2.0",
-    "keywords": ["laravel", "gdpr", "pii", "anonymization", "pseudonymization", "privacy", "redaction", "llm", "ai"],
-    "homepage": "https://github.com/EmpireTwo/gaze-laravel",
+    "keywords": ["laravel", "gdpr", "pii", "anonymization", "pseudonymization", "privacy", "redaction", "llm", "ai", "phi", "secrets", "openai", "anthropic", "gemini", "dlp", "compliance", "eu-ai-act", "agents"],
+    "homepage": "https://github.com/CertaMesh/gaze-laravel",
     "support": {
-        "issues": "https://github.com/EmpireTwo/gaze-laravel/issues",
-        "source": "https://github.com/EmpireTwo/gaze-laravel",
-        "docs": "https://github.com/EmpireTwo/gaze-laravel/blob/main/docs"
+        "issues": "https://github.com/CertaMesh/gaze-laravel/issues",
+        "source": "https://github.com/CertaMesh/gaze-laravel",
+        "docs": "https://github.com/CertaMesh/gaze-laravel/blob/main/docs"
     },
     "authors": [
         {
@@ -21,7 +21,7 @@
         },
         {
             "name": "The Gaze Contributors",
-            "homepage": "https://github.com/EmpireTwo/gaze-laravel/graphs/contributors"
+            "homepage": "https://github.com/CertaMesh/gaze-laravel/graphs/contributors"
         }
     ],
     "require": {
