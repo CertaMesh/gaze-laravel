@@ -145,7 +145,7 @@ Run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / A
 
 ### JSONL stdio daemon — agent loops & worker queues
 
-Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/how-to/proxy-daemon.md`](./docs/how-to/proxy-daemon.md)):
+Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/how-to/daemon.md`](./docs/how-to/daemon.md)):
 
 ```php
 use Naoray\GazeLaravel\Facades\Gaze;
@@ -178,6 +178,7 @@ Opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `g
 - [Diagnostics](./docs/reference/diagnostics.md)
 - [Exceptions](./docs/reference/exceptions.md)
 - [Proxy daemon](./docs/how-to/proxy-daemon.md)
+- [Daemon (JSONL stdio)](./docs/how-to/daemon.md)
 - [SafetyNet (OPF + Kiji)](./docs/how-to/safety-net.md)
 - [Queue integration](./docs/how-to/queue-integration.md)
 - [Security model](./docs/explanation/security.md)
