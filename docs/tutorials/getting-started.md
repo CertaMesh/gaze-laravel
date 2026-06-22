@@ -8,11 +8,12 @@ For the full API reference see [README.md](../../README.md).
 
 ```bash
 composer require empiretwo/gaze-laravel
-php artisan vendor:publish --tag=gaze-config
-php artisan vendor:publish --tag=gaze-policy
+php artisan gaze:install
 ```
 
-The Composer plugin will prompt you to allow downloading the `gaze` binary into `vendor/bin/`. Press `y`.
+`gaze:install` is the canonical setup path — it downloads the `gaze` binary,
+publishes the config, writes a default `policy.toml`, and finishes on a
+`gaze:doctor` green-check. It is idempotent, so it's safe to re-run.
 
 ## 2. Configure
 
