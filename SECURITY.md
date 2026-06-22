@@ -14,7 +14,7 @@ Report vulnerabilities privately through GitHub Security Advisories:
 https://github.com/CertaMesh/gaze-laravel/security/advisories/new
 
 This opens a private channel between the reporter and maintainers. If GitHub
-Advisories is not suitable, email security@empiretwo.dev instead.
+Advisories is not suitable, email security@certamesh.com instead.
 
 Do not report vulnerabilities in public issues or pull requests. Public
 vulnerability reports will be removed, and reporters will be asked to use the
