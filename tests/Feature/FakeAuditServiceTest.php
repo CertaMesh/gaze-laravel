@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Carbon\Carbon;
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Facades\Gaze;
 use PHPUnit\Framework\AssertionFailedError;
 
 it('records audit purge calls and supports Carbon matcher assertions', function () {

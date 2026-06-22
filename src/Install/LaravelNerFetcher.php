@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Install;
+namespace CertaMesh\Gaze\Install;
 
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\HttpClient\Response\StreamableInterface;

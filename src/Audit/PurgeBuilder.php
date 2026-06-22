@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Audit;
+namespace CertaMesh\Gaze\Audit;
 
 use Carbon\CarbonInterface;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Gaze;
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Gaze;
 
 class PurgeBuilder
 {

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Facades\Gaze;
-use Naoray\GazeLaravel\Gaze as GazeService;
-use Naoray\GazeLaravel\Testing\FakeGaze;
+use CertaMesh\Gaze\Facades\Gaze;
+use CertaMesh\Gaze\Gaze as GazeService;
+use CertaMesh\Gaze\Testing\FakeGaze;
 
 it('swaps the bound service for a fake', function () {
     $fake = Gaze::fake();

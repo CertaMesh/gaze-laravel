@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Variant;
+use CertaMesh\Gaze\Variant;
 
 it('parses known stderr variants', function (Variant $expected) {
     $stderr = json_encode([

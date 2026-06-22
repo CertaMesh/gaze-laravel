@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Daemon;
+namespace CertaMesh\Gaze\Daemon;
 
-use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTimeoutException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
 
 /**
  * Maps one JSONL response line to either a `CleanResponse` (success) or

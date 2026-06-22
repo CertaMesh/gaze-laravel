@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\Testing\FakeDaemonManager;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\Testing\FakeDaemonManager;
 
 it('records every clean call with session id and text', function () {
     $manager = new FakeDaemonManager;

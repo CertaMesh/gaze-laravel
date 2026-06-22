@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
-use Naoray\GazeLaravel\Variant;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
+use CertaMesh\Gaze\Variant;
 
 final class GazeUnsupportedSessionScopeException extends GazeIntegrityException implements NonRetryable
 {

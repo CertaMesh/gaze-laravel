@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonClient;
-use Naoray\GazeLaravel\Daemon\DaemonSession;
+use CertaMesh\Gaze\Daemon\DaemonClient;
+use CertaMesh\Gaze\Daemon\DaemonSession;
 
 /**
  * Concurrency contract — two fibers, two session ids, one shared client.

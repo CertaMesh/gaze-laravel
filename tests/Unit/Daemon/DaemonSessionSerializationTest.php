@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonClient;
-use Naoray\GazeLaravel\Daemon\DaemonSession;
+use CertaMesh\Gaze\Daemon\DaemonClient;
+use CertaMesh\Gaze\Daemon\DaemonSession;
 
 it('throws when an adopter tries to serialize a DaemonSession', function () {
     $stdin = gl_memoryStream();
@@ -16,7 +16,7 @@ it('throws when an adopter tries to serialize a DaemonSession', function () {
 
 it('throws when an adopter tries to unserialize a DaemonSession payload', function () {
     // Build a synthetic serialize() payload (manual, since we cannot use serialize() here).
-    $payload = 'O:39:"Naoray\\GazeLaravel\\Daemon\\DaemonSession":0:{}';
+    $payload = 'O:35:"CertaMesh\\Gaze\\Daemon\\DaemonSession":0:{}';
 
     expect(fn () => unserialize($payload))->toThrow(LogicException::class);
 });

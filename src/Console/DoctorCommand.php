@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console;
+namespace CertaMesh\Gaze\Console;
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
+use CertaMesh\Gaze\Gaze;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Process\Factory as ProcessFactory;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
-use Naoray\GazeLaravel\Gaze;
 use Yosymfony\Toml\Toml;
 
 final class DoctorCommand extends Command

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Entry;
+use CertaMesh\Gaze\GazeSession;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Entry;
-use Naoray\GazeLaravel\GazeSession;
 
 it('exposes entries from the gaze clean response JSON', function () {
     Process::fake([

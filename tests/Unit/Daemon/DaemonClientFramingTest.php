@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonClient;
+use CertaMesh\Gaze\Daemon\DaemonClient;
 
 it('frames one JSON request + newline and decodes one response', function () {
     $stdin = gl_memoryStream();

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Variant;
+use CertaMesh\Gaze\Variant;
 
 /**
  * Source-of-truth fixture mirrored from upstream `crates/gaze-cli/src/error.rs`

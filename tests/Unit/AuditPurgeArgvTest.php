@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Carbon\Carbon;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
 
 it('assembles audit purge --dry-run argv with ISO8601 string before', function () {
     Process::fake([

@@ -8,8 +8,8 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.11.1.
 
 | Upstream command | Laravel surface |
 |---|---|
-| `gaze clean` | `Naoray\GazeLaravel\Gaze::clean()` |
-| `gaze restore` | `Naoray\GazeLaravel\Gaze::restore()` |
+| `gaze clean` | `CertaMesh\Gaze\Gaze::clean()` |
+| `gaze restore` | `CertaMesh\Gaze\Gaze::restore()` |
 | `gaze audit query` | `Gaze::audit()->query()` |
 | `gaze audit purge` | `Gaze::audit()->purge()` |
 
@@ -245,7 +245,7 @@ NORTH_STAR §6).
 |---|---|
 | Config / env | `gaze.restore_telemetry` / `GAZE_RESTORE_TELEMETRY` — default `null` (off) |
 | `Gaze::restore()` | When enabled, forwards `--telemetry --audit-db=<gaze.audit_db_path>` |
-| `Naoray\GazeLaravel\Audit\QueryBuilder::onlyRestoreEvents()` | Forwards `--restore-events` to scope an audit query to restore rows |
+| `CertaMesh\Gaze\Audit\QueryBuilder::onlyRestoreEvents()` | Forwards `--restore-events` to scope an audit query to restore rows |
 | `--policy` restore alias | Redundant with the already-forwarded `--restore-mode`; **document-only, NO new Laravel surface** |
 
 Six new audit columns surface through `Audit\QueryBuilder`, indexed by

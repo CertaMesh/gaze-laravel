@@ -4,6 +4,13 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ## [Unreleased]
 
+### Changed (BREAKING)
+
+- Root namespace renamed `Naoray\GazeLaravel` → `CertaMesh\Gaze`. Migration:
+  replace `use Naoray\GazeLaravel\…;` with `use CertaMesh\Gaze\…;`. The `Gaze`
+  facade alias and the Packagist package name `empiretwo/gaze-laravel` are
+  unchanged.
+
 ### Added
 
 - Laravel 13 support (MINOR). `^13.0` added to all `illuminate/*` constraints;
@@ -20,7 +27,7 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
     `--audit-db=<gaze.audit_db_path>` when that path is set (telemetry with no
     audit-db path still forwards `--telemetry` so the binary uses its default
     sink). Wire shape is byte-identical when the key is null/false.
-  - `Naoray\GazeLaravel\Audit\QueryBuilder::onlyRestoreEvents()` — fluent filter
+  - `CertaMesh\Gaze\Audit\QueryBuilder::onlyRestoreEvents()` — fluent filter
     forwarding `--restore-events` to `gaze audit query`.
   - `gaze:doctor` probe for restore-telemetry audit-db writability: skipped
     silently when off; warns (never hard-fails) when on but `gaze.audit_db_path`

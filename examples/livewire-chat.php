@@ -25,8 +25,8 @@ declare(strict_types=1);
 |     daemon for a stable per-conversation token namespace (see docs/).
 */
 
+use CertaMesh\Gaze\Facades\Gaze;
 use Livewire\Component;
-use Naoray\GazeLaravel\Facades\Gaze;
 
 class GazeChat extends Component
 {

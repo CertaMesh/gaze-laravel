@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
-use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazePipelineException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
-use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
-use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
-use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
-use Naoray\GazeLaravel\Queue\RetryAction;
+use CertaMesh\Gaze\Exceptions\GazeBlobExpiredException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidBlobVersionException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidSignatureException;
+use CertaMesh\Gaze\Exceptions\GazeIoException;
+use CertaMesh\Gaze\Exceptions\GazePipelineException;
+use CertaMesh\Gaze\Exceptions\GazePolicyOpenException;
+use CertaMesh\Gaze\Exceptions\GazeSigPipeException;
+use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Queue\RetryAction;
 
 it('classifies retryable infra failures with alerting', function () {
     expect(GazeRetryPolicy::classify(new GazeIoException('io', 4, hash('sha256', ''))))

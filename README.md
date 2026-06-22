@@ -10,7 +10,7 @@
 > Pseudonymize PII / PHI / secrets before they cross the LLM boundary — one `Gaze::clean()` call out, `Gaze::restore()` back, fully reversible owner-side.
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 // 1. Strip PII / PHI / secrets before the prompt leaves your app.
 $session = Gaze::clean($request->string('body'));
@@ -57,7 +57,7 @@ php artisan vendor:publish --tag=gaze-config
 php artisan vendor:publish --tag=gaze-policy
 ```
 
-The package ships as a Composer plugin (`Naoray\GazeLaravel\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself.
+The package ships as a Composer plugin (`CertaMesh\Gaze\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself.
 
 > **Non-interactive (CI) installs:** Composer 2.2+ requires plugins be allow-listed before
 > they execute. Add this once before installing in CI:
@@ -89,7 +89,7 @@ See [Configuration](./docs/reference/configuration.md) for the full env var + co
 ## Usage
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 $session = Gaze::clean($request->string('body'));
 $reply   = $llm->complete($session->cleanText);
@@ -148,7 +148,7 @@ Run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / A
 Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/how-to/daemon.md`](./docs/how-to/daemon.md)):
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 // Composition (fluent sugar)
 $session = Gaze::daemon()->session('agent-thread-a');

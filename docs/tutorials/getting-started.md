@@ -26,7 +26,7 @@ GAZE_POLICY_PATH=/absolute/path/to/policy.toml
 ## 3. First clean/restore cycle
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 class EmailDraftController extends Controller
 {
@@ -58,7 +58,7 @@ class EmailDraftController extends Controller
 ## 4. Test with fakes
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 it('strips PII and restores the draft', function () {
     Gaze::fake();

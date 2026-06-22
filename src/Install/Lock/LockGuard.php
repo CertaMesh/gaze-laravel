@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Install\Lock;
+namespace CertaMesh\Gaze\Install\Lock;
 
-use Naoray\GazeLaravel\Install\NerLockHeldException;
-use Naoray\GazeLaravel\Install\NerTransportException;
+use CertaMesh\Gaze\Install\NerLockHeldException;
+use CertaMesh\Gaze\Install\NerTransportException;
 
 final class LockGuard
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\EncryptedBlob;
+use CertaMesh\Gaze\EncryptedBlob;
 
 it('wraps and decrypts the blob', function () {
     $blob = EncryptedBlob::wrap('secret-session-blob');

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
-use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
-use Naoray\GazeLaravel\Variant;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
+use CertaMesh\Gaze\Queue\Contracts\RequiresFreshClean;
+use CertaMesh\Gaze\Variant;
 
 final class GazeInvalidBlobVersionException extends GazeIntegrityException implements NonRetryable, RequiresFreshClean
 {

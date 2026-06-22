@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console\Proxy;
+namespace CertaMesh\Gaze\Console\Proxy;
 
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 

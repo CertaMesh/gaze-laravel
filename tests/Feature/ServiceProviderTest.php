@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Facades\Gaze as GazeFacade;
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Install\LaravelNerFetcher;
-use Naoray\GazeLaravel\Install\NerFetcher;
-use Naoray\GazeLaravel\Install\NerInstaller;
-use Naoray\GazeLaravel\Install\NerManifest;
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Facades\Gaze as GazeFacade;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Install\LaravelNerFetcher;
+use CertaMesh\Gaze\Install\NerFetcher;
+use CertaMesh\Gaze\Install\NerInstaller;
+use CertaMesh\Gaze\Install\NerManifest;
 
 it('resolves Gaze as a singleton', function () {
     $a = $this->app->make(Gaze::class);

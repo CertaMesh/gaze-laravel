@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\Lock\LockGuard;
-use Naoray\GazeLaravel\Install\NerLockHeldException;
+use CertaMesh\Gaze\Install\Lock\LockGuard;
+use CertaMesh\Gaze\Install\NerLockHeldException;
 
 beforeEach(function () {
     $this->tmp = sys_get_temp_dir().'/gaze-lock-'.bin2hex(random_bytes(6));

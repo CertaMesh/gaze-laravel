@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
-use Naoray\GazeLaravel\Gaze;
+use CertaMesh\Gaze\Exceptions\GazeBlobExpiredException;
+use CertaMesh\Gaze\Gaze;
 
 beforeEach(function () {
     $binary = getenv('GAZE_BINARY');

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Install\GazeInstallerPlugin;
 use Composer\Composer;
 use Composer\Config;
 use Composer\DependencyResolver\Operation\InstallOperation;
@@ -16,7 +17,6 @@ use Composer\IO\IOInterface;
 use Composer\Package\Package;
 use Composer\Plugin\PluginInterface;
 use Composer\Repository\ArrayRepository;
-use Naoray\GazeLaravel\Install\GazeInstallerPlugin;
 use Symfony\Component\Console\Output\OutputInterface;
 
 beforeEach(function () {

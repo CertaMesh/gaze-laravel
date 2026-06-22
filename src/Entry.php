@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel;
+namespace CertaMesh\Gaze;
 
 /**
  * Per-rule detection entry surfaced from the upstream gaze CLI session.

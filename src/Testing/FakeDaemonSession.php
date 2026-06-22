@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Testing;
+namespace CertaMesh\Gaze\Testing;
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\Daemon\DaemonSession;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\Daemon\DaemonSession;
 
 /**
  * Fake DaemonSession used by `Gaze::fake()` so adopter test code can

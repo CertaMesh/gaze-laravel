@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonClient;
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTimeoutException;
+use CertaMesh\Gaze\Daemon\DaemonClient;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
 
 it('throws GazeDaemonTimeoutException when stdout produces no line in time', function () {
     $stdin = gl_memoryStream();

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\LaravelNerFetcher;
-use Naoray\GazeLaravel\Install\NerArtifactSet;
-use Naoray\GazeLaravel\Install\NerShaMismatchException;
-use Naoray\GazeLaravel\Install\NerTransportException;
+use CertaMesh\Gaze\Install\LaravelNerFetcher;
+use CertaMesh\Gaze\Install\NerArtifactSet;
+use CertaMesh\Gaze\Install\NerShaMismatchException;
+use CertaMesh\Gaze\Install\NerTransportException;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;

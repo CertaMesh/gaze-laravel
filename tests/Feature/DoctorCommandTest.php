@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\GazeSession;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\GazeSession;
 
 it('reports doctor readiness without deep round-trip', function () {
     $this->app->instance(

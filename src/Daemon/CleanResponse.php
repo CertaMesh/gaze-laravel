@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Daemon;
+namespace CertaMesh\Gaze\Daemon;
 
 /**
  * Decoded daemon-success envelope.

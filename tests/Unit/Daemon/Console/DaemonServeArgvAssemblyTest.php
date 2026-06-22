@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Console\Daemon\DaemonServeCommand;
 use Illuminate\Config\Repository as ConfigRepository;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Console\Daemon\DaemonServeCommand;
 
 /**
  * @param  array<string, mixed>  $daemon

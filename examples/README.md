@@ -23,7 +23,7 @@ Laravel app (e.g. `php artisan tinker`, a route, a queued job, or a Livewire
 component) rather than as bare `php file.php` scripts.
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 $session = Gaze::clean($prompt);          // -> GazeSession
 $reply   = yourLlm($session->cleanText);  // only cleanText leaves your server

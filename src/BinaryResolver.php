@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel;
+namespace CertaMesh\Gaze;
 
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use Symfony\Component\Process\ExecutableFinder;
 
 final class BinaryResolver

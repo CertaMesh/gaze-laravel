@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console\Proxy;
+namespace CertaMesh\Gaze\Console\Proxy;
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Process\Factory as ProcessFactory;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 
 /**
  * Base class for the gaze:proxy:* artisan wrappers.

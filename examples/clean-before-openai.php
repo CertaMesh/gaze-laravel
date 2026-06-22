@@ -21,7 +21,7 @@ declare(strict_types=1);
 | exposes it through Laravel surfaces. A real round-trip needs the binary.
 */
 
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 // A real provider call would go here. We never send raw PII — only the
 // already-pseudonymized $clean text reaches this boundary. The reply quotes
@@ -33,7 +33,7 @@ function fakeOpenAi(string $clean): string
 
 $prompt = 'Email Jane Doe at jane.doe@example.com and confirm her SSN 123-45-6789 is on file.';
 
-$session = Gaze::clean($prompt);            // -> Naoray\GazeLaravel\GazeSession
+$session = Gaze::clean($prompt);            // -> CertaMesh\Gaze\GazeSession
 $reply = fakeOpenAi($session->cleanText);   // only cleanText crosses the boundary
 $final = Gaze::restore($session, $reply);   // owner-side: tokens -> real values
 

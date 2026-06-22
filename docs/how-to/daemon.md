@@ -105,7 +105,7 @@ Two entry shapes — pick the one that matches your call site.
 ### Composition (fluent sugar)
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 $session = Gaze::daemon()->session('agent-thread-a');
 
@@ -122,7 +122,7 @@ lookups in an agent loop are allocation-free.
 ### Direct hot path (P5 agentic preservation)
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 $response = Gaze::daemon()->clean('agent-thread-a', $turn->text);
 ```
@@ -189,10 +189,10 @@ in `DaemonErrorVariant::Unknown` and would otherwise raise an unhandled
 | `Unknown` | forward-compat | `GazeDaemonException` | New upstream variant; doctor logs an adopter warning when it appears on `gaze daemon --help`. |
 
 ```php
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTimeoutException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
 
 try {
     $response = Gaze::daemon()->clean($sessionId, $text);
@@ -295,7 +295,7 @@ probe:
 `Gaze::fake()` extends to cover daemon calls:
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 Gaze::fake();
 

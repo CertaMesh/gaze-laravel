@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 use PHPUnit\Framework\AssertionFailedError;
 
 it('passes assertDaemonCleaned when a daemon call ran', function () {

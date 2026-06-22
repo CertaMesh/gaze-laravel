@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 
 /**
  * Upstream binary lacks the `daemon` subcommand.

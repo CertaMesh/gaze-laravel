@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Daemon;
+namespace CertaMesh\Gaze\Daemon;
 
-use Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract;
+use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 
 /**
  * Bound (sessionId, client) pair used by the composition Facade chain:

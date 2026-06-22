@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract;
-use Naoray\GazeLaravel\Daemon\DaemonManager;
-use Naoray\GazeLaravel\Daemon\DaemonSession;
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
+use CertaMesh\Gaze\Daemon\DaemonManager;
+use CertaMesh\Gaze\Daemon\DaemonSession;
+use CertaMesh\Gaze\Facades\Gaze;
 
 beforeEach(function () {
     $this->fakeClient = new class implements DaemonClientContract

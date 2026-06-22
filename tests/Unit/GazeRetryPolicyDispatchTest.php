@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Events\GazeInfraAlert;
+use CertaMesh\Gaze\Exceptions\GazeIoException;
+use CertaMesh\Gaze\Exceptions\GazePipelineException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
+use CertaMesh\Gaze\Exceptions\GazeUnsupportedSessionScopeException;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Queue\RetryAction;
 use Illuminate\Support\Facades\Event;
-use Naoray\GazeLaravel\Events\GazeInfraAlert;
-use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazePipelineException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
-use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
-use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
-use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
-use Naoray\GazeLaravel\Queue\RetryAction;
 
 it('fails non-retryable exceptions immediately', function () {
     $job = new class

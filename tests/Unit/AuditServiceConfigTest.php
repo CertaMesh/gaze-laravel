@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Audit\AuditService;
+use CertaMesh\Gaze\Exceptions\GazeAuditDbNotConfiguredException;
+use CertaMesh\Gaze\Exceptions\GazeCallerBugException;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Audit\AuditService;
-use Naoray\GazeLaravel\Exceptions\GazeAuditDbNotConfiguredException;
-use Naoray\GazeLaravel\Exceptions\GazeCallerBugException;
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
 
 it('throws GazeAuditDbNotConfiguredException when audit_db_path is null and no override', function () {
     $gaze = $this->makeGaze();

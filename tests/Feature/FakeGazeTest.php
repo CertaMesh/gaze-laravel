@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\Testing\FakeGaze;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Testing\FakeGaze;
 
 it('satisfies the Gaze type hint', function () {
     $fake = new FakeGaze;

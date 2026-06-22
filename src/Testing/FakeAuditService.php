@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Testing;
+namespace CertaMesh\Gaze\Testing;
 
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
-use Naoray\GazeLaravel\Audit\AuditService;
-use Naoray\GazeLaravel\Audit\PurgeBuilder;
-use Naoray\GazeLaravel\Audit\QueryBuilder;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Audit\AuditService;
+use CertaMesh\Gaze\Audit\PurgeBuilder;
+use CertaMesh\Gaze\Audit\QueryBuilder;
 
 final class FakeAuditService extends AuditService
 {

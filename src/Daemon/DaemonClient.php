@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Daemon;
+namespace CertaMesh\Gaze\Daemon;
 
-use Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonFeatureUnsupportedException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTimeoutException;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonFeatureUnsupportedException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
+use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
 
 /**
  * Long-lived JSONL stdio client for `gaze daemon`.

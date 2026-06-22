@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Testing;
+namespace CertaMesh\Gaze\Testing;
 
-use Naoray\GazeLaravel\Audit\QueryBuilder;
+use CertaMesh\Gaze\Audit\QueryBuilder;
 
 final class FakeQueryBuilder extends QueryBuilder
 {

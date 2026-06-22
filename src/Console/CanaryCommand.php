@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console;
+namespace CertaMesh\Gaze\Console;
 
+use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Gaze;
 use Illuminate\Console\Command;
-use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Gaze;
 
 final class CanaryCommand extends Command
 {

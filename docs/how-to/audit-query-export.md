@@ -39,7 +39,7 @@ Three failure modes to know about:
 ## Purging Old Rows
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 // Dry-run: count matching rows without deleting.
 $preview = Gaze::audit()
@@ -78,7 +78,7 @@ Gaze::assertAuditPurged(now()->subDays(90));
 To stub return values:
 
 ```php
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
 
 Gaze::fake(
     auditPurgeHandler: fn (string $beforeIso, bool $dryRun): AuditPurgeResult

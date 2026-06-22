@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Gaze;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\Gaze;
 
 it('Gaze resolved from container forwards OpenAI privacy-filter config on clean argv', function () {
     config([
