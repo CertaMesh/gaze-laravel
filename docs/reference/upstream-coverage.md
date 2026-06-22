@@ -1,8 +1,8 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `CertaMesh/gaze` v0.9.0.
+Living parity checklist for upstream `CertaMesh/gaze` v0.11.1.
 
-> Adopter usage: [docs/safety-net.md](../how-to/safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](../NORTH_STAR.md) (surface promotion rule).
+> Adopter usage: [docs/safety-net.md](../how-to/safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](../NORTH_STAR.md) (surface promotion rule). GDPR posture for these surfaces (pseudonymization, storage limitation, erasure): [docs/explanation/gdpr.md](../explanation/gdpr.md) — adopter guidance, not legal advice.
 
 ## Commands
 
@@ -171,6 +171,10 @@ exposes it via the `Gaze::daemon()` Facade chain, a flat config block,
 and TWO artisan commands. See [docs/daemon.md](../how-to/daemon.md) for the
 adopter quickstart.
 
+The upstream binary pin is now **v0.11.1**. The v0.9.1 → v0.11.1 hardening
+(NER fail-closed, byte-exact restore, strict manifest-restore) is all
+passthrough — no new daemon flag — see [Upstream v0.9.1 → v0.11.1 deltas](#upstream-v091--v0111-deltas).
+
 ### Commands
 
 | Upstream command | Laravel surface |
@@ -214,12 +218,62 @@ per-variant. **`default` arm is required** — new wire variants land in
 | `Unavailable` (adapter) | `GazeDaemonFeatureUnsupportedException` | Binary missing `daemon` subverb |
 | `Unknown` (forward-compat) | `GazeDaemonException` | New upstream variant; doctor logs adopter warning |
 
+## Upstream v0.9.1 → v0.11.1 deltas
+
+Gap analysis for upstream changes landed since the v0.9.0 parity baseline.
+Verdicts follow the surface-promotion rule ([NORTH_STAR](../NORTH_STAR.md) §3):
+`wrap` = new Laravel surface, `passthrough` = forwarded argv with no new
+adopter surface, `defer` = documented non-goal.
+
+| Upstream change | Verdict | Adapter SemVer | Notes |
+|---|---|---|---|
+| NER fail-closed (#290/#293), byte-exact restore (#295), strict manifest-restore (#262, MCP-only) + binary pin bump | passthrough | PATCH | Detection / restore-determinism hardening upstream; nothing new for the adapter to forward beyond the existing pin. Reinforces reversibility (NORTH_STAR §4), changes no surface. |
+| Restore telemetry + audit columns (#261/#270) | **wrap** | MINOR | New opt-in adopter surface — see [Restore telemetry (v0.11.x)](#restore-telemetry-v011x) below. |
+| TokenBridge index-search (#327) | **defer** | none | Persists raw PII unencrypted on disk and routes through an MCP chokepoint — both NORTH_STAR non-goals ("no plaintext session state at rest"; MCP lifecycle). See Deferred. |
+| `gaze-mcp-bridge` (#330) | **defer** | none | MCP server lifecycle — explicit non-goal. See Deferred. |
+| CLI accessibility gate (#287) | internal-only | none | Human-TTY affordance; the adapter always invokes with `--format=json`, so the gate never engages. No surface. |
+| `core-extended` rulepack | still-available alias | n/a | `gaze:doctor`'s "Removal target: v0.10.0" line was **stale** — upstream never removed the pack. It still soft-aliases through v0.11.1; documented as available, not removed. See [upgrading.md](../how-to/upgrading.md). |
+| `gaze-document` split (#279) | already-covered | none | OCR / document pipeline stays a deferred non-goal. See Deferred. |
+
+## Restore telemetry (v0.11.x)
+
+Upstream's restore-telemetry + audit-column work (#261/#270) is **wrapped**
+as an opt-in adapter surface. Off by default (null = upstream default,
+NORTH_STAR §6).
+
+| Surface | Detail |
+|---|---|
+| Config / env | `gaze.restore_telemetry` / `GAZE_RESTORE_TELEMETRY` — default `null` (off) |
+| `Gaze::restore()` | When enabled, forwards `--telemetry --audit-db=<gaze.audit_db_path>` |
+| `Naoray\GazeLaravel\Audit\QueryBuilder::onlyRestoreEvents()` | Forwards `--restore-events` to scope an audit query to restore rows |
+| `--policy` restore alias | Redundant with the already-forwarded `--restore-mode`; **document-only, NO new Laravel surface** |
+
+Six new audit columns surface through `Audit\QueryBuilder`, indexed by
+string key like the v0.8.0 recognizer columns:
+
+| Column | Notes |
+|---|---|
+| `restore_policy` | Restore policy in effect for the row. |
+| `restore_decision` | Per-row restore decision. |
+| `restore_unknown_token_count` | Count of tokens with no mapping in the session blob. |
+| `restore_manifest_bypass_count` | Manifest-bypass count. **Always `0`** through the stock gaze CLI (see caveat). |
+| `restore_fresh_pii_count` | Fresh-PII count. **Always `0`** through the stock gaze CLI (see caveat). |
+| `restore_phase_mask` | Bitmask of restore phases that executed. |
+
+> **Caveat —** `restore_fresh_pii_count` and `restore_manifest_bypass_count`
+> are ALWAYS `0` through the stock gaze CLI — gaze-cli's `run_restore` never
+> enables the Phase-B DLP builder. This surface ships for
+> **restore-decision / unknown-token audit trails, NOT outbound-DLP fresh-PII
+> detection.** Do NOT advertise the DLP use-case.
+
 ## Deferred
 
 | Upstream surface | Reason |
 |---|---|
 | `--context-json` | P1 design item; needs PHP API design before exposure. |
 | `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
-| `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. Tracked separately. |
+| `gaze-mcp-bridge` (#330) | MCP server lifecycle — explicit NORTH_STAR non-goal. Not a Laravel idiom; lives upstream. Tracked with the other `gaze mcp *` surfaces above. |
+| TokenBridge index-search (#327) | Persists raw PII **unencrypted on disk** and routes through an MCP chokepoint — both NORTH_STAR non-goals ("no plaintext session state at rest"; MCP lifecycle). Not wrapped. |
+| `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. The v0.11.x `gaze-document` split (#279) keeps OCR a non-goal — still deferred, not re-scoped. Tracked separately. |
 | `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
 | `gaze proxy install-launchd` / `install-systemd-user` | Upstream stubs the launchd / systemd integrations in v0.8.0 (return `"reserved for v0.8.x"`). Adapter will ship `php artisan gaze:proxy:install` once upstream implements them. |
