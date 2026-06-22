@@ -9,6 +9,7 @@ use CertaMesh\Gaze\Install\NerInstaller;
 use CertaMesh\Gaze\Install\NerInstallStatus;
 use CertaMesh\Gaze\Install\NerManifest;
 use CertaMesh\Gaze\Install\PolicyTomlPatcher;
+use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -27,17 +28,70 @@ function gin_command_tester(NerFetcher $fetcher): CommandTester
     return new CommandTester($command);
 }
 
-it('gaze:install-ner exposes the patched flag surface', function () {
+it('gaze:install:ner exposes the patched flag surface', function () {
     $command = $this->app->make(InstallNerCommand::class);
     $definition = $command->getDefinition();
 
-    foreach (['variant', 'dest', 'update-policy', 'force', 'check', 'dry-run', 'no-progress', 'locale'] as $option) {
+    foreach (['variant', 'dest', 'update-policy', 'force', 'yes', 'check', 'dry-run', 'no-progress', 'locale'] as $option) {
         expect($definition->hasOption($option))->toBeTrue("--{$option} should exist");
     }
 
-    expect($definition->hasOption('yes'))->toBeFalse();
     expect($definition->hasOption('model'))->toBeFalse();
     expect($definition->hasOption('unpinned'))->toBeFalse();
+});
+
+it('renames to gaze:install:ner with gaze:install-ner kept as a deprecated alias (Decision D)', function () {
+    $command = $this->app->make(InstallNerCommand::class);
+
+    expect($command->getName())->toBe('gaze:install:ner');
+    expect($command->getAliases())->toContain('gaze:install-ner');
+});
+
+it('still resolves and runs the legacy gaze:install-ner name (CB3 / Decision D)', function () {
+    // The deprecated alias must remain functional (MINOR-safe). A --check on a
+    // missing dest is a real no-op invocation that proves the name still routes.
+    expect(Artisan::all())->toHaveKey('gaze:install-ner');
+
+    $exit = Artisan::call('gaze:install-ner', [
+        '--check' => true,
+        '--dest' => sys_get_temp_dir().'/gaze-ner-missing-'.bin2hex(random_bytes(4)),
+        '--no-progress' => true,
+    ]);
+
+    // Missing artifacts → CheckFailed (exit 1); the point is the alias executed.
+    expect($exit)->toBe(1);
+});
+
+it('--yes confirms a headless install without re-downloading or overwriting (CB3)', function () {
+    $fetcher = new class implements NerFetcher
+    {
+        public int $fetches = 0;
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return true;
+        }
+    };
+    $tester = gin_command_tester($fetcher);
+    $dest = sys_get_temp_dir().'/gaze-yes-'.bin2hex(random_bytes(6));
+    mkdir($dest, 0755, true); // an already-installed destination that verifies
+
+    try {
+        // Distinct from --force: --yes confirms the (no-op) install but does NOT
+        // re-fetch the 184MB model when the destination already verifies.
+        $exit = $tester->execute(['--dest' => $dest, '--yes' => true], ['interactive' => false]);
+
+        expect($exit)->toBe(0);
+        expect($fetcher->fetches)->toBe(0);
+    } finally {
+        @unlink($dest.'/SHA256SUMS');
+        @rmdir($dest);
+    }
 });
 
 it('--variant=bogus exits 2', function () {
