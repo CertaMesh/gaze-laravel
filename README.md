@@ -3,7 +3,7 @@
 [![Latest Stable Version](https://img.shields.io/packagist/v/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
 [![Total Downloads](https://img.shields.io/packagist/dt/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
 ![PHP Version](https://img.shields.io/badge/PHP-%5E8.2-777BB4?style=flat-square&logo=php&logoColor=white)
-![Laravel Version](https://img.shields.io/badge/Laravel-11%20%7C%7C%2012-FF2D20?style=flat-square&logo=laravel&logoColor=white)
+![Laravel Version](https://img.shields.io/badge/Laravel-11%20%7C%7C%2012%20%7C%7C%2013-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 [![Tests](https://img.shields.io/github/actions/workflow/status/CertaMesh/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/CertaMesh/gaze-laravel/actions/workflows/test.yml)
 [![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/CertaMesh/gaze-laravel/blob/main/LICENSE)
 
@@ -22,69 +22,97 @@ $reply = $llm->complete($session->cleanText);
 return Gaze::restore($session, $reply);
 ```
 
-**What this gives you:** the model never sees real data, yet your app restores it losslessly — tokens map back through a signed, encrypted-at-rest session blob. Subprocess failures arrive as typed, exit-bucketed exceptions, and the same call runs inside queues and long-lived agent loops, not just a single HTTP request.
+The model never sees real data, yet your app restores it losslessly — tokens map
+back through a signed, encrypted-at-rest session blob. The same call runs inside
+queues and long-lived agent loops, not just a single HTTP request, and subprocess
+failures arrive as typed, exit-bucketed exceptions.
 
-See [`examples/clean-before-openai.php`](./examples/clean-before-openai.php) for a runnable end-to-end clean → OpenAI → restore example.
+`gaze-laravel` is the Laravel adapter for the [`gaze`](https://github.com/CertaMesh/gaze)
+CLI contract. Detection logic lives upstream in Rust — this package never
+re-implements pseudonymization in PHP.
 
-Laravel adapter for the [`gaze`](https://github.com/CertaMesh/gaze) CLI contract.
+## Contents
 
-`gaze-laravel` wraps the pipe-mode `gaze clean` / `gaze restore` workflow for Laravel apps. It sends raw UTF-8 text to `clean`, keeps the returned `session_blob` encrypted at rest, and restores model output through `restore` with typed exceptions and queue-aware retry helpers.
-
-Use it when you need to:
-
-- send pseudonymized text to an LLM instead of raw PII;
-- restore model output back into owner-side text;
-- keep encrypted session blobs out of logs and public component state;
-- classify subprocess failures into caller, config, integrity, and infra buckets.
-
-> **Detection modes:** Regex + rulepack runs by default. Optional NER (ONNX-backed) is an opt-in
-> second install — run `php artisan gaze:install-ner` to download model artifacts. See
-> [`docs/explanation/ner.md`](./docs/explanation/ner.md) for trade-offs.
-
-**New here?** Start with the [getting started guide](./docs/tutorials/getting-started.md).
+- [Requirements](#requirements)
+- [Installation](#installation) — **start here**
+- [Usage](#usage)
+- [How is this different?](#how-is-this-different-from-regex--generic-anonymization-libraries)
+- [Advanced surfaces](#advanced-surfaces)
+- [Documentation](#documentation)
+- [Security](#security)
 
 ## Requirements
 
 - PHP `^8.2`
 - Laravel `^11.0 || ^12.0 || ^13.0`
-- The `gaze` binary on `PATH`, in `vendor/bin/gaze`, or configured via `GAZE_BINARY`
+- The `gaze` binary — `gaze:install` fetches the pinned build for you (see below),
+  or supply your own on `PATH`, in `vendor/bin/gaze`, or via `GAZE_BINARY`.
 
-## Install
+## Installation
+
+Two steps:
 
 ```bash
 composer require empiretwo/gaze-laravel
-php artisan vendor:publish --tag=gaze-config
-php artisan vendor:publish --tag=gaze-policy
+php artisan gaze:install
 ```
 
-The package ships as a Composer plugin (`CertaMesh\Gaze\Install\GazeInstallerPlugin`). On first install your Composer will ask whether to allow it — pick `y` to enable automatic binary download, or pick `n` and provide `GAZE_BINARY` yourself.
+`php artisan gaze:install` is the canonical setup path. It provisions the app
+end-to-end and finishes on a `gaze:doctor` green-check:
 
-> **Non-interactive (CI) installs:** Composer 2.2+ requires plugins be allow-listed before
-> they execute. Add this once before installing in CI:
->
-> ```bash
-> composer config allow-plugins.empiretwo/gaze-laravel true
-> ```
->
-> Or pre-seed `composer.json`:
->
-> ```json
-> "config": {
->   "allow-plugins": {
->     "empiretwo/gaze-laravel": true
->   }
-> }
-> ```
->
-> Without this, the binary auto-download step is silently skipped on first install.
+- downloads the **pinned gaze binary** into `vendor/bin/`,
+- publishes the **config** and writes a sane default **`policy.toml`** (never
+  clobbering one you've already edited),
+- optionally installs the **NER model** (~184 MB, ONNX-backed),
+- optionally wires a **safety-net backend** (OPF or Kiji).
 
-Installer env overrides:
+It is idempotent — safe to re-run. A failed run rolls `.env` back to its
+pre-install state.
 
-- `GAZE_SKIP_BINARY_DOWNLOAD=1` — skip the download entirely when you manage the binary out-of-band.
-- `GAZE_VERSION=x.y.z` — install a different gaze version than the one pinned by this release; use cautiously because the pinned version is contract-tested.
-- `GAZE_RELEASE_BASE=https://...` — release base override for fixture or staging release hosts.
+### Non-interactive / CI
 
-See [Configuration](./docs/reference/configuration.md) for the full env var + config publishing reference.
+Headless runs skip every prompt; the safety-net defaults to `none` unless you
+opt in:
+
+```bash
+php artisan gaze:install --no-interaction --safety-net=opf
+```
+
+Common flags (`php artisan gaze:install --help` lists them all):
+
+| Flag | Effect |
+| --- | --- |
+| `--skip-binary` | Don't download the gaze binary |
+| `--skip-ner` | Don't download the NER model |
+| `--safety-net=opf\|kiji\|none` | Pick the safety-net backend non-interactively |
+| `--force` | Re-run already-done steps (re-download binary, re-fetch NER) |
+| `--force-policy` | Also overwrite an existing `policy.toml` (destructive — off by default) |
+| `--no-doctor` | Skip the final `gaze:doctor` gate |
+
+### Sub-commands
+
+The umbrella composes three standalone commands you can run on their own for
+finer control:
+
+- `gaze:install:binary` — install the pinned gaze binary into `vendor/bin/`.
+- `gaze:install:ner` — download the pinned ONNX NER model and wire `policy.toml`
+  (legacy alias: `gaze:install-ner`).
+- `gaze:install:safety-net` — wire an `opf` or `kiji` backend into `.env`.
+
+### Composer plugin (optional)
+
+The package also ships a Composer plugin
+(`CertaMesh\Gaze\Install\GazeInstallerPlugin`) that auto-downloads the binary on
+`composer install`. It is **optional** — `gaze:install` is the canonical path —
+but remains available for adopters who prefer the binary to land automatically.
+On first install Composer asks whether to allow the plugin; pick `y` to enable
+auto-download, or `n` and provision the binary yourself.
+
+For the CI allow-list, the `GAZE_SKIP_BINARY_DOWNLOAD` / `GAZE_VERSION` /
+`GAZE_RELEASE_BASE` env overrides, and the full config reference, see
+[Configuration](./docs/reference/configuration.md).
+
+**New here?** Walk through the [getting started guide](./docs/tutorials/getting-started.md).
 
 ## Usage
 
@@ -97,12 +125,14 @@ $reply   = $llm->complete($session->cleanText);
 return Gaze::restore($session, $reply);
 ```
 
+See [`examples/clean-before-openai.php`](./examples/clean-before-openai.php) for a
+runnable clean → OpenAI → restore example.
+
 ### Per-rule detection entries
 
 `GazeSession::$entries` exposes each tokenized span as a readonly `Entry` DTO
-(`class`, `raw`, `token`, `family`) when the upstream `gaze` CLI emits the
-`entries` field on its JSON response. The array is empty for releases that do
-not yet surface the field, so consumers can always iterate safely:
+(`class`, `raw`, `token`, `family`). The array is empty for upstream releases
+that don't surface the field, so consumers can always iterate safely:
 
 ```php
 foreach ($session->entries as $entry) {
@@ -112,17 +142,10 @@ foreach ($session->entries as $entry) {
         'family' => $entry->family,
     ]);
 }
-
-// Single-entry access:
-$firstClass = $session->entries[0]->class ?? null;
 ```
 
-This surface replaces the previous pattern of decrypting `$session->ciphertext`
-and parsing the binary snapshot header by hand.
-
-See [Exceptions](./docs/reference/exceptions.md) for the exit bucket and typed exception reference.
-
-See [Testing](./docs/how-to/testing.md) for fakes, assertions, and integration-test setup.
+See [Exceptions](./docs/reference/exceptions.md) for the exit-bucket reference and
+[Testing](./docs/how-to/testing.md) for fakes, assertions, and integration setup.
 
 ## How is this different from regex / generic anonymization libraries?
 
@@ -133,34 +156,20 @@ See [Testing](./docs/how-to/testing.md) for fakes, assertions, and integration-t
 | **Failures** | Generic exceptions or silent pass-through | Typed exceptions bucketed by exit class (caller / config / integrity / infra) |
 | **Runtime fit** | Built for a single HTTP request | Queue-aware, with a long-lived daemon for multi-turn agent loops |
 
-**Not what you're after?** This is *not* in-process PHP detection — the Rust crate is the source of truth — and *not* a generic subprocess wrapper; it is specific to `gaze`. See the [North Star non-goals](./docs/NORTH_STAR.md#non-goals).
+**Not what you're after?** This is *not* in-process PHP detection — the Rust crate
+is the source of truth — and *not* a generic subprocess wrapper; it is specific to
+`gaze`. See the [North Star non-goals](./docs/NORTH_STAR.md#non-goals).
 
-## Advanced
+## Advanced surfaces
 
-These surfaces are opt-in. Reach for them once the basic clean / restore round-trip is in place.
+Opt-in surfaces — reach for them once the basic clean / restore round-trip is in place:
 
-### HTTP proxy daemon
-
-Run an opt-in HTTP proxy daemon that pseudonymizes requests bound for OpenAI / Anthropic / Gemini and restores their replies. See [`docs/how-to/proxy-daemon.md`](./docs/how-to/proxy-daemon.md).
-
-### JSONL stdio daemon — agent loops & worker queues
-
-Run the opt-in `gaze daemon` JSONL stdio runtime for multi-turn agent loops and worker queues that need repeated low-latency redaction without per-turn binary startup (see [`docs/how-to/daemon.md`](./docs/how-to/daemon.md)):
-
-```php
-use CertaMesh\Gaze\Facades\Gaze;
-
-// Composition (fluent sugar)
-$session = Gaze::daemon()->session('agent-thread-a');
-$response = $session->clean($prompt);
-
-// Direct hot path (one PHP call = one JSONL line)
-$response = Gaze::daemon()->clean('agent-thread-a', $prompt);
-```
-
-### Kiji safety-net backend
-
-Opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `gaze.safety_net_backend=kiji-distilbert` for higher-recall Pass-3 leak detection. See [`docs/how-to/safety-net.md`](./docs/how-to/safety-net.md).
+- **[HTTP proxy daemon](./docs/how-to/proxy-daemon.md)** — pseudonymizes requests
+  bound for OpenAI / Anthropic / Gemini and restores their replies.
+- **[JSONL stdio daemon](./docs/how-to/daemon.md)** — low-latency `Gaze::daemon()`
+  runtime for agent loops and worker queues, with no per-turn binary startup.
+- **[Kiji safety-net backend](./docs/how-to/safety-net.md)** — Tier 2.5 DistilBERT
+  NER subprocess for higher-recall Pass-3 leak detection.
 
 ## Documentation
 
@@ -168,47 +177,48 @@ Opt into the Kiji DistilBERT safety-net backend (Tier 2.5 NER subprocess) via `g
 - [Getting started](./docs/tutorials/getting-started.md)
 - [Configuration](./docs/reference/configuration.md)
 - [Architecture](./docs/explanation/architecture.md)
-- [Audit query / export](./docs/how-to/audit-query-export.md)
+- [NER detection](./docs/explanation/ner.md)
 - [Blob lifecycle](./docs/explanation/blob-lifecycle.md)
-- [NER install](./docs/explanation/ner.md)
+- [Security model](./docs/explanation/security.md)
+- [Exceptions](./docs/reference/exceptions.md)
+- [Diagnostics](./docs/reference/diagnostics.md)
+- [Testing](./docs/how-to/testing.md)
+- [Queue integration](./docs/how-to/queue-integration.md)
+- [Retry discipline](./docs/how-to/retry.md)
 - [Livewire integration](./docs/how-to/livewire-integration.md)
 - [Conversational-loop patterns](./docs/how-to/conversational-loops.md)
 - [Operations](./docs/how-to/operations.md)
-- [Retry discipline](./docs/how-to/retry.md)
-- [Diagnostics](./docs/reference/diagnostics.md)
-- [Exceptions](./docs/reference/exceptions.md)
+- [Audit query / export](./docs/how-to/audit-query-export.md)
 - [Proxy daemon](./docs/how-to/proxy-daemon.md)
 - [Daemon (JSONL stdio)](./docs/how-to/daemon.md)
 - [SafetyNet (OPF + Kiji)](./docs/how-to/safety-net.md)
-- [Queue integration](./docs/how-to/queue-integration.md)
-- [Security model](./docs/explanation/security.md)
-- [Testing](./docs/how-to/testing.md)
+- [Upgrading](./docs/how-to/upgrading.md)
+- [Upstream coverage](./docs/reference/upstream-coverage.md)
 
 ## Security
 
-Session blobs are encrypted at rest with Laravel's encrypter, keyed by `GAZE_ENCRYPTION_KEY` or `APP_KEY`.
-Only pseudonymized `$session->cleanText` should cross the model boundary; restore happens owner-side.
-See [Security model](./docs/explanation/security.md) for guarantees, responsibilities, and compliance boundaries.
+Session blobs are encrypted at rest with Laravel's encrypter, keyed by
+`GAZE_ENCRYPTION_KEY` or `APP_KEY`. Only the pseudonymized `$session->cleanText`
+should cross the model boundary; restore happens owner-side. See the
+[Security model](./docs/explanation/security.md) for guarantees, responsibilities,
+and compliance boundaries.
 
 ## Upgrading
 
 Per-minor walkthroughs live in [`docs/how-to/upgrading.md`](./docs/how-to/upgrading.md);
 pair them with the upstream binary's
-[UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md). The
-current pin is **v0.11.1** — see the `v0.9.0 → v0.11.1` section for the
-adoption notes, the opt-in restore-telemetry surface (and its
-audit-trail-not-DLP caveat), and the NER fail-closed / byte-exact restore
-rationale.
-Older upgrade notes are preserved in the same file.
-
-See [`docs/reference/exceptions.md`](./docs/reference/exceptions.md) and
-[`docs/reference/upstream-coverage.md`](./docs/reference/upstream-coverage.md) for the full
-exception table and upstream parity matrix.
+[UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md). The current
+pin is **v0.11.1** — see the `v0.9.0 → v0.11.1` section for adoption notes, the
+opt-in restore-telemetry surface (and its audit-trail-not-DLP caveat), and the NER
+fail-closed / byte-exact restore rationale.
 
 ## Known limitations
 
-- Pre-built binary auto-downloads currently cover Linux x86_64 and macOS arm64. Intel Mac users must install `gaze` from source and set `GAZE_BINARY`.
-- NER model artifacts are not bundled in the Composer package. Install them explicitly with `php artisan gaze:install-ner` when you need NER-backed detection.
+- Pre-built binary auto-downloads currently cover Linux x86_64 and macOS arm64.
+  Intel Mac users must install `gaze` from source and set `GAZE_BINARY`.
+- NER model artifacts are not bundled in the Composer package. `gaze:install`
+  fetches them on demand (or run `gaze:install:ner` directly); pass `--skip-ner`
+  to defer.
 
 ## License
 
