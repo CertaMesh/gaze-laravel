@@ -31,7 +31,7 @@ GAZE_OPENAI_FILTER_COMMAND=/usr/local/bin/opf
 ```
 
 `GAZE_OPENAI_FILTER_COMMAND` is optional when `opf` is already on `PATH`. See
-the upstream [OPF README](https://github.com/EmpireTwo/gaze/tree/main/crates/gaze-safety-net-openai-filter)
+the upstream [OPF README](https://github.com/CertaMesh/gaze/tree/main/crates/gaze-safety-net-openai-filter)
 for the Python install and weights-fetch steps.
 
 ## Quick start (Kiji DistilBERT)
@@ -257,11 +257,11 @@ hits a queue job that would otherwise dead-letter on
 
 ## See also
 
-- [Upstream coverage matrix](./upstream-coverage.md) — full upstream-flag ↔
+- [Upstream coverage matrix](../reference/upstream-coverage.md) — full upstream-flag ↔
   Laravel-surface mapping for SafetyNet and every other CLI surface.
 - [Upgrading](./upgrading.md) — per-minor adapter upgrade guide, including
   the `strict → resolve` default flip.
-- [Exceptions](./exceptions.md) — full typed exception reference with exit
+- [Exceptions](../reference/exceptions.md) — full typed exception reference with exit
   buckets and retry-contract semantics.
-- [Queue integration](./queue.md) — `GazeRetryPolicy` deep-dive, alert
+- [Queue integration](./queue-integration.md) — `GazeRetryPolicy` deep-dive, alert
   routing, and backoff schedule conventions.

@@ -1,6 +1,6 @@
 # Blob lifecycle
 
-This page expands the blob lifecycle guidance from the [README](../README.md). Treat session blobs as sensitive, request-scoped values unless you have a documented threat model.
+This page expands the blob lifecycle guidance from the [README](../../README.md). Treat session blobs as sensitive, request-scoped values unless you have a documented threat model.
 
 The session blob (`$session->ciphertext`) is the only thing that lets `restore()` reverse the tokens. Treat it as sensitive: anyone who can read both the blob and a clean LLM response can derive the original PII.
 

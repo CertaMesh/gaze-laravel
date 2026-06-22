@@ -1,8 +1,8 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `EmpireTwo/gaze` v0.9.0.
+Living parity checklist for upstream `CertaMesh/gaze` v0.9.0.
 
-> Adopter usage: [docs/safety-net.md](./safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](./NORTH_STAR.md) (surface promotion rule).
+> Adopter usage: [docs/safety-net.md](../how-to/safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](../NORTH_STAR.md) (surface promotion rule).
 
 ## Commands
 
@@ -115,7 +115,7 @@ blocker.
 ## Proxy (v0.8.1)
 
 The upstream `gaze proxy` daemon (v0.8.0, opt-in `--features proxy` build)
-is wrapped by six Artisan commands. See [`docs/proxy.md`](./proxy.md) for
+is wrapped by six Artisan commands. See [`docs/proxy.md`](../how-to/proxy-daemon.md) for
 the adopter quickstart, security notes, and the doctor probe.
 
 | Upstream subcommand | Artisan surface |
@@ -168,7 +168,7 @@ with a `SafetyNetArtifactMissing` envelope.
 
 Upstream `gaze daemon` is a long-lived JSONL stdio runtime. The adapter
 exposes it via the `Gaze::daemon()` Facade chain, a flat config block,
-and TWO artisan commands. See [docs/daemon.md](./daemon.md) for the
+and TWO artisan commands. See [docs/daemon.md](../how-to/daemon.md) for the
 adopter quickstart.
 
 ### Commands

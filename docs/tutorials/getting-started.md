@@ -2,7 +2,7 @@
 
 10-minute quickstart — install, configure, first clean/restore cycle, one test.
 
-For the full API reference see [README.md](../README.md).
+For the full API reference see [README.md](../../README.md).
 
 ## 1. Install
 
@@ -45,7 +45,7 @@ class EmailDraftController extends Controller
 }
 ```
 
-→ [Blob lifecycle, Livewire patterns, queue jobs, conversational-loop guidance](../README.md#blob-lifecycle)
+→ [Blob lifecycle, Livewire patterns, queue jobs, conversational-loop guidance](../../README.md#blob-lifecycle)
 
 ## 4. Test with fakes
 
@@ -62,13 +62,13 @@ it('strips PII and restores the draft', function () {
 });
 ```
 
-→ [Full fake API and assert methods](../README.md#testing)
+→ [Full fake API and assert methods](../../README.md#testing)
 
 ## Next steps
 
-- [Config reference](../README.md#config) — all env keys and defaults
-- [Exceptions](../README.md#exceptions) — exit-bucket taxonomy
-- [Operations](../README.md#operations) — `gaze:check`, `gaze:doctor`, `gaze:bench`
-- [Security model](../README.md#security-model) — what the adapter guarantees
-- [Enabling NER](../README.md#enabling-ner) — multilingual / higher-recall detection
-- [Audit surface](audit.md) — purge workflow and upcoming query/export verbs
+- [Config reference](../../README.md#config) — all env keys and defaults
+- [Exceptions](../../README.md#exceptions) — exit-bucket taxonomy
+- [Operations](../../README.md#operations) — `gaze:check`, `gaze:doctor`, `gaze:bench`
+- [Security model](../../README.md#security-model) — what the adapter guarantees
+- [Enabling NER](../../README.md#enabling-ner) — multilingual / higher-recall detection
+- [Audit surface](../how-to/audit-query-export.md) — purge workflow and upcoming query/export verbs

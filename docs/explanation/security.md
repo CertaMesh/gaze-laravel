@@ -1,6 +1,6 @@
 # Security model
 
-This page expands the security model from the [README](../README.md). It describes adapter guarantees and the parts that remain application or infrastructure responsibilities.
+This page expands the security model from the [README](../../README.md). It describes adapter guarantees and the parts that remain application or infrastructure responsibilities.
 
 **What the adapter guarantees:**
 

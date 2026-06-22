@@ -1,6 +1,6 @@
 # Latency baseline / Diagnostic
 
-This page expands the latency diagnostics guidance from the [README](../README.md). Use it to establish a cold-start baseline before comparing environments or reporting performance issues.
+This page expands the latency diagnostics guidance from the [README](../../README.md). Use it to establish a cold-start baseline before comparing environments or reporting performance issues.
 
 `Gaze::clean()` currently invokes the upstream `gaze clean` command as a one-shot subprocess for every call. With NER enabled, every invocation loads the NER model from disk before it can return a response. This is the current CLI contract, so repeated calls are not a warm-up run: every `gaze:bench --requests=N` sample pays the full model-load cost.
 
