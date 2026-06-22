@@ -53,6 +53,7 @@ final class DoctorCommand extends Command
         $this->warnIfDeprecatedRulepack($config, $policy);
         $this->probeProxyFeature($binary, $config, $process);
         $this->probeDaemonFeature($binary, $config, $process);
+        $this->probeRestoreTelemetry($config);
         if (! $this->probeKijiArtifacts($config)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
@@ -259,6 +260,47 @@ final class DoctorCommand extends Command
         $this->components->twoColumnDetail('kiji_distilbert', '<fg=green>OK</>');
 
         return true;
+    }
+
+    /**
+     * Pre-flight probe for restore-telemetry audit-db writability.
+     *
+     * Skipped silently unless `gaze.restore_telemetry` is enabled — that key is
+     * the opt-in signal (P7 doctor-before-failure, but only when opted in). When
+     * enabled, asserts `gaze.audit_db_path` is set and its parent dir is
+     * writable; WARNS (never hard-fails) when missing/unwritable so the adopter
+     * learns restore-telemetry rows cannot be written before the first restore.
+     */
+    private function probeRestoreTelemetry(ConfigRepository $config): void
+    {
+        if (! $config->get('gaze.restore_telemetry')) {
+            return;
+        }
+
+        $auditDb = $config->get('gaze.audit_db_path');
+        if (! is_string($auditDb) || $auditDb === '') {
+            $this->components->twoColumnDetail('restore_telemetry', '<fg=yellow>no audit-db</>');
+            $this->warn(
+                'gaze.restore_telemetry is enabled but gaze.audit_db_path (env '
+                .'GAZE_AUDIT_DB_PATH) is not set — restore-telemetry rows cannot be '
+                .'written. Set the audit-db path to capture them.'
+            );
+
+            return;
+        }
+
+        $parent = dirname($auditDb);
+        if (! is_dir($parent) || ! is_writable($parent)) {
+            $this->components->twoColumnDetail('restore_telemetry', '<fg=yellow>unwritable</>');
+            $this->warn(
+                "gaze.audit_db_path parent {$parent} is not writable — "
+                .'restore-telemetry rows cannot be written.'
+            );
+
+            return;
+        }
+
+        $this->components->twoColumnDetail('restore_telemetry', '<fg=green>OK</>');
     }
 
     private function proxyExplicitlyConfigured(ConfigRepository $config): bool

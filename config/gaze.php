@@ -212,6 +212,21 @@ return [
     'restore_mode' => env('GAZE_RESTORE_MODE'),
 
     /*
+     * Enable restore-decision telemetry. When truthy, `Gaze::restore()` forwards
+     * `--telemetry` (and `--audit-db=<gaze.audit_db_path>` when that path is set)
+     * so the binary records restore-decision / unknown-token audit rows. Null or
+     * false = upstream default (telemetry off); this surface adds no detection
+     * logic — it only forwards the upstream flag.
+     *
+     * CAVEAT: two of the upstream audit columns — restore_fresh_pii_count and
+     * restore_manifest_bypass_count — are ALWAYS 0 through the stock gaze CLI,
+     * because gaze-cli's run_restore never enables the Phase-B DLP builder. This
+     * surface ships for restore-decision and unknown-token audit trails, NOT for
+     * outbound-DLP fresh-PII detection. Do not rely on it for DLP.
+     */
+    'restore_telemetry' => env('GAZE_RESTORE_TELEMETRY'),
+
+    /*
      * gaze-proxy daemon settings.
      *
      * Wraps the upstream `gaze proxy *` subcommands. Each key forwards as an

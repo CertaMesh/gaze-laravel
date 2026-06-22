@@ -14,11 +14,29 @@ use Naoray\GazeLaravel\Gaze;
  */
 class QueryBuilder
 {
+    /**
+     * Default-initialised (not constructor-promoted) so subclasses that skip the
+     * parent constructor — e.g. Testing\FakeQueryBuilder — still inherit a safe
+     * value and the fluent toggle below.
+     */
+    protected bool $onlyRestoreEvents = false;
+
     public function __construct(
         protected readonly Gaze $gaze,
         protected readonly BinaryResolver $resolver,
         protected readonly string $auditDbPath,
     ) {}
+
+    /**
+     * Restrict the query to restore-telemetry rows by forwarding
+     * `--restore-events` to `gaze audit query`. Fluent.
+     */
+    public function onlyRestoreEvents(): static
+    {
+        $this->onlyRestoreEvents = true;
+
+        return $this;
+    }
 
     /**
      * @return list<list<string>>
@@ -31,6 +49,10 @@ class QueryBuilder
             'query',
             '--audit-db='.$this->auditDbPath,
         ];
+
+        if ($this->onlyRestoreEvents) {
+            $command[] = '--restore-events';
+        }
 
         $result = $this->gaze->runForAuditQuery($command);
 

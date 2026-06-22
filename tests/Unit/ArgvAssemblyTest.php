@@ -93,6 +93,68 @@ it('omits --restore-mode when not configured', function () {
     });
 });
 
+it('omits --telemetry and a telemetry --audit-db when restore_telemetry is off (default)', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'text' => 'Hello Alice',
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
+    // audit_db_path is set, but telemetry off must NOT forward it via restore().
+    $this->makeGaze(auditDbPath: '/var/lib/gaze/audit.sqlite')->restore($session, 'Hello Name_1');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toBe([
+            '/fake/gaze',
+            'restore',
+            '--format=json',
+        ]);
+
+        return true;
+    });
+});
+
+it('forwards --telemetry and --audit-db when restore_telemetry is on and audit_db_path is set', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'text' => 'Hello Alice',
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
+    $this->makeGaze(auditDbPath: '/var/lib/gaze/audit.sqlite', restoreTelemetry: true)
+        ->restore($session, 'Hello Name_1');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)
+            ->toContain('--telemetry')
+            ->toContain('--audit-db=/var/lib/gaze/audit.sqlite');
+
+        return true;
+    });
+});
+
+it('forwards --telemetry but omits --audit-db when restore_telemetry is on with no audit_db_path', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'text' => 'Hello Alice',
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
+    $this->makeGaze(restoreTelemetry: true)->restore($session, 'Hello Name_1');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toContain('--telemetry');
+        foreach ($process->command as $arg) {
+            expect($arg)->not->toStartWith('--audit-db=');
+        }
+
+        return true;
+    });
+});
+
 it('forwards --audit-db when configured on clean argv', function () {
     Process::fake([
         '*' => Process::result(output: json_encode([

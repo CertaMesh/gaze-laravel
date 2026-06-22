@@ -265,3 +265,73 @@ it('warns with the cargo install hint when the binary lacks the proxy feature', 
         ->assertExitCode(0)
         ->expectsOutputToContain('cargo install gaze-cli --features proxy');
 });
+
+it('skips the restore-telemetry probe when gaze.restore_telemetry is off', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->doesntExpectOutputToContain('restore_telemetry');
+});
+
+it('warns when restore_telemetry is on but no audit_db_path is configured', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.restore_telemetry', true);
+    $this->app['config']->set('gaze.audit_db_path', null);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('gaze.restore_telemetry is enabled but gaze.audit_db_path');
+});
+
+it('warns when restore_telemetry is on but the audit_db_path parent is not writable', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.restore_telemetry', true);
+    $this->app['config']->set('gaze.audit_db_path', '/nonexistent-gaze-dir-'.bin2hex(random_bytes(4)).'/audit.sqlite');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('is not writable');
+});
+
+it('passes the restore-telemetry probe when on and the audit_db_path parent is writable', function () {
+    $dir = sys_get_temp_dir().'/gaze-restore-telemetry-'.bin2hex(random_bytes(4));
+    mkdir($dir, 0700, true);
+
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.restore_telemetry', true);
+    $this->app['config']->set('gaze.audit_db_path', $dir.'/audit.sqlite');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(0)
+            ->expectsOutputToContain('restore_telemetry')
+            ->doesntExpectOutputToContain('is not writable');
+    } finally {
+        @rmdir($dir);
+    }
+});
