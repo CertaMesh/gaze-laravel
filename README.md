@@ -46,7 +46,7 @@ Use it when you need to:
 ## Requirements
 
 - PHP `^8.2`
-- Laravel `^11.0 || ^12.0`
+- Laravel `^11.0 || ^12.0 || ^13.0`
 - The `gaze` binary on `PATH`, in `vendor/bin/gaze`, or configured via `GAZE_BINARY`
 
 ## Install

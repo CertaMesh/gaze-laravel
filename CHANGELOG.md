@@ -6,6 +6,12 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- Laravel 13 support (MINOR). `^13.0` added to all `illuminate/*` constraints;
+  `orchestra/testbench` widened to `^11.0`; `symfony/http-client` widened to
+  `^7.0 || ^8.0` (matching `symfony/process`). PHP requirement stays `^8.2` so
+  Laravel 11/12 adopters on PHP 8.2 are unaffected; because Laravel 13 requires
+  PHP >= 8.3, the CI matrix excludes the PHP 8.2 + Laravel ^13.0 combination and
+  adds PHP 8.4.
 - Restore-decision telemetry surface (MINOR). Opt-in, forwards-only — adds no
   detection or PII logic in PHP:
   - Config key `gaze.restore_telemetry` (env `GAZE_RESTORE_TELEMETRY`), default

@@ -31,7 +31,7 @@ The project compass. Decision tie-breaker when implementation choices fork. Auto
 
 - **Re-implementing detection, NER, validators, or safety-net logic in PHP.** The Rust crate is the source of truth.
 - **Wrapping non-Laravel-idiom surfaces.** Raw HTTP servers, MCP server lifecycle, document-OCR pipelines, and other Rust-native runtimes don't get faked PHP surfaces. They live in upstream or in sibling packages.
-- **Supporting unmaintained Laravel versions.** Current support: PHP `^8.2`, Laravel `^11.0 || ^12.0`.
+- **Supporting unmaintained Laravel versions.** Current support: PHP `^8.2`, Laravel `^11.0 || ^12.0 || ^13.0`.
 - **Supporting unmaintained PHP versions** when upstream Laravel drops them.
 - **Owning binary distribution.** Pre-built binaries cover Linux x86_64 and macOS arm64; adopters on other targets build from source and set `GAZE_BINARY`. The adapter is a wrapper, not a packager.
 - **Becoming a generic CLI wrapper.** This package is specific to `gaze`. Don't add subprocess abstractions that pretend otherwise.
