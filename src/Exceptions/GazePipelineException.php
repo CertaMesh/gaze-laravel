@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
-use Naoray\GazeLaravel\Queue\Contracts\Retryable;
-use Naoray\GazeLaravel\Variant;
+use CertaMesh\Gaze\Queue\Contracts\Retryable;
+use CertaMesh\Gaze\Variant;
 
 final class GazePipelineException extends GazeIntegrityException implements Retryable
 {

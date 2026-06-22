@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
-use Naoray\GazeLaravel\Exceptions\GazeDaemonException;
-use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Exceptions\GazeIntegrityException;
-use Naoray\GazeLaravel\Queue\Contracts\Retryable;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Exceptions\GazeIntegrityException;
+use CertaMesh\Gaze\Queue\Contracts\Retryable;
 
 it('accepts an envelope without a stderrHash', function () {
     $exception = new GazeDaemonException(

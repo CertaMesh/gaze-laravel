@@ -25,10 +25,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Facades\Gaze;
-use Naoray\GazeLaravel\Queue\Contracts\RequiresFreshClean;
-use Naoray\GazeLaravel\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Facades\Gaze;
+use CertaMesh\Gaze\Queue\Contracts\RequiresFreshClean;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
 
 class RedactAndForwardJob implements ShouldQueue
 {
@@ -153,7 +153,7 @@ class RedactAndForwardJob implements ShouldQueue
 
 ```php
 // In EventServiceProvider or using #[Listen]
-use Naoray\GazeLaravel\Events\GazeInfraAlert;
+use CertaMesh\Gaze\Events\GazeInfraAlert;
 
 Event::listen(GazeInfraAlert::class, function (GazeInfraAlert $event) {
     // $event->throwable is the original exception

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\EncryptedBlob;
 use Illuminate\Encryption\Encrypter;
-use Naoray\GazeLaravel\EncryptedBlob;
 
 it('uses the host cipher for the dedicated encryption key path', function () {
     $this->app->forgetInstance('gaze.encrypter');

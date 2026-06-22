@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Console\Proxy\ProxyCommand;
+use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Console\Proxy\ProxyCommand;
-use Naoray\GazeLaravel\Exceptions\GazeBinaryMissingException;
 use Symfony\Component\Process\ExecutableFinder;
 
 /**

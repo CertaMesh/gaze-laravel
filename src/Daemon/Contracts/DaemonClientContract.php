@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Daemon\Contracts;
+namespace CertaMesh\Gaze\Daemon\Contracts;
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
+use CertaMesh\Gaze\Daemon\CleanResponse;
 
 /**
  * Stdio contract for the long-lived `gaze daemon` JSONL runtime.
  *
  * Implementations own one upstream `gaze daemon` process per instance and
  * frame requests one JSON line in, one JSON line out. Concrete client lives
- * at `Naoray\GazeLaravel\Daemon\DaemonClient`; tests substitute via the
- * `Naoray\GazeLaravel\Daemon\Contracts\DaemonClientContract` binding.
+ * at `CertaMesh\Gaze\Daemon\DaemonClient`; tests substitute via the
+ * `CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract` binding.
  *
  * Implementations MUST fail-closed on broken-pipe / EOF (throw
  * `GazeDaemonTransportException`) — silent reconnect masks state loss

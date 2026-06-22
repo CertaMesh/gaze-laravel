@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\BinaryResolver;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\BinaryResolver;
 
 it('reports OK when binary and version succeed', function () {
     $this->app->instance(

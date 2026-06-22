@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\GazeSession;
 use Illuminate\Support\Facades\Artisan;
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\GazeSession;
 
 function benchCleanSession(): GazeSession
 {

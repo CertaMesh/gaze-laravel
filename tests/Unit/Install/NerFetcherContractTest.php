@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\NerArtifactSet;
-use Naoray\GazeLaravel\Install\NerFetcher;
+use CertaMesh\Gaze\Install\NerArtifactSet;
+use CertaMesh\Gaze\Install\NerFetcher;
 
 it('NerFetcher is an interface', function () {
     $reflection = new ReflectionClass(NerFetcher::class);

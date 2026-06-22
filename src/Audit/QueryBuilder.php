@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Audit;
+namespace CertaMesh\Gaze\Audit;
 
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Gaze;
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Gaze;
 
 /**
  * Runs `gaze audit query` and parses the TSV output into rows.

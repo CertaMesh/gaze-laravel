@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 
 it('maps every spec wire variant', function (string $wire, DaemonErrorVariant $expected) {
     expect(DaemonErrorVariant::fromWire($wire))->toBe($expected);

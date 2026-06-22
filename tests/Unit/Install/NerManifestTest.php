@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\NerManifest;
-use Naoray\GazeLaravel\Install\NerManifestInvalidException;
-use Naoray\GazeLaravel\Install\NerVariantUnknownException;
+use CertaMesh\Gaze\Install\NerManifest;
+use CertaMesh\Gaze\Install\NerManifestInvalidException;
+use CertaMesh\Gaze\Install\NerVariantUnknownException;
 
 it('resolves the pinned int8 artifact set from SHA256SUMS', function () {
     $set = NerManifest::fromString(gl_nerChecksumFixture())->resolve('int8');

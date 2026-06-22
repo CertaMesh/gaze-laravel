@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Testing;
+namespace CertaMesh\Gaze\Testing;
 
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\Daemon\DaemonManager;
-use Naoray\GazeLaravel\Daemon\DaemonSession;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\Daemon\DaemonManager;
+use CertaMesh\Gaze\Daemon\DaemonSession;
 
 /**
  * Test double for the `Gaze::daemon()` chain. Records every call and

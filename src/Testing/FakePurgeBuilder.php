@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Testing;
+namespace CertaMesh\Gaze\Testing;
 
 use Carbon\CarbonInterface;
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
-use Naoray\GazeLaravel\Audit\PurgeBuilder;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Audit\PurgeBuilder;
 
 final class FakePurgeBuilder extends PurgeBuilder
 {

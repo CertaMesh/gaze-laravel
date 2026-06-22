@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Tests;
+namespace CertaMesh\Gaze\Tests;
 
+use CertaMesh\Gaze\Audit\AuditService;
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\GazeServiceProvider;
+use CertaMesh\Gaze\GazeSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Process\Factory as ProcessFactory;
-use Naoray\GazeLaravel\Audit\AuditService;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\GazeServiceProvider;
-use Naoray\GazeLaravel\GazeSession;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class TestCase extends OrchestraTestCase

@@ -11,7 +11,7 @@ Gaze ships a first-class fake that mirrors the `Queue::fake()` / `Mail::fake()` 
 Call `Gaze::fake()` at the start of a test. It swaps the bound `Gaze` service for a `FakeGaze`, returns the fake, and enables all assertion helpers on the facade.
 
 ```php
-use Naoray\GazeLaravel\Facades\Gaze;
+use CertaMesh\Gaze\Facades\Gaze;
 
 it('redacts user input before forwarding to the LLM', function () {
     Gaze::fake();
@@ -138,8 +138,8 @@ Pass closures to stub return values or simulate error conditions.
 Override the return value of every `clean()` call:
 
 ```php
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\GazeSession;
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\GazeSession;
 
 Gaze::fake(
     cleanHandler: fn (string $text): GazeSession => new GazeSession(
@@ -166,7 +166,7 @@ Gaze::fake(
 Override the return value of every `audit()->purge()->...->execute()` or `->dryRun()` call:
 
 ```php
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
 
 Gaze::fake(
     auditPurgeHandler: fn (string $beforeIso, bool $dryRun): AuditPurgeResult

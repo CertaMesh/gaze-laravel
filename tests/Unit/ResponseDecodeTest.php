@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\Exceptions\GazeResponseDecodeException;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Encryption\Encrypter as EncrypterContract;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Support\Facades\Process;
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
-use Naoray\GazeLaravel\Queue\Contracts\NonRetryable;
 
 it('decodes the clean response into a session', function () {
     Process::fake([

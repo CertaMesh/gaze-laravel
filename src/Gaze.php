@@ -2,39 +2,39 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel;
+namespace CertaMesh\Gaze;
 
+use CertaMesh\Gaze\Audit\AuditService;
+use CertaMesh\Gaze\Daemon\DaemonManager;
+use CertaMesh\Gaze\Exceptions\GazeAuditPurgeIso8601Exception;
+use CertaMesh\Gaze\Exceptions\GazeBlobExpiredException;
+use CertaMesh\Gaze\Exceptions\GazeEmptyInputException;
+use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Exceptions\GazeInputTooLargeException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidBlobVersionException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidEncodingException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidSignatureException;
+use CertaMesh\Gaze\Exceptions\GazeIoException;
+use CertaMesh\Gaze\Exceptions\GazePipelineException;
+use CertaMesh\Gaze\Exceptions\GazePolicyConfigDetailException;
+use CertaMesh\Gaze\Exceptions\GazePolicyConfigException;
+use CertaMesh\Gaze\Exceptions\GazePolicyOpenException;
+use CertaMesh\Gaze\Exceptions\GazePolicySchemaUnsupportedException;
+use CertaMesh\Gaze\Exceptions\GazeResponseDecodeException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetArtifactMissingException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Exceptions\GazeSigPipeException;
+use CertaMesh\Gaze\Exceptions\GazeStdinParseException;
+use CertaMesh\Gaze\Exceptions\GazeTimeoutException;
+use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
+use CertaMesh\Gaze\Exceptions\GazeUnsupportedSessionScopeException;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\Facades\Log;
-use Naoray\GazeLaravel\Audit\AuditService;
-use Naoray\GazeLaravel\Daemon\DaemonManager;
-use Naoray\GazeLaravel\Exceptions\GazeAuditPurgeIso8601Exception;
-use Naoray\GazeLaravel\Exceptions\GazeBlobExpiredException;
-use Naoray\GazeLaravel\Exceptions\GazeEmptyInputException;
-use Naoray\GazeLaravel\Exceptions\GazeException;
-use Naoray\GazeLaravel\Exceptions\GazeInputTooLargeException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidBlobVersionException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidEncodingException;
-use Naoray\GazeLaravel\Exceptions\GazeInvalidSignatureException;
-use Naoray\GazeLaravel\Exceptions\GazeIoException;
-use Naoray\GazeLaravel\Exceptions\GazePipelineException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyConfigDetailException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyConfigException;
-use Naoray\GazeLaravel\Exceptions\GazePolicyOpenException;
-use Naoray\GazeLaravel\Exceptions\GazePolicySchemaUnsupportedException;
-use Naoray\GazeLaravel\Exceptions\GazeResponseDecodeException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetArtifactMissingException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetConfigException;
-use Naoray\GazeLaravel\Exceptions\GazeSafetyNetFailureException;
-use Naoray\GazeLaravel\Exceptions\GazeSigPipeException;
-use Naoray\GazeLaravel\Exceptions\GazeStdinParseException;
-use Naoray\GazeLaravel\Exceptions\GazeTimeoutException;
-use Naoray\GazeLaravel\Exceptions\GazeUnknownTokenException;
-use Naoray\GazeLaravel\Exceptions\GazeUnsupportedSessionScopeException;
 
 class Gaze
 {

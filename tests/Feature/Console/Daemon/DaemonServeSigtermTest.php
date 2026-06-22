@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Console\Daemon\DaemonServeCommand;
 use Illuminate\Contracts\Process\InvokedProcess;
 use Illuminate\Process\ProcessResult;
-use Naoray\GazeLaravel\BinaryResolver;
-use Naoray\GazeLaravel\Console\Daemon\DaemonServeCommand;
 use Symfony\Component\Process\Process;
 
 /**

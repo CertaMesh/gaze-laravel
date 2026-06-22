@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Exceptions;
+namespace CertaMesh\Gaze\Exceptions;
 
 final class GazeAuditDbNotConfiguredException extends GazeCallerBugException
 {

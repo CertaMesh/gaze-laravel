@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\Install\NerArtifactSet;
-use Naoray\GazeLaravel\Install\NerDiskSpaceException;
-use Naoray\GazeLaravel\Install\NerFetcher;
-use Naoray\GazeLaravel\Install\NerInstaller;
-use Naoray\GazeLaravel\Install\NerInstallerOptions;
-use Naoray\GazeLaravel\Install\NerInstallStatus;
-use Naoray\GazeLaravel\Install\NerManifest;
-use Naoray\GazeLaravel\Install\NerPolicyConflictException;
-use Naoray\GazeLaravel\Install\PolicyTomlPatcher;
+use CertaMesh\Gaze\Install\NerArtifactSet;
+use CertaMesh\Gaze\Install\NerDiskSpaceException;
+use CertaMesh\Gaze\Install\NerFetcher;
+use CertaMesh\Gaze\Install\NerInstaller;
+use CertaMesh\Gaze\Install\NerInstallerOptions;
+use CertaMesh\Gaze\Install\NerInstallStatus;
+use CertaMesh\Gaze\Install\NerManifest;
+use CertaMesh\Gaze\Install\NerPolicyConflictException;
+use CertaMesh\Gaze\Install\PolicyTomlPatcher;
 use Symfony\Component\Console\Output\OutputInterface;
 
 beforeEach(function () {

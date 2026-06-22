@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel;
+namespace CertaMesh\Gaze;
 
 final readonly class GazeSession
 {

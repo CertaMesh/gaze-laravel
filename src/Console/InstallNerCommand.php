@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Console;
+namespace CertaMesh\Gaze\Console;
 
+use CertaMesh\Gaze\Install\NerInstaller;
+use CertaMesh\Gaze\Install\NerInstallerOptions;
+use CertaMesh\Gaze\Install\NerInstallerResult;
+use CertaMesh\Gaze\Install\NerInstallException;
+use CertaMesh\Gaze\Install\NerInstallStatus;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
-use Naoray\GazeLaravel\Install\NerInstaller;
-use Naoray\GazeLaravel\Install\NerInstallerOptions;
-use Naoray\GazeLaravel\Install\NerInstallerResult;
-use Naoray\GazeLaravel\Install\NerInstallException;
-use Naoray\GazeLaravel\Install\NerInstallStatus;
 
 final class InstallNerCommand extends Command
 {

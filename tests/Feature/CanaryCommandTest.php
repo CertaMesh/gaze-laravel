@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\GazeSession;
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\GazeSession;
 
 it('passes when the canary round-trip restores the known markers', function () {
     $clean = new GazeSession(

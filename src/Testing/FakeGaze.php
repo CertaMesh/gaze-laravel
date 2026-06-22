@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Naoray\GazeLaravel\Testing;
+namespace CertaMesh\Gaze\Testing;
 
-use Naoray\GazeLaravel\Audit\AuditPurgeResult;
-use Naoray\GazeLaravel\Daemon\CleanResponse;
-use Naoray\GazeLaravel\EncryptedBlob;
-use Naoray\GazeLaravel\Gaze;
-use Naoray\GazeLaravel\GazeSession;
+use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Daemon\CleanResponse;
+use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\GazeSession;
 
 final class FakeGaze extends Gaze
 {
