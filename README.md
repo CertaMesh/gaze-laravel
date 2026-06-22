@@ -195,8 +195,10 @@ See [Security model](./docs/explanation/security.md) for guarantees, responsibil
 Per-minor walkthroughs live in [`docs/how-to/upgrading.md`](./docs/how-to/upgrading.md);
 pair them with the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md). The
-current pin is **v0.9.0** — see the `v0.8.1 → v0.9.0` section for the
-adoption notes, Kiji ORT/int8 config, and daemon fallback rationale.
+current pin is **v0.11.1** — see the `v0.9.0 → v0.11.1` section for the
+adoption notes, the opt-in restore-telemetry surface (and its
+audit-trail-not-DLP caveat), and the NER fail-closed / byte-exact restore
+rationale.
 Older upgrade notes are preserved in the same file.
 
 See [`docs/reference/exceptions.md`](./docs/reference/exceptions.md) and

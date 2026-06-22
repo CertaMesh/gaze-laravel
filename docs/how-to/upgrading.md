@@ -4,6 +4,80 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.9.0 → v0.11.1
+
+> Keyed by the **upstream binary pin** (advances from `gaze` v0.9.0 to
+> **v0.11.1**), shipped in gaze-laravel **v0.11.1**. Two legs: (a) upstream
+> correctness fixes adopted purely through the binary — no adapter code, no
+> adopter action; (b) one net-new wrap-tier Laravel surface (restore
+> telemetry). The restore JSON wire contract and exit codes are unchanged, so
+> the reversible clean/restore round trip stays byte-for-byte compatible across
+> the jump. (For the v0.10.0 → v0.11.0 adapter-only daemon surface, which left
+> the binary pinned at v0.9.0, see the section below.)
+
+### TL;DR
+
+1. **Binary pin bump `0.9.0` → `0.11.1`.** `BinaryInstaller::PINNED_VERSION`
+   is now `0.11.1`; `composer install` / `composer update` re-downloads and
+   SHA256-verifies the pinned binary from the CertaMesh/gaze release. Hold the
+   previous binary temporarily with `GAZE_VERSION=0.9.0` while you validate.
+2. **NER fail-closed + byte-exact restore — no adopter action.** Upstream
+   NER fail-closed (#290/#293) and byte-exact restore (#295) are pure binary
+   correctness fixes. The PHP adapter forwards them unchanged; the restore
+   JSON wire contract and exit codes are identical, so existing session blobs
+   round-trip without migration. You adopt these purely by taking the pin —
+   detection/NER/policy stays upstream, never re-implemented in PHP.
+3. **New restore-telemetry surface (opt-in, default off).** Set
+   `gaze.restore_telemetry` (config) or `GAZE_RESTORE_TELEMETRY` (env) to
+   enable. When on, `Gaze::restore()` forwards
+   `--telemetry --audit-db=<gaze.audit_db_path>`, recording six audit columns:
+   `restore_policy`, `restore_decision`, `restore_unknown_token_count`,
+   `restore_manifest_bypass_count`, `restore_fresh_pii_count`,
+   `restore_phase_mask`. Query restore-only rows with
+   `Naoray\GazeLaravel\Audit\QueryBuilder::onlyRestoreEvents()` (forwards
+   `--restore-events`). Default `null` = off = upstream default (no telemetry).
+4. **Telemetry caveat — audit trail, NOT DLP.** `restore_fresh_pii_count` and
+   `restore_manifest_bypass_count` are **always `0`** through the stock CLI:
+   gaze-cli's `run_restore` never enables the Phase-B DLP builder. This surface
+   exists for restore-decision and unknown-token audit trails (did a restore
+   run strict vs tolerant, how many unknown tokens were encountered) — it is
+   **not** outbound-DLP fresh-PII detection. Do not build DLP controls on those
+   two columns.
+5. **`--policy` is a documentation-only alias.** Upstream's restore `--policy`
+   flag is redundant with the already-forwarded `--restore-mode`; the adapter
+   does **not** add a separate surface for it. Keep driving unknown-token
+   handling through the existing restore-mode config.
+6. **`core-extended` rulepack still a soft alias.** Through v0.11.x, the legacy
+   `core-extended` rulepack emits an upstream soft warning and resolves to
+   `core` — it is not a hard error, and `gaze:doctor` reports it as
+   informational. No action required; silence the warning by switching to
+   `core` plus an explicit `--locale` (or `GAZE_LOCALE`) when you are ready.
+
+### Action required
+
+- **None** for the correctness fixes — taking the v0.11.1 pin is sufficient.
+  Run `composer install` (or `composer update empiretwo/gaze-laravel`) and
+  confirm `php artisan gaze:doctor` reports the pinned binary at `0.11.1`.
+- **Only if you want restore audit trails:** set `GAZE_RESTORE_TELEMETRY=1`
+  and a `gaze.audit_db_path`, then read restore rows via
+  `QueryBuilder::onlyRestoreEvents()`.
+
+### Additive
+
+- **Config / env:** `gaze.restore_telemetry` / `GAZE_RESTORE_TELEMETRY`
+  (default `null` = off = upstream default).
+- **Facade:** `Gaze::restore()` forwards `--telemetry --audit-db=<…>` when
+  telemetry is enabled.
+- **Audit query:** `Audit\QueryBuilder::onlyRestoreEvents()` → `--restore-events`.
+- **Six restore audit columns** (two — `restore_fresh_pii_count`,
+  `restore_manifest_bypass_count` — are always `0` via the stock CLI; see the
+  caveat above).
+
+> See [docs/how-to/audit-query-export.md](./audit-query-export.md) for
+> restore-event queries and
+> [docs/reference/configuration.md](../reference/configuration.md) for the
+> `restore_telemetry` key and audit-db wiring.
+
 ## v0.10.0 → v0.11.0
 
 > Pre-1.0 SemVer MINOR bump: net-new adopter surface in four legs of the

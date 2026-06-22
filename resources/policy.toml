@@ -17,7 +17,7 @@
 # bound to "de-DE".
 #
 # Extending: append [[policy.custom_recognizers]] blocks for adopter-specific
-# regexes. See https://github.com/EmpireTwo/gaze/blob/main/docs/policy.md
+# regexes. See https://github.com/CertaMesh/gaze/blob/main/docs/policy.md
 # for the full schema reference.
 
 [session]
@@ -28,7 +28,7 @@ ttl_secs = 86400
 active = ["de-DE", "en-US"]
 
 [policy.rulepacks]
-# v0.8: 'core-extended' was unified into 'core'. Pass --locale (or set GAZE_LOCALE) to activate phone.national.* / postal.* recognizers. See https://github.com/EmpireTwo/gaze/blob/main/UPGRADE.md
+# v0.8: 'core-extended' was unified into 'core'. Pass --locale (or set GAZE_LOCALE) to activate phone.national.* / postal.* recognizers. See https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md
 bundled = ["core"]
 
 # [ner]

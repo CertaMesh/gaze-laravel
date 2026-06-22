@@ -27,5 +27,7 @@ Options:
           Filter by collision family identifier
       --collision-variant <COLLISION_VARIANT>
           Filter by collision variant identifier
+      --restore-events
+          Include only restore telemetry rows
   -h, --help
           Print help

@@ -11,7 +11,7 @@
 
 Report vulnerabilities privately through GitHub Security Advisories:
 
-https://github.com/EmpireTwo/gaze-laravel/security/advisories/new
+https://github.com/CertaMesh/gaze-laravel/security/advisories/new
 
 This opens a private channel between the reporter and maintainers. If GitHub
 Advisories is not suitable, email security@empiretwo.dev instead.
@@ -37,8 +37,8 @@ In scope:
 
 Out of scope:
 
-- The upstream `EmpireTwo/gaze` Rust binary itself. Report those issues to
-  https://github.com/EmpireTwo/gaze.
+- The upstream `CertaMesh/gaze` Rust binary itself. Report those issues to
+  https://github.com/CertaMesh/gaze.
 
 ## Acknowledgments
 
