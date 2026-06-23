@@ -12,6 +12,7 @@ use CertaMesh\Gaze\Install\NerInstallStatus;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
+use Symfony\Component\Console\Output\NullOutput;
 
 final class InstallNerCommand extends Command
 {
@@ -47,7 +48,15 @@ final class InstallNerCommand extends Command
                 return self::FAILURE;
             }
 
-            $result = $installer->install($options, $this->output->getOutput());
+            // --no-progress routes a NullOutput so the fetcher emits no progress
+            // line or bar at all. Otherwise the real console output flows down and
+            // the fetcher self-gates on isDecorated() (bar on a TTY, plain line in
+            // CI), keeping control characters out of non-interactive logs.
+            $progressOutput = (bool) $this->option('no-progress')
+                ? new NullOutput
+                : $this->output->getOutput();
+
+            $result = $installer->install($options, $progressOutput);
             $this->renderResult($result);
 
             return match ($result->status) {
