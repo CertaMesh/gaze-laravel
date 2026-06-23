@@ -44,6 +44,14 @@ jobs:
             composer-${{ matrix.php }}-${{ matrix.laravel }}-
             composer-${{ matrix.php }}-
 
+      - name: Allow advisory-flagged framework patches (compat matrix only)
+        # The compatibility matrix pins EOL-adjacent Laravel patch releases that
+        # Composer now refuses to load due to security advisories. These are the
+        # framework-under-test, not gaze-laravel's shipped runtime deps, so we
+        # disable advisory blocking for dependency resolution in CI ONLY — never
+        # committed to composer.json.
+        run: composer config policy.advisories.block false
+
       - name: Pin Laravel ${{ matrix.laravel }}
         run: >
           composer require
