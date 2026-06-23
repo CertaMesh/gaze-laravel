@@ -57,6 +57,7 @@ abstract class TestCase extends OrchestraTestCase
         ?string $sessionScope = null,
         ?string $restoreMode = null,
         bool $restoreTelemetry = false,
+        ?float $nerThreshold = null,
     ): Gaze {
         $app = $this->applicationInstance();
 
@@ -91,6 +92,7 @@ abstract class TestCase extends OrchestraTestCase
             sessionScope: $sessionScope,
             restoreMode: $restoreMode,
             restoreTelemetry: $restoreTelemetry,
+            nerThreshold: $nerThreshold,
             container: $app,
         );
     }
@@ -108,7 +110,7 @@ abstract class TestCase extends OrchestraTestCase
                 // Skip parent constructor — no process invocations occur.
             }
 
-            public function clean(string $text): GazeSession
+            public function clean(string $text, ?float $threshold = null): GazeSession
             {
                 return $this->clean;
             }
@@ -145,7 +147,7 @@ abstract class TestCase extends OrchestraTestCase
                 // Skip parent constructor — no process invocations occur.
             }
 
-            public function clean(string $text): GazeSession
+            public function clean(string $text, ?float $threshold = null): GazeSession
             {
                 $this->calls++;
 

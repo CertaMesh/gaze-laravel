@@ -71,11 +71,14 @@ class Gaze
         private readonly ?string $sessionScope = null,
         private readonly ?string $restoreMode = null,
         private readonly bool $restoreTelemetry = false,
+        private readonly ?float $nerThreshold = null,
     ) {}
 
-    public function clean(string $text): GazeSession
+    public function clean(string $text, ?float $threshold = null): GazeSession
     {
         $this->assertInput($text);
+
+        $effectiveThreshold = $this->resolveNerThreshold($threshold);
 
         $command = [
             $this->resolver->resolve(),
@@ -83,6 +86,10 @@ class Gaze
             '--policy='.$this->resolvedPolicyPath(),
             '--format=json',
         ];
+
+        if ($effectiveThreshold !== null) {
+            $command[] = '--ner-threshold='.$effectiveThreshold;
+        }
 
         if ($this->maxBytes !== null) {
             $command[] = '--max-bytes='.$this->maxBytes;
@@ -179,6 +186,59 @@ class Gaze
             detections: (int) ($decoded['stats']['detections'] ?? 0),
             entries: $this->mapEntries($decoded['entries'] ?? null),
         );
+    }
+
+    /**
+     * One-way redaction helper: run the clean detection path, then replace
+     * every detected token in the clean text with a masked label.
+     *
+     * Unlike clean()/restore(), mask() is NON-reversible — the encrypted
+     * session blob is discarded and there is no restore() counterpart. Reach
+     * for clean() when the original values must round-trip back; reach for
+     * mask() only when they must be permanently dropped.
+     *
+     * The label defaults to `[<class>]` (e.g. `[Email]`). Pass $replace to
+     * customise it; the callable receives the matching Entry and returns the
+     * replacement string. Tokens are unique per detection, so the str_replace
+     * sweep is collision-safe.
+     *
+     * Adds NO detection of its own — it only reshapes the inventory clean()
+     * already produced (detection stays upstream).
+     *
+     * @param  (callable(Entry): string)|null  $replace
+     */
+    public function mask(string $text, ?callable $replace = null): string
+    {
+        $session = $this->clean($text);
+
+        $masked = $session->cleanText;
+        foreach ($session->entries as $entry) {
+            $label = $replace !== null ? $replace($entry) : '['.$entry->class.']';
+            $masked = str_replace($entry->token, $label, $masked);
+        }
+
+        return $masked;
+    }
+
+    /**
+     * Resolve the effective NER threshold for a clean() call. The per-call
+     * argument wins over the configured `gaze.ner_threshold` default; null at
+     * both levels lets upstream apply its own policy `[ner]` threshold.
+     *
+     * @throws \InvalidArgumentException when the effective value falls outside
+     *                                   the inclusive 0.0–1.0 range upstream accepts
+     */
+    private function resolveNerThreshold(?float $threshold): ?float
+    {
+        $effective = $threshold ?? $this->nerThreshold;
+
+        if ($effective !== null && ($effective < 0.0 || $effective > 1.0)) {
+            throw new \InvalidArgumentException(
+                "gaze ner_threshold must be between 0.0 and 1.0 inclusive, got {$effective}."
+            );
+        }
+
+        return $effective;
     }
 
     /**
