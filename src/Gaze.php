@@ -177,7 +177,7 @@ class Gaze
 
         $result = $this->run($command, $text, 'clean');
 
-        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>} $decoded */
+        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>,leak_report?:array<string,mixed>} $decoded */
         $decoded = $this->decodeResponse($result->output(), 'clean');
 
         return new GazeSession(
@@ -185,7 +185,19 @@ class Gaze
             ciphertext: EncryptedBlob::wrap($decoded['session_blob']),
             detections: (int) ($decoded['stats']['detections'] ?? 0),
             entries: $this->mapEntries($decoded['entries'] ?? null),
+            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null),
         );
+    }
+
+    /**
+     * Map the optional `leak_report` field of the gaze CLI clean response into a
+     * LeakReport DTO. Returns null when the field is absent or not an object —
+     * a null report degrades the session's trust state to Unverified rather than
+     * silently asserting Verified. Never throws on shape drift.
+     */
+    private function mapLeakReport(mixed $raw): ?LeakReport
+    {
+        return is_array($raw) ? LeakReport::fromArray($raw) : null;
     }
 
     /**
