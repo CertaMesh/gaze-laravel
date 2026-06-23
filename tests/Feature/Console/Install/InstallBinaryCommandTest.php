@@ -8,6 +8,7 @@ use CertaMesh\Gaze\Install\BinaryDownloader;
 use CertaMesh\Gaze\Install\BinaryDownloadOptions;
 use CertaMesh\Gaze\Install\BinaryDownloadResult;
 use CertaMesh\Gaze\Install\BinaryDownloadStatus;
+use Symfony\Component\Console\Tester\CommandTester;
 
 /** Downloader stub that returns a fixed status and never touches the network. */
 function ibc_fakeDownloader(BinaryDownloadStatus $status): BinaryDownloader
@@ -86,6 +87,22 @@ it('exits non-zero when the download fails outright', function () {
     app()->instance(BinaryDownloader::class, ibc_fakeDownloader(BinaryDownloadStatus::Failed));
 
     $this->artisan('gaze:install:binary')->assertFailed();
+});
+
+it('emits a plain start line with no progress escape sequences when non-interactive', function () {
+    ibc_bindNoBinaryResolver();
+    app()->instance(BinaryDownloader::class, ibc_fakeDownloader(BinaryDownloadStatus::Installed));
+
+    $command = app()->make(InstallBinaryCommand::class);
+    $command->setLaravel(app());
+    $tester = new CommandTester($command);
+
+    $exit = $tester->execute([], ['interactive' => false, 'decorated' => false]);
+
+    expect($exit)->toBe(0);
+    $display = $tester->getDisplay();
+    expect($display)->toContain('Downloading gaze binary'); // start line is shown
+    expect($display)->not->toContain("\x1b"); // no spinner/ANSI control chars in CI
 });
 
 it('forwards --force to the downloader options', function () {

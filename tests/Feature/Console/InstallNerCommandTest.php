@@ -233,6 +233,80 @@ it('fails non-interactive install without --force before fetching', function () 
     expect($tester->getDisplay())->toContain('pass --force');
 });
 
+/** A fetcher that echoes a sentinel to whatever output it is handed. */
+function gin_echoingFetcher(string $sentinel): NerFetcher
+{
+    return new class($sentinel) implements NerFetcher
+    {
+        public function __construct(private string $sentinel) {}
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $output->writeln($this->sentinel);
+            mkdir($stagingDir, 0755, true);
+            foreach ($set->fileNames() as $name) {
+                file_put_contents($stagingDir.'/'.$name, $name);
+            }
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            return false;
+        }
+    };
+}
+
+function gin_rmDest(string $dest): void
+{
+    if (! is_dir($dest)) {
+        return;
+    }
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dest, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST,
+    );
+    foreach ($files as $file) {
+        $file->isDir() ? @rmdir($file->getPathname()) : @unlink($file->getPathname());
+    }
+    @rmdir($dest);
+}
+
+it('--no-progress routes a NullOutput so the fetcher emits no progress output', function () {
+    $tester = gin_command_tester(gin_echoingFetcher('SENTINEL-PROGRESS-LINE'));
+    $dest = sys_get_temp_dir().'/gaze-noprog-'.bin2hex(random_bytes(6));
+
+    try {
+        $exit = $tester->execute(
+            ['--dest' => $dest, '--force' => true, '--no-progress' => true],
+            ['interactive' => false],
+        );
+
+        expect($exit)->toBe(0);
+        expect($tester->getDisplay())->not->toContain('SENTINEL-PROGRESS-LINE');
+    } finally {
+        gin_rmDest($dest);
+    }
+});
+
+it('streams fetcher progress output and stays escape-free when non-interactive', function () {
+    $tester = gin_command_tester(gin_echoingFetcher('SENTINEL-PROGRESS-LINE'));
+    $dest = sys_get_temp_dir().'/gaze-prog-'.bin2hex(random_bytes(6));
+
+    try {
+        $exit = $tester->execute(
+            ['--dest' => $dest, '--force' => true],
+            ['interactive' => false, 'decorated' => false],
+        );
+
+        expect($exit)->toBe(0);
+        $display = $tester->getDisplay();
+        expect($display)->toContain('SENTINEL-PROGRESS-LINE'); // progress output reaches the user
+        expect($display)->not->toContain("\x1b"); // but no ANSI / progress-bar control chars in CI
+    } finally {
+        gin_rmDest($dest);
+    }
+});
+
 it('--force fetches even when existing destination verifies', function () {
     $fetcher = new class implements NerFetcher
     {

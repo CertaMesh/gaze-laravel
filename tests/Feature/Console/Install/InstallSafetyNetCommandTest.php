@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Console\Install\InstallSafetyNetCommand;
 use CertaMesh\Gaze\Install\KijiArtifacts;
 use CertaMesh\Gaze\Install\SafetyNetConfigurator;
+use Symfony\Component\Console\Tester\CommandTester;
 
 function isn_bindEnv(string $contents = "APP_ENV=testing\n"): string
 {
@@ -128,6 +130,23 @@ it('--print does not mutate .env', function () {
             ->expectsOutputToContain('GAZE_SAFETY_NET=true')
             ->assertExitCode(0);
         expect(file_get_contents($env))->toBe("APP_ENV=testing\n");
+    } finally {
+        isn_rmEnv($env);
+    }
+});
+
+it('wires safety-net with no progress escape sequences when non-interactive', function () {
+    $env = isn_bindEnv();
+    $command = app()->make(InstallSafetyNetCommand::class);
+    $command->setLaravel(app());
+    $tester = new CommandTester($command);
+
+    try {
+        $exit = $tester->execute(['--safety-net' => 'opf'], ['interactive' => false, 'decorated' => false]);
+
+        expect($exit)->toBe(0);
+        expect($tester->getDisplay())->not->toContain("\x1b"); // no spinner control chars in CI
+        expect(file_get_contents($env))->toContain('GAZE_SAFETY_NET_BACKEND=openai-filter');
     } finally {
         isn_rmEnv($env);
     }

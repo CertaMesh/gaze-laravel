@@ -6,6 +6,7 @@ namespace CertaMesh\Gaze\Console\Install;
 
 use CertaMesh\Gaze\Install\KijiArtifacts;
 use CertaMesh\Gaze\Install\SafetyNetConfigurator;
+use CertaMesh\Gaze\Install\SafetyNetConfiguratorResult;
 use Illuminate\Console\Command;
 
 /**
@@ -64,7 +65,28 @@ final class InstallSafetyNetCommand extends Command
             return self::SUCCESS;
         }
 
-        $result = $configurator->apply($pairs, force: (bool) $this->option('force'));
+        $force = (bool) $this->option('force');
+        $result = null;
+
+        if ($this->progressEnabled()) {
+            // No network fetch here — the kiji model artifacts are upstream-provided;
+            // this step only wires .env. The spinner reports the setup honestly
+            // and surfaces DONE/FAIL without swallowing the guidance lines below.
+            $this->components->task(
+                "Wiring safety-net backend ({$backend})",
+                function () use ($configurator, $pairs, $force, &$result): bool {
+                    $result = $configurator->apply($pairs, force: $force);
+
+                    return true;
+                },
+            );
+        } else {
+            $result = $configurator->apply($pairs, force: $force);
+        }
+
+        if (! $result instanceof SafetyNetConfiguratorResult) {
+            return self::FAILURE;
+        }
 
         $result->status === 'unchanged'
             ? $this->components->info("safety-net already wired ({$backend}); no change")
@@ -145,5 +167,14 @@ final class InstallSafetyNetCommand extends Command
         $value = $this->option($name);
 
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * Show a live spinner only on an interactive, decorated TTY; CI, piped
+     * output and `--no-interaction` keep the plain immediate output.
+     */
+    private function progressEnabled(): bool
+    {
+        return $this->output->isDecorated() && $this->input->isInteractive();
     }
 }
