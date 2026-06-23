@@ -13,6 +13,23 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- Clean `leak_report` surfaced as a `GazeSession` trust state (MINOR + trust fix).
+  `Gaze::clean()` previously **dropped** the upstream `leak_report` — the
+  pipeline's own coverage check — leaving callers to infer safety from the
+  detection count, which over-asserts (a high count never proves a span did not
+  bleed through). The report is now parsed into a typed, metadata-only
+  `CertaMesh\Gaze\LeakReport` (+ `LeakSuspect`) attached to `GazeSession`, with
+  `GazeSession::coverageState(): CoverageState` (`Verified` | `Unverified` |
+  `Suspect`) and `GazeSession::hasSuspectedLeak(): bool`. A `null`/absent report
+  degrades to `Unverified`, never `Verified`. `LeakReport`/`LeakSuspect` read a
+  strict field allowlist (no source text, no byte offsets ever carried — a
+  hostile-fixture test enforces it). Additive `?LeakReport $leakReport` field on
+  `GazeSession`; no detection logic in PHP — the binary's report is only
+  surfaced. **Caveat:** the `Suspect` (red) state depends on the observer-only
+  Pass-3 safety net, a compile-time feature absent from the stock release binary,
+  so through the stock CLI the strongest reachable state is `Unverified` (the
+  four coverage-gap counts are always present). See
+  `docs/reference/upstream-coverage.md` and `docs/explanation/security.md`.
 - Per-call NER threshold override (MINOR). `Gaze::clean(string $text, ?float $threshold = null)`
   accepts an optional threshold and forwards it to `gaze clean` as
   `--ner-threshold=<value>` (upstream: "Override policy [ner] threshold. Must be
