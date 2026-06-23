@@ -34,6 +34,14 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
             return 9999;
         }
 
+        // Laravel 12+ added command() to the InvokedProcess contract. Declaring
+        // it keeps this fake valid across the L11/L12/L13 matrix (harmless extra
+        // method on L11 where the interface predates it).
+        public function command(): string
+        {
+            return 'gaze daemon';
+        }
+
         public function signal(int $signal)
         {
             $this->signals[] = $signal;
@@ -73,7 +81,7 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
             );
         }
 
-        public function waitUntil(?callable $output = null)
+        public function waitUntil(?callable $output = null): ProcessResult
         {
             return new ProcessResult(
                 new Process(['true'])
