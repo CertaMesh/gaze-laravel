@@ -86,7 +86,7 @@ final class SafetyNetConfigurator
             }
         }
         if (is_file($backupPath)) {
-            @chmod($backupPath, 0600);
+            $this->lockDownBackup($backupPath);
         }
 
         if (file_put_contents($this->envPath, $updated, LOCK_EX) === false) {
@@ -94,6 +94,31 @@ final class SafetyNetConfigurator
         }
 
         return new SafetyNetConfiguratorResult('written', $pairs, $this->envPath, is_file($backupPath) ? $backupPath : null);
+    }
+
+    /**
+     * Force the `.env.backup` to `0600` and verify it stuck.
+     *
+     * The backup mirrors the original `.env`, which may carry secrets, so it
+     * MUST NOT stay world-readable. `copy()` creates the file under the process
+     * umask (commonly `0644` on CI runners), so we chmod it explicitly. We do
+     * NOT `@`-suppress the chmod: a backup that silently keeps `0644` is a real
+     * reversibility/security regression, not a warning to swallow. `chmod()`
+     * does not clear PHP's stat cache for the path, so we bust it before
+     * re-reading and fail loudly with the observed mode if it did not take.
+     */
+    private function lockDownBackup(string $backupPath): void
+    {
+        if (! chmod($backupPath, 0600)) {
+            throw new \RuntimeException("could not chmod .env backup to 0600: {$backupPath}");
+        }
+
+        clearstatcache(true, $backupPath);
+
+        $mode = substr(sprintf('%o', fileperms($backupPath)), -4);
+        if ($mode !== '0600') {
+            throw new \RuntimeException("expected .env backup at 0600, got {$mode}: {$backupPath}");
+        }
     }
 
     /**

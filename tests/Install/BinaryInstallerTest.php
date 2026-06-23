@@ -18,7 +18,7 @@ it('detects a supported target triple on macOS or Linux', function () {
     $target = BinaryInstaller::detectTarget();
 
     if ($target === null) {
-        test()->markTestSkipped('running on an unsupported platform');
+        $this->markTestSkipped('running on an unsupported platform');
     }
 
     expect($target)->toMatch('/^(aarch64-apple-darwin|x86_64-linux-gnu)$/');
