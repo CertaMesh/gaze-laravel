@@ -231,6 +231,7 @@ adopter surface, `defer` = documented non-goal.
 |---|---|---|---|
 | NER fail-closed (#290/#293), byte-exact restore (#295), strict manifest-restore (#262, MCP-only) + binary pin bump | passthrough | PATCH | Detection / restore-determinism hardening upstream; nothing new for the adapter to forward beyond the existing pin. Reinforces reversibility (NORTH_STAR §4), changes no surface. |
 | Restore telemetry + audit columns (#261/#270) | **wrap** | MINOR | New opt-in adopter surface — see [Restore telemetry (v0.11.x)](#restore-telemetry-v011x) below. |
+| Clean `leak_report` (verification signal on `gaze clean --format=json`) | **wrap** | MINOR | The adapter previously dropped this field. Now surfaced as a typed `LeakReport` + `CoverageState` trust state on `GazeSession` — see [Clean leak report & trust state (v0.11.x)](#clean-leak-report--trust-state-v011x) below. |
 | TokenBridge index-search (#327) | **defer** | none | Persists raw PII unencrypted on disk and routes through an MCP chokepoint — both NORTH_STAR non-goals ("no plaintext session state at rest"; MCP lifecycle). See Deferred. |
 | `gaze-mcp-bridge` (#330) | **defer** | none | MCP server lifecycle — explicit non-goal. See Deferred. |
 | CLI accessibility gate (#287) | internal-only | none | Human-TTY affordance; the adapter always invokes with `--format=json`, so the gate never engages. No surface. |
@@ -267,6 +268,46 @@ string key like the v0.8.0 recognizer columns:
 > enables the Phase-B DLP builder. This surface ships for
 > **restore-decision / unknown-token audit trails, NOT outbound-DLP fresh-PII
 > detection.** Do NOT advertise the DLP use-case.
+
+## Clean leak report & trust state (v0.11.x)
+
+`gaze clean --format=json` always emits a `leak_report` object — the upstream
+pipeline's own coverage check. The adapter previously **dropped** it, leaving
+callers to infer safety from the detection count. That over-asserts: a high
+detection count never proves a span did not bleed through (NER can fire many
+times while a real PII value stays uncovered). The report is now **wrapped** as
+a typed, metadata-only DTO and a derived trust state on every `GazeSession`.
+
+| Surface | Detail |
+|---|---|
+| `GazeSession::$leakReport` | `?CertaMesh\Gaze\LeakReport` — the parsed report, or `null` when the binary emits no `leak_report` |
+| `CertaMesh\Gaze\LeakReport` | Counts (`suspectCount`, `uncoveredCount`, `partialBleedCount`, `classMismatchCount`, `localeSkippedCount`), a `list<LeakSuspect> $suspects`, optional `$replayHash` |
+| `CertaMesh\Gaze\LeakSuspect` | Per-suspect **metadata only**: `safetyNetId`, `rawLabel` (backend category label, never source text), `mappedClass`, `leakKind`, `pipelineClass`, `spanLen`, `fieldPath`, `score` |
+| `GazeSession::coverageState(): CoverageState` | `Verified` (green) \| `Unverified` (amber) \| `Suspect` (red) |
+| `GazeSession::hasSuspectedLeak(): bool` | `true` only when the safety net actively flagged a span |
+
+**Trust-state semantics** ([why a green count over-asserts](../explanation/security.md#trust-state-a-count-is-not-a-verification)):
+
+| State | When | Meaning |
+|---|---|---|
+| `Suspect` (red) | `suspect_count > 0` | The observer-only safety net flagged a span that may still carry raw PII. Hardest signal — wins over amber. |
+| `Unverified` (amber) | no suspects, but any of `uncovered_count` / `partial_bleed_count` / `class_mismatch_count` / `locale_skipped_count` > 0 — **or `leak_report` absent** | Coverage is partial, or there is no upstream verification to back a green. Never silently promoted to green. |
+| `Verified` (green) | no suspects **and** no coverage gaps | Upstream's coverage check passed. Not "N detections" — an actual verification. |
+
+The report is **metadata only**: upstream serialises no source text and no byte
+offsets (only `span_len` survives; `raw_label` is the backend's category label).
+The adapter doubles down — `LeakReport`/`LeakSuspect` read a strict field
+allowlist, so a future or tampered upstream field carrying raw text can never
+flow through (enforced by a hostile-fixture test).
+
+> **Caveat —** the `suspect_count` / `suspects` channel is populated by the
+> observer-only **Pass-3 safety net**, which is a **compile-time feature absent
+> from the stock release binary**. Through the stock CLI those stay `0` / empty,
+> so the strongest reachable state is `Unverified` — `Suspect` (red) lights up
+> only when an adopter runs a safety-net-enabled build (`--features
+> safety-net-openai`). The four coverage-gap counts come from the core pipeline
+> and are always present. This mirrors the restore-telemetry caveat: the surface
+> ships forward-compatible; do NOT advertise stock-CLI safety-net leak detection.
 
 ## Deferred
 
