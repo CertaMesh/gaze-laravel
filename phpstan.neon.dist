@@ -5,7 +5,15 @@ parameters:
         - tests
     tmpDir: .phpstan.cache
     treatPhpDocTypesAsCertain: false
+    # The matrix analyses across pest v3 (PHP 8.2) and pest v4 (8.3/8.4) and
+    # across Laravel 11/12 (Symfony Console 7) and Laravel 13 (Symfony Console 8).
+    # The pest version changes the inferred test-closure $this type, and the
+    # Symfony version changes which reflection FPs phpstan 1.x emits, so a given
+    # ignore pattern only matches on some combos. Don't fail a job just because a
+    # cross-version pattern didn't fire on it.
+    reportUnmatchedIgnoredErrors: false
     ignoreErrors:
+        # --- pest v3: test-closure $this typed as the PHPUnit TestCase ---
         -
             message: '#^Access to an undefined property PHPUnit\\Framework\\TestCase::\$#'
             paths:
@@ -24,5 +32,43 @@ parameters:
                 - tests/*
         -
             message: '#^Parameter \#1 \.\.\.\$data of method Pest\\PendingCalls\\TestCall::with\(\) expects .*, array\{.*\} given\.$#'
+            paths:
+                - tests/*
+        # --- pest v4: test-closure $this typed as Pest\PendingCalls\TestCall ---
+        # The testbench app ($this->app), pest-plugin-laravel helpers
+        # ($this->artisan(), refreshApplication()), PHPUnit assertions
+        # ($this->fail(), markTestSkipped()) and the suite's own Pest.php helpers
+        # ($this->makeGaze(), $this->tmpDir, ...) all resolve at runtime against
+        # the bound TestCase — phpstan cannot see them through the TestCall facade.
+        -
+            message: '#^Access to an undefined property Pest\\PendingCalls\\TestCall::\$#'
+            paths:
+                - tests/*
+        -
+            message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall::#'
+            paths:
+                - tests/*
+        # pest v4 no longer lets phpstan narrow past $this->fail()/markTestSkipped()
+        # (they are TestCall methods, not recognised as never-returning), so values
+        # guaranteed non-null by a preceding fail()/skip guard still read as nullable.
+        -
+            message: '#^Cannot call method getPrevious\(\) on Throwable\|null\.$#'
+            paths:
+                - tests/*
+        -
+            message: '#^Parameter \#1 \$path of function basename expects string, string\|null given\.$#'
+            paths:
+                - tests/*
+        # --- Laravel 13 / Symfony Console 8: phpstan 1.x cannot fully reflect the
+        # Symfony Command base under PHP 8.4, so inherited Command exit-code
+        # constants and the Command supertype read as unknown. False positives
+        # (the constants exist; the classes are Commands) — resolved at the root by
+        # phpstan 2.x. Remove these two when the analyser is bumped.
+        -
+            message: '#^Access to undefined constant .*Command::(SUCCESS|FAILURE|INVALID)\.$#'
+            paths:
+                - src/Console/*
+        -
+            message: '#^Parameter \#1 \$command of class Symfony\\Component\\Console\\Tester\\CommandTester constructor expects .*, CertaMesh\\Gaze\\Console\\.* given\.$#'
             paths:
                 - tests/*
