@@ -6,7 +6,9 @@ use CertaMesh\Gaze\Install\LaravelNerFetcher;
 use CertaMesh\Gaze\Install\NerArtifactSet;
 use CertaMesh\Gaze\Install\NerShaMismatchException;
 use CertaMesh\Gaze\Install\NerTransportException;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\NullOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -108,6 +110,74 @@ it('throws and leaves no artifact on SHA mismatch', function () {
     expect(fn () => $fetcher->fetch($set, $staging, new NullOutput))
         ->toThrow(NerShaMismatchException::class);
     expect(is_file($staging.'/tokenizer.json'))->toBeFalse();
+});
+
+it('renders a real byte progress bar on a decorated TTY', function () {
+    $bytes = 'remote-tokenizer';
+    $set = new NerArtifactSet(
+        urlBase: 'https://example.test/models',
+        files: [
+            'tokenizer.json' => [
+                'sha' => hash('sha256', $bytes),
+                'size' => strlen($bytes),
+                'sourceName' => 'tokenizer.json',
+            ],
+        ],
+    );
+    $fetcher = new LaravelNerFetcher(new MockHttpClient([new MockResponse($bytes)]), $this->resources);
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, true); // decorated
+
+    $fetcher->fetch($set, $this->tmp.'/staging', $output);
+
+    $display = $output->fetch();
+    expect($display)->toContain('downloading NER model'); // the byte-bar format label
+    expect($display)->toContain('NER model ready.');
+});
+
+it('emits a plain, escape-free line on a non-decorated output (CI / --no-interaction)', function () {
+    $bytes = 'remote-tokenizer';
+    $set = new NerArtifactSet(
+        urlBase: 'https://example.test/models',
+        files: [
+            'tokenizer.json' => [
+                'sha' => hash('sha256', $bytes),
+                'size' => strlen($bytes),
+                'sourceName' => 'tokenizer.json',
+            ],
+        ],
+    );
+    $fetcher = new LaravelNerFetcher(new MockHttpClient([new MockResponse($bytes)]), $this->resources);
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, false); // not decorated
+
+    $fetcher->fetch($set, $this->tmp.'/staging', $output);
+
+    $display = $output->fetch();
+    expect($display)->toContain('Downloading NER model:');
+    expect($display)->toContain('NER model ready.');
+    // No progress-bar control characters: no ANSI escapes, no carriage-return redraws.
+    expect($display)->not->toContain("\x1b");
+    expect($display)->not->toContain("\r");
+});
+
+it('stays fully silent on a NullOutput (installer default / --no-progress)', function () {
+    $bytes = 'remote-tokenizer';
+    $set = new NerArtifactSet(
+        urlBase: 'https://example.test/models',
+        files: [
+            'tokenizer.json' => [
+                'sha' => hash('sha256', $bytes),
+                'size' => strlen($bytes),
+                'sourceName' => 'tokenizer.json',
+            ],
+        ],
+    );
+    $fetcher = new LaravelNerFetcher(new MockHttpClient([new MockResponse($bytes)]), $this->resources);
+
+    // NullOutput swallows every write — proves the progress code never crashes
+    // and never leaks output on the silent path.
+    $fetcher->fetch($set, $this->tmp.'/staging', new NullOutput);
+
+    expect(file_get_contents($this->tmp.'/staging/tokenizer.json'))->toBe($bytes);
 });
 
 it('passes HUGGINGFACE_TOKEN as an Authorization header', function () {
