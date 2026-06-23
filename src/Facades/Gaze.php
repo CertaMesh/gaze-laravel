@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Facade;
 use PHPUnit\Framework\Assert as PHPUnit;
 
 /**
- * @method static \CertaMesh\Gaze\GazeSession clean(string $text)
+ * @method static \CertaMesh\Gaze\GazeSession clean(string $text, ?float $threshold = null)
+ * @method static string mask(string $text, ?callable $replace = null)
  * @method static string restore(\CertaMesh\Gaze\GazeSession $session, string $text)
  * @method static \CertaMesh\Gaze\Audit\AuditService audit(?string $auditDbPath = null)
  * @method static \CertaMesh\Gaze\Daemon\DaemonManager daemon()

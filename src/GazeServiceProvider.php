@@ -95,6 +95,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 safetyNetFallback: is_string($config->get('gaze.safety_net_fallback')) && $config->get('gaze.safety_net_fallback') !== '' ? $config->get('gaze.safety_net_fallback') : null,
                 restoreMode: is_string($config->get('gaze.restore_mode')) && $config->get('gaze.restore_mode') !== '' ? $config->get('gaze.restore_mode') : null,
                 restoreTelemetry: (bool) $config->get('gaze.restore_telemetry', false),
+                nerThreshold: is_numeric($config->get('gaze.ner_threshold')) ? (float) $config->get('gaze.ner_threshold') : null,
                 container: $app,
             );
         });
