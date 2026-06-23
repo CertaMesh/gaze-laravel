@@ -78,6 +78,15 @@ return [
     'locale' => env('GAZE_LOCALE'),
 
     /*
+     * Optional global override for the policy `[ner]` detection threshold,
+     * forwarded to `gaze clean` as `--ner-threshold=<value>`. Must be between
+     * 0.0 and 1.0 inclusive. Null omits the flag and lets upstream apply the
+     * policy's own threshold. A per-call `Gaze::clean($text, $threshold)`
+     * argument wins over this config value.
+     */
+    'ner_threshold' => env('GAZE_NER_THRESHOLD'),
+
+    /*
      * Comma-separated list of bundled rulepack names forwarded as `--rulepack-bundled=`
      * flags (e.g. `GAZE_RULEPACKS=names,emails`).
      */

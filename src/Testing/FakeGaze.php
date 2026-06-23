@@ -7,6 +7,7 @@ namespace CertaMesh\Gaze\Testing;
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
 use CertaMesh\Gaze\Daemon\CleanResponse;
 use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\Entry;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeSession;
 
@@ -14,8 +15,11 @@ final class FakeGaze extends Gaze
 {
     private const TOKEN_PATTERN = '/<(?:Email|Name|Location|Organization)_\d+>|<Custom:[a-z0-9_]*_\d+>|\b(?:email|name|location|organization)_\d+\b|\bcustom:[a-z0-9_]*_\d+\b|\bemail\d+@example\.test\b|<[A-Z][a-zA-Z]+_\d+>|<[a-z][a-z_]+_\d+>|\b[A-Z][a-zA-Z]+_\d+\b|\b[a-z][a-z_]+_\d+\b/';
 
-    /** @var list<array{text: string}> */
+    /** @var list<array{text: string, threshold: float|null}> */
     private array $cleanCalls = [];
+
+    /** @var list<array{text: string}> */
+    private array $maskCalls = [];
 
     /** @var list<array{text: string, clean_text: string}> */
     private array $restoreCalls = [];
@@ -46,9 +50,9 @@ final class FakeGaze extends Gaze
         return $this->daemonManager;
     }
 
-    public function clean(string $text): GazeSession
+    public function clean(string $text, ?float $threshold = null): GazeSession
     {
-        $this->cleanCalls[] = ['text' => $text];
+        $this->cleanCalls[] = ['text' => $text, 'threshold' => $threshold];
 
         if ($this->cleanHandler !== null) {
             return ($this->cleanHandler)($text);
@@ -59,6 +63,21 @@ final class FakeGaze extends Gaze
             ciphertext: EncryptedBlob::wrap(base64_encode(json_encode(['text' => $text], JSON_THROW_ON_ERROR))),
             detections: 1,
         );
+    }
+
+    /**
+     * Mirror the one-way mask() helper. Records the call, then delegates to the
+     * real token-map sweep (parent::mask), which re-enters this fake's clean()
+     * — so a $cleanHandler returning entries drives the masking just as the
+     * real binary's inventory would, with no process invocation.
+     *
+     * @param  (callable(Entry): string)|null  $replace
+     */
+    public function mask(string $text, ?callable $replace = null): string
+    {
+        $this->maskCalls[] = ['text' => $text];
+
+        return parent::mask($text, $replace);
     }
 
     public function restore(GazeSession $session, string $text): string
@@ -81,11 +100,19 @@ final class FakeGaze extends Gaze
     }
 
     /**
-     * @return list<array{text: string}>
+     * @return list<array{text: string, threshold: float|null}>
      */
     public function cleanCalls(): array
     {
         return $this->cleanCalls;
+    }
+
+    /**
+     * @return list<array{text: string}>
+     */
+    public function maskCalls(): array
+    {
+        return $this->maskCalls;
     }
 
     /**

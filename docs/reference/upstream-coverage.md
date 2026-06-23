@@ -9,6 +9,7 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.11.1.
 | Upstream command | Laravel surface |
 |---|---|
 | `gaze clean` | `CertaMesh\Gaze\Gaze::clean()` |
+| `gaze clean` (one-way output reshape) | `CertaMesh\Gaze\Gaze::mask()` — redacts the clean inventory into masked labels (`[Class]` default, or a `callable(Entry): string`). NON-reversible: no session blob, no `restore()` counterpart. Adds no detection — reshapes `clean()`'s tokens only. |
 | `gaze restore` | `CertaMesh\Gaze\Gaze::restore()` |
 | `gaze audit query` | `Gaze::audit()->query()` |
 | `gaze audit purge` | `Gaze::audit()->purge()` |
@@ -24,6 +25,7 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.11.1.
 | `--session-scope` | `gaze.session_scope` / `GAZE_SESSION_SCOPE` |
 | `--audit-db` | `gaze.audit_db_path` / `GAZE_AUDIT_DB_PATH` |
 | `--locale` | `gaze.locale` / `GAZE_LOCALE` |
+| `--ner-threshold` | per-call `Gaze::clean($text, $threshold)` arg + `gaze.ner_threshold` / `GAZE_NER_THRESHOLD` (override policy `[ner]` threshold, 0.0–1.0 inclusive; per-call wins over config; null = upstream policy default) |
 | `--rulepack-bundled` | `gaze.rulepacks` / `GAZE_RULEPACKS` |
 | `--rulepack-path` | `gaze.rulepack_paths` / `GAZE_RULEPACK_PATHS` |
 | `--safety-net` | `gaze.safety_net` / `GAZE_SAFETY_NET` |
@@ -270,6 +272,7 @@ string key like the v0.8.0 recognizer columns:
 
 | Upstream surface | Reason |
 |---|---|
+| Per-detection byte spans (`start` / `end`) on `gaze clean --format=json` entries | **Upstream feature request.** As of the v0.11.1 pin, clean `--format=json` `entries[]` keys are exactly `{class, raw, token, family}` — there are **no byte offsets**. Computing span positions in PHP is a NORTH_STAR non-goal (it would re-derive detection geometry outside upstream). Blocked on upstream adding per-detection byte spans (start/end) to the clean `--format=json` contract; until then `Gaze::mask()` ships on the collision-safe token map instead. A `length()` / offset accessor on `Entry`/`GazeSession` lands as an additive MINOR once upstream emits the spans. |
 | `--context-json` | P1 design item; needs PHP API design before exposure. |
 | `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
 | `gaze-mcp-bridge` (#330) | MCP server lifecycle — explicit NORTH_STAR non-goal. Not a Laravel idiom; lives upstream. Tracked with the other `gaze mcp *` surfaces above. |

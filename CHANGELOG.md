@@ -13,6 +13,24 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- Per-call NER threshold override (MINOR). `Gaze::clean(string $text, ?float $threshold = null)`
+  accepts an optional threshold and forwards it to `gaze clean` as
+  `--ner-threshold=<value>` (upstream: "Override policy [ner] threshold. Must be
+  between 0.0 and 1.0 inclusive"). New config key `gaze.ner_threshold` /
+  `GAZE_NER_THRESHOLD` provides the default; the per-call argument wins over it.
+  Effective values are validated to the inclusive `0.0`–`1.0` range
+  (`InvalidArgumentException` otherwise); null at both levels omits the flag and
+  lets upstream apply the policy's own threshold. Pure flag forwarding — no
+  detection logic in PHP.
+- `Gaze::mask(string $text, ?callable $replace = null): string` one-way redaction
+  helper (MINOR). Runs the existing `clean()` detection path, then replaces each
+  detected token in the clean text with a masked label — `[<class>]` by default,
+  or the return of a `callable(Entry): string`. UNLIKE `clean()`/`restore()`,
+  `mask()` is NON-reversible: the encrypted session blob is discarded and there
+  is no restore counterpart. Reshapes `clean()`'s existing inventory only; adds
+  no detection of its own. `Gaze::fake()` mirrors it (`maskCalls()` recorder).
+  Implemented on the collision-safe token map — per-detection byte offsets remain
+  a deferred upstream feature request (see `docs/reference/upstream-coverage.md`).
 - `php artisan gaze:install` umbrella command (MINOR). Provisions a Laravel app
   to use gaze end-to-end — binary, config, policy, NER model, safety-net backend
   — in one idempotent pass, ending on a `gaze:doctor` gate and a per-step summary
