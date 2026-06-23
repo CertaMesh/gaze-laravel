@@ -12,6 +12,10 @@ use CertaMesh\Gaze\LeakSuspect;
  *   { stats: {suspect_count, uncovered_count, partial_bleed_count,
  *             class_mismatch_count, locale_skipped_count},
  *     suspects: [LeakSuspectResponse...], telemetry: [...], replay_hash? }
+ *
+ * @param  array<string, int>  $stats
+ * @param  list<array<string, mixed>>  $suspects
+ * @return array<string, mixed>
  */
 function leakReportArray(array $stats = [], array $suspects = [], ?string $replayHash = null): array
 {
