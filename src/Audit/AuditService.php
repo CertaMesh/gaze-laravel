@@ -39,6 +39,19 @@ class AuditService implements AuditServiceContract
         );
     }
 
+    /**
+     * Returns a SafetyNetQueryBuilder for `gaze audit safety-net query`.
+     * Reads from the configured audit DB, or the per-call override passed to `Gaze::audit($auditDbPath)`.
+     */
+    public function safetyNetQuery(): SafetyNetQueryBuilder
+    {
+        return new SafetyNetQueryBuilder(
+            gaze: $this->gaze,
+            resolver: $this->resolver,
+            auditDbPath: $this->resolveAuditDbPath(),
+        );
+    }
+
     protected function resolveAuditDbPath(): string
     {
         if ($this->auditDbPath === null || $this->auditDbPath === '') {

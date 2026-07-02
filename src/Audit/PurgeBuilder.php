@@ -59,17 +59,42 @@ class PurgeBuilder implements PurgeBuilderContract
         $result = $this->gaze->runForAuditPurge($command);
         $rawOutput = $result->output();
 
+        [$matched, $deleted] = $this->parseJsonCounts($rawOutput);
+
         return new AuditPurgeResult(
             rawOutput: $rawOutput,
-            count: $this->parseRowCount($rawOutput),
+            count: ($dryRun ? $matched : $deleted) ?? $this->parseLegacyRowCount($rawOutput),
+            matched: $matched,
+            deleted: $deleted,
         );
     }
 
-    private function parseRowCount(string $stdout): ?int
+    /**
+     * The pinned upstream (0.11.x) prints `{"dry_run":bool,"matched":N,"deleted":N}`.
+     * Verified against the real binary; parsed opportunistically so an
+     * unrecognized stdout shape degrades to nulls with rawOutput intact.
+     *
+     * @return array{0: int|null, 1: int|null}
+     */
+    private function parseJsonCounts(string $stdout): array
     {
-        // TODO: pin stdout once fixture audit-DB infrastructure exists:
-        // tighten this contract. For now, parse opportunistically and keep
-        // rawOutput available for callers when no count pattern is present.
+        $decoded = json_decode(trim($stdout), true);
+
+        if (! is_array($decoded)) {
+            return [null, null];
+        }
+
+        return [
+            is_int($decoded['matched'] ?? null) ? $decoded['matched'] : null,
+            is_int($decoded['deleted'] ?? null) ? $decoded['deleted'] : null,
+        ];
+    }
+
+    /**
+     * Fallback for pre-JSON stdout shapes ("N rows purged").
+     */
+    private function parseLegacyRowCount(string $stdout): ?int
+    {
         if (preg_match('/(\d+)\s+rows?/', trim($stdout), $matches) === 1) {
             return (int) $matches[1];
         }
