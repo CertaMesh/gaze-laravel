@@ -179,6 +179,15 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `maskCalls()`, purge/daemon assertions) is unchanged;
   `FakeDaemonManager::client()` now throws an explicit `LogicException`
   instead of fataling.
+- Replaced the unmaintained `yosymfony/toml` (^1.0, last release 2018, TOML
+  spec 0.4) with `devium/toml` (TOML 1.0, PHP >=8.2, actively maintained).
+  Upstream `gaze` writes TOML 1.0 policy files, so this is a correctness
+  improvement: TOML 1.0 constructs like dotted keys and heterogeneous arrays
+  in a `policy.toml` no longer fail PHP-side parsing. Parse failures in
+  `PolicyTomlPatcher` still surface as `NerManifestInvalidException`.
+  `gaze:doctor` now also emits a warning when `policy.toml` cannot be parsed
+  as TOML (previously the deprecated-rulepack check swallowed the error
+  silently).
 - `gaze:install-ner` renamed to `gaze:install:ner` (MINOR). The old name keeps
   working as a deprecated alias, so existing scripts are unaffected. A new `--yes`
   flag confirms a headless install WITHOUT re-downloading the model or overwriting

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Install\NerManifestInvalidException;
 use CertaMesh\Gaze\Install\NerPolicyConflictException;
 use CertaMesh\Gaze\Install\PolicyTomlPatcher;
 
@@ -200,6 +201,30 @@ it('writes absolute model_dir to disk via apply when given a relative dest', fun
     $written = (string) file_get_contents($policy);
     expect($patcher->readModelDir($written))
         ->toBe('/abs/project/storage/app/gaze-ner/davlan-mbert-ner-hrl-int8');
+});
+
+it('parses TOML 1.0 constructs the legacy 0.4 parser rejected', function () {
+    // Dotted keys and heterogeneous arrays are TOML 1.0 features; the Rust
+    // side of gaze writes TOML 1.0 policies, so the PHP parser must accept
+    // them. yosymfony/toml (TOML 0.4) threw a ParseException on both.
+    $patcher = new PolicyTomlPatcher;
+    $body = <<<'TOML'
+policy.version = 2
+mixed = ["core", 1, true]
+
+[ner]
+model_dir = "/abs/models/mbert"
+TOML;
+
+    expect($patcher->hasNerBlock($body))->toBeTrue();
+    expect($patcher->readModelDir($body))->toBe('/abs/models/mbert');
+});
+
+it('maps parser errors on invalid TOML to NerManifestInvalidException', function () {
+    $patcher = new PolicyTomlPatcher;
+
+    expect(fn () => $patcher->hasNerBlock("[ner\nmodel_dir = broken"))
+        ->toThrow(NerManifestInvalidException::class, 'invalid policy TOML');
 });
 
 it('does not overwrite an existing policy backup on repeat apply', function () {
