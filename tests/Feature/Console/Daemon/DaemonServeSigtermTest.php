@@ -29,7 +29,7 @@ it('forwards SIGTERM to the child via the installed pcntl handler', function () 
          */
         public function __construct(public array &$signals) {}
 
-        public function id()
+        public function id(): int
         {
             return 9999;
         }

@@ -195,6 +195,18 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   binary — no adapter logic change, no new flag. Restore wire shape and
   exit-code buckets are unchanged. Aligns the downloaded binary with the
   daemon surface shipped in the v0.11.0 adapter release.
+- Raise the `symfony/process` floor from `^7.0` to `^7.1.4` (`|| ^8.0`
+  unchanged). Versions below 7.1.4 lack the posix_spawn `proc_open()`
+  handling fix, so on PHP >= 8.3 probing a missing binary throws
+  `ProcessStartFailedException` instead of yielding a failed result,
+  breaking `gaze:install:binary`'s trust check. Exposed by the new
+  prefer-lowest CI leg; highest resolution is unaffected.
+- Dev tooling: phpstan bumped `^1.11` → `^2.1` (the two 1.x-era ignore
+  blocks it obsoletes are deleted; all new 2.x findings fixed at the
+  source, no baseline). New `.github/dependabot.yml` (weekly, composer +
+  github-actions, minor+patch grouped). CI matrix gains PHP 8.5 legs
+  (against Laravel 12/13) and a PHP 8.2 prefer-lowest job that validates
+  the declared dependency lower bounds.
 
 ### Fixed
 
