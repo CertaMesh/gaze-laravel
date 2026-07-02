@@ -11,7 +11,7 @@ beforeEach(function () {
     }
 
     $this->app['config']->set('gaze.binary', $binary);
-    $this->app['config']->set('gaze.policy_path', realpath(__DIR__.'/../../resources/policy.toml'));
+    $this->app['config']->set('gaze.policy_path', gl_integrationPolicyPath());
 });
 
 it('round-trips clean then restore against the real binary', function () {

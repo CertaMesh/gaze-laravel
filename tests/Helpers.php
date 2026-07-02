@@ -7,6 +7,31 @@ use Composer\Config;
 use Composer\IO\BufferIO;
 use Composer\Script\Event;
 
+/**
+ * Absolute path to the canonical package policy (resources/policy.toml,
+ * published via the `gaze-policy` tag).
+ *
+ * A missing gaze BINARY is a legitimate reason to skip integration tests;
+ * a missing policy FIXTURE is not — it means the suite itself is broken
+ * (this happened when policy.toml.example was moved to resources/policy.toml
+ * and the integration tests kept pointing at the dead path). Fail loudly.
+ */
+function gl_integrationPolicyPath(): string
+{
+    $path = dirname(__DIR__).'/resources/policy.toml';
+
+    if (! is_file($path)) {
+        throw new RuntimeException(
+            "Integration policy fixture missing: {$path}. The canonical policy is ".
+            'resources/policy.toml (published via the gaze-policy tag). If it moved, '.
+            'update gl_integrationPolicyPath(); do not let tests silently skip or '.
+            'point at a dead path.'
+        );
+    }
+
+    return $path;
+}
+
 function gl_makeExecutable(string $dir, string $name): string
 {
     $path = $dir.'/'.$name;

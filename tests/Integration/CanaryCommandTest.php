@@ -9,7 +9,7 @@ beforeEach(function () {
     }
 
     $this->app['config']->set('gaze.binary', $binary);
-    $this->app['config']->set('gaze.policy_path', realpath(__DIR__.'/../../policy.toml.example'));
+    $this->app['config']->set('gaze.policy_path', gl_integrationPolicyPath());
 });
 
 it('passes the canary command against the real binary', function () {
