@@ -8,9 +8,9 @@ use CertaMesh\Gaze\Install\NerShaMismatchException;
 use CertaMesh\Gaze\Install\NerVariantUnknownException;
 
 it('all NER install exceptions extend NerInstallException', function () {
-    expect(is_subclass_of(NerVariantUnknownException::class, NerInstallException::class))->toBeTrue();
-    expect(is_subclass_of(NerShaMismatchException::class, NerInstallException::class))->toBeTrue();
-    expect(is_subclass_of(NerLockHeldException::class, NerInstallException::class))->toBeTrue();
+    expect(NerVariantUnknownException::class)->toExtend(NerInstallException::class);
+    expect(NerShaMismatchException::class)->toExtend(NerInstallException::class);
+    expect(NerLockHeldException::class)->toExtend(NerInstallException::class);
 });
 
 it('NerInstallException carries an exit code', function () {

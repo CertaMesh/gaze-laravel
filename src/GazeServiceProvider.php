@@ -84,8 +84,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
                 sessionScope: is_string($config->get('gaze.session_scope')) && $config->get('gaze.session_scope') !== '' ? $config->get('gaze.session_scope') : null,
                 locale: is_string($config->get('gaze.locale')) && $config->get('gaze.locale') !== '' ? $config->get('gaze.locale') : null,
-                rulepacks: is_array($config->get('gaze.rulepacks')) && count($config->get('gaze.rulepacks')) > 0 ? $config->get('gaze.rulepacks') : null,
-                rulepackPaths: is_array($config->get('gaze.rulepack_paths')) && count($config->get('gaze.rulepack_paths')) > 0 ? $config->get('gaze.rulepack_paths') : null,
+                rulepacks: self::stringList($config->get('gaze.rulepacks')),
+                rulepackPaths: self::stringList($config->get('gaze.rulepack_paths')),
                 safetyNet: (bool) $config->get('gaze.safety_net', false),
                 safetyNetDevice: is_string($config->get('gaze.safety_net_device')) && $config->get('gaze.safety_net_device') !== '' ? $config->get('gaze.safety_net_device') : null,
                 openaiFilterCommand: is_string($config->get('gaze.openai_filter_command')) && $config->get('gaze.openai_filter_command') !== '' ? $config->get('gaze.openai_filter_command') : null,
@@ -294,5 +294,25 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             SafetyNetConfigurator::class,
             'gaze.encrypter',
         ];
+    }
+
+    /**
+     * Normalize a config value to the non-empty list of strings the Gaze
+     * constructor expects, or null when the key is unset/empty. Non-string
+     * entries are dropped — they were already outside the declared
+     * list<string> contract and would only corrupt the CLI arguments built
+     * from them.
+     *
+     * @return non-empty-list<string>|null
+     */
+    private static function stringList(mixed $value): ?array
+    {
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $strings = array_values(array_filter($value, is_string(...)));
+
+        return $strings === [] ? null : $strings;
     }
 }

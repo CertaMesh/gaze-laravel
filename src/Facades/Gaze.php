@@ -67,15 +67,15 @@ final class Gaze extends Facade
             return;
         }
 
+        $matched = false;
         foreach ($fake->cleanCalls() as $call) {
             if ($call['text'] === $expectedText) {
-                PHPUnit::assertTrue(true);
-
-                return;
+                $matched = true;
+                break;
             }
         }
 
-        PHPUnit::fail('Expected Gaze::clean to be called with given text, but it was not.');
+        PHPUnit::assertTrue($matched, 'Expected Gaze::clean to be called with given text, but it was not.');
     }
 
     public static function assertRestored(?string $expectedText = null): void
@@ -91,15 +91,15 @@ final class Gaze extends Facade
             return;
         }
 
+        $matched = false;
         foreach ($fake->restoreCalls() as $call) {
             if ($call['text'] === $expectedText) {
-                PHPUnit::assertTrue(true);
-
-                return;
+                $matched = true;
+                break;
             }
         }
 
-        PHPUnit::fail('Expected Gaze::restore to be called with given text, but it was not.');
+        PHPUnit::assertTrue($matched, 'Expected Gaze::restore to be called with given text, but it was not.');
     }
 
     public static function assertCleanCount(int $expected): void
@@ -140,15 +140,15 @@ final class Gaze extends Facade
 
         $expected = $before->utc()->toIso8601ZuluString();
 
+        $matched = false;
         foreach ($calls as $call) {
             if ($call['before'] === $expected) {
-                PHPUnit::assertTrue(true);
-
-                return;
+                $matched = true;
+                break;
             }
         }
 
-        PHPUnit::fail('Expected Gaze::audit()->purge() to be called with given before timestamp, but it was not.');
+        PHPUnit::assertTrue($matched, 'Expected Gaze::audit()->purge() to be called with given before timestamp, but it was not.');
     }
 
     public static function assertAuditPurgeCount(int $expected): void
@@ -186,13 +186,13 @@ final class Gaze extends Facade
             return;
         }
 
+        $matched = false;
         foreach ($calls as $call) {
             $sessionMatch = $sessionId === null || $call['session_id'] === $sessionId;
             $textMatch = $expectedText === null || $call['text'] === $expectedText;
             if ($sessionMatch && $textMatch) {
-                PHPUnit::assertTrue(true);
-
-                return;
+                $matched = true;
+                break;
             }
         }
 
@@ -200,7 +200,7 @@ final class Gaze extends Facade
         if ($expectedText !== null) {
             $criteria .= " with text={$expectedText}";
         }
-        PHPUnit::fail("Expected Gaze::daemon()->clean() to be called for {$criteria}, but it was not.");
+        PHPUnit::assertTrue($matched, "Expected Gaze::daemon()->clean() to be called for {$criteria}, but it was not.");
     }
 
     public static function assertDaemonCleanCount(int $expected): void

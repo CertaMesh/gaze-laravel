@@ -30,6 +30,6 @@ final class NerArtifactSet
      */
     public function fileNames(): array
     {
-        return array_values(array_keys($this->files));
+        return array_keys($this->files);
     }
 }
