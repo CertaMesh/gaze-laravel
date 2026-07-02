@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze;
 
 use CertaMesh\Gaze\Audit\AuditService;
+use CertaMesh\Gaze\Console\AuditPurgeCommand;
 use CertaMesh\Gaze\Console\BenchCommand;
 use CertaMesh\Gaze\Console\CanaryCommand;
 use CertaMesh\Gaze\Console\CheckCommand;
@@ -250,6 +251,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             ], 'gaze-policy');
 
             $this->commands([
+                AuditPurgeCommand::class,
                 CheckCommand::class,
                 DoctorCommand::class,
                 CanaryCommand::class,
