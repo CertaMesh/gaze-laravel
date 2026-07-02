@@ -6,8 +6,8 @@ namespace CertaMesh\Gaze\Facades;
 
 use Carbon\CarbonInterface;
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Daemon\CleanResponse;
-use CertaMesh\Gaze\Gaze as GazeService;
 use CertaMesh\Gaze\GazeSession;
 use CertaMesh\Gaze\Testing\FakeGaze;
 use Illuminate\Support\Facades\Facade;
@@ -17,16 +17,20 @@ use PHPUnit\Framework\Assert as PHPUnit;
  * @method static \CertaMesh\Gaze\GazeSession clean(string $text, ?float $threshold = null)
  * @method static string mask(string $text, ?callable $replace = null)
  * @method static string restore(\CertaMesh\Gaze\GazeSession $session, string $text)
- * @method static \CertaMesh\Gaze\Audit\AuditService audit(?string $auditDbPath = null)
- * @method static \CertaMesh\Gaze\Daemon\DaemonManager daemon()
+ * @method static \CertaMesh\Gaze\Contracts\AuditService audit(?string $auditDbPath = null)
+ * @method static \CertaMesh\Gaze\Contracts\DaemonManager daemon()
  *
- * @see GazeService
+ * @see GazeContract
+ * @see \CertaMesh\Gaze\Gaze
  */
 final class Gaze extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return GazeService::class;
+        // The contract is the canonical container binding; the concrete
+        // CertaMesh\Gaze\Gaze FQCN is aliased to it, so swapping this
+        // accessor (Gaze::fake()) also swaps concrete-name resolution.
+        return GazeContract::class;
     }
 
     /**

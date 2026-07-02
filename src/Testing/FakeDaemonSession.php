@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Testing;
 
+use CertaMesh\Gaze\Contracts\DaemonSession as DaemonSessionContract;
 use CertaMesh\Gaze\Daemon\CleanResponse;
-use CertaMesh\Gaze\Daemon\DaemonSession;
 
 /**
  * Fake DaemonSession used by `Gaze::fake()` so adopter test code can
@@ -15,18 +15,15 @@ use CertaMesh\Gaze\Daemon\DaemonSession;
  * via the bound back-reference — that keeps the call log centralised on
  * the manager regardless of which entry point the test exercises.
  *
- * Extends `DaemonSession` so it honours the parent `session(): DaemonSession`
- * return-type contract. The parent constructor is bypassed because the
- * fake never resolves a real client.
+ * Implements `Contracts\DaemonSession` directly (no longer extends the
+ * concrete `DaemonSession`) and mirrors its non-serializable guard.
  */
-final class FakeDaemonSession extends DaemonSession
+final class FakeDaemonSession implements DaemonSessionContract
 {
     public function __construct(
         public readonly string $sessionId,
         private readonly FakeDaemonManager $manager,
-    ) {
-        // Deliberately skip parent ctor — fake holds no client.
-    }
+    ) {}
 
     public function id(): string
     {
@@ -36,5 +33,29 @@ final class FakeDaemonSession extends DaemonSession
     public function clean(string $text): CleanResponse
     {
         return $this->manager->clean($this->sessionId, $text);
+    }
+
+    /**
+     * Serialization guard, mirroring the real `DaemonSession`: queueing a
+     * session handle is undefined behaviour. Resolve a fresh
+     * `Gaze::daemon()` per worker tick.
+     *
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new \LogicException(
+            'DaemonSession is not serializable; resolve fresh per request via Gaze::daemon().'
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function __unserialize(array $data): void
+    {
+        throw new \LogicException(
+            'DaemonSession is not serializable; resolve fresh per request via Gaze::daemon().'
+        );
     }
 }

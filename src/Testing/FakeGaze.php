@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Testing;
 
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Daemon\CleanResponse;
 use CertaMesh\Gaze\EncryptedBlob;
 use CertaMesh\Gaze\Entry;
-use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeSession;
 
-final class FakeGaze extends Gaze
+/**
+ * Test double for the `Gaze` service. Implements `Contracts\Gaze` directly
+ * (it does NOT extend the concrete, process-invoking `CertaMesh\Gaze\Gaze`)
+ * so its surface is exactly the public contract — no inherited internals
+ * that would fatal on an uninitialized constructor state.
+ */
+final class FakeGaze implements GazeContract
 {
     private const TOKEN_PATTERN = '/<(?:Email|Name|Location|Organization)_\d+>|<Custom:[a-z0-9_]*_\d+>|\b(?:email|name|location|organization)_\d+\b|\bcustom:[a-z0-9_]*_\d+\b|\bemail\d+@example\.test\b|<[A-Z][a-zA-Z]+_\d+>|<[a-z][a-z_]+_\d+>|\b[A-Z][a-zA-Z]+_\d+\b|\b[a-z][a-z_]+_\d+\b/';
 
@@ -40,7 +46,6 @@ final class FakeGaze extends Gaze
         ?\Closure $auditPurgeHandler = null,
         ?\Closure $daemonCleanHandler = null,
     ) {
-        // Deliberately skip parent constructor — fake never invokes process.
         $this->auditService = new FakeAuditService($auditPurgeHandler);
         $this->daemonManager = new FakeDaemonManager($daemonCleanHandler);
     }
@@ -66,10 +71,11 @@ final class FakeGaze extends Gaze
     }
 
     /**
-     * Mirror the one-way mask() helper. Records the call, then delegates to the
-     * real token-map sweep (parent::mask), which re-enters this fake's clean()
-     * — so a $cleanHandler returning entries drives the masking just as the
-     * real binary's inventory would, with no process invocation.
+     * Mirror the one-way mask() helper: record the call, then run the same
+     * clean + token-map sweep composition the real Gaze::mask() performs.
+     * It re-enters this fake's clean() — so a $cleanHandler returning
+     * entries drives the masking just as the real binary's inventory would,
+     * with no process invocation.
      *
      * @param  (callable(Entry): string)|null  $replace
      */
@@ -77,7 +83,15 @@ final class FakeGaze extends Gaze
     {
         $this->maskCalls[] = ['text' => $text];
 
-        return parent::mask($text, $replace);
+        $session = $this->clean($text);
+
+        $masked = $session->cleanText;
+        foreach ($session->entries as $entry) {
+            $label = $replace !== null ? $replace($entry) : '['.$entry->class.']';
+            $masked = str_replace($entry->token, $label, $masked);
+        }
+
+        return $masked;
     }
 
     public function restore(GazeSession $session, string $text): string

@@ -21,6 +21,9 @@ use CertaMesh\Gaze\Console\Proxy\ProxyServeCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyStartCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyStatusCommand;
 use CertaMesh\Gaze\Console\Proxy\ProxyStopCommand;
+use CertaMesh\Gaze\Contracts\AuditService as AuditServiceContract;
+use CertaMesh\Gaze\Contracts\DaemonManager as DaemonManagerContract;
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 use CertaMesh\Gaze\Daemon\DaemonClient;
 use CertaMesh\Gaze\Daemon\DaemonManager;
@@ -62,7 +65,11 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             );
         });
 
-        $this->app->singleton(Gaze::class, function (Application $app): Gaze {
+        // Canonical binding lives on the contract; the concrete FQCN is an
+        // alias of it so both `make(Contracts\Gaze::class)` and the historical
+        // `make(Gaze::class)` resolve the same singleton — and a facade-level
+        // swap (`Gaze::fake()`) replaces both.
+        $this->app->singleton(GazeContract::class, function (Application $app): Gaze {
             /** @var ConfigRepository $config */
             $config = $app->make('config');
             $rawAuditDbPath = $config->get('gaze.audit_db_path');
@@ -99,6 +106,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 container: $app,
             );
         });
+
+        $this->app->alias(GazeContract::class, Gaze::class);
 
         $this->app->scoped(DaemonClientContract::class, function (Application $app): DaemonClientContract {
             /** @var ConfigRepository $config */
@@ -141,11 +150,13 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             );
         });
 
-        $this->app->scoped(DaemonManager::class, function (Application $app): DaemonManager {
+        $this->app->scoped(DaemonManagerContract::class, function (Application $app): DaemonManager {
             return new DaemonManager($app->make(DaemonClientContract::class));
         });
 
-        $this->app->singleton(AuditService::class, function (Application $app): AuditService {
+        $this->app->alias(DaemonManagerContract::class, DaemonManager::class);
+
+        $this->app->singleton(AuditServiceContract::class, function (Application $app): AuditService {
             /** @var ConfigRepository $config */
             $config = $app->make('config');
             $rawAuditDbPath = $config->get('gaze.audit_db_path');
@@ -156,6 +167,8 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
                 auditDbPath: is_string($rawAuditDbPath) && $rawAuditDbPath !== '' ? $rawAuditDbPath : null,
             );
         });
+
+        $this->app->alias(AuditServiceContract::class, AuditService::class);
 
         $this->app->singleton('gaze.http_client', function (): HttpClientInterface {
             return new RetryableHttpClient(HttpClient::create(), maxRetries: 2);
@@ -266,9 +279,12 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             BinaryDownloader::class,
             BinaryResolver::class,
             Gaze::class,
+            GazeContract::class,
             AuditService::class,
+            AuditServiceContract::class,
             DaemonClientContract::class,
             DaemonManager::class,
+            DaemonManagerContract::class,
             'gaze.http_client',
             LaravelNerFetcher::class,
             NerFetcher::class,

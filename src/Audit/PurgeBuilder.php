@@ -6,14 +6,15 @@ namespace CertaMesh\Gaze\Audit;
 
 use Carbon\CarbonInterface;
 use CertaMesh\Gaze\BinaryResolver;
-use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Contracts\AuditRunner;
+use CertaMesh\Gaze\Contracts\PurgeBuilder as PurgeBuilderContract;
 
-class PurgeBuilder
+class PurgeBuilder implements PurgeBuilderContract
 {
     private ?string $before = null;
 
     public function __construct(
-        protected readonly Gaze $gaze,
+        protected readonly AuditRunner $gaze,
         protected readonly BinaryResolver $resolver,
         protected readonly string $auditDbPath,
     ) {}

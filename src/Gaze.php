@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze;
 
 use CertaMesh\Gaze\Audit\AuditService;
+use CertaMesh\Gaze\Contracts\AuditRunner;
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Daemon\DaemonManager;
 use CertaMesh\Gaze\Exceptions\GazeAuditPurgeIso8601Exception;
 use CertaMesh\Gaze\Exceptions\GazeBlobExpiredException;
@@ -36,7 +38,7 @@ use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory as ProcessFactory;
 use Illuminate\Support\Facades\Log;
 
-class Gaze
+class Gaze implements AuditRunner, GazeContract
 {
     private const DEFAULT_MAX_BYTES = 10485760;
 

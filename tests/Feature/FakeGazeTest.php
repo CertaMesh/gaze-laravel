@@ -2,14 +2,18 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\Testing\FakeGaze;
 
-it('satisfies the Gaze type hint', function () {
+it('satisfies the Contracts\Gaze type hint', function () {
+    // Since the contracts extraction, FakeGaze implements Contracts\Gaze
+    // instead of extending the concrete Gaze — consumers should type-hint
+    // the contract to accept both the real service and the fake.
     $fake = new FakeGaze;
     $this->app->instance(Gaze::class, $fake);
 
-    expect($this->app->make(Gaze::class))->toBeInstanceOf(Gaze::class)
+    expect($this->app->make(Gaze::class))->toBeInstanceOf(GazeContract::class)
         ->and($this->app->make(Gaze::class))->toBe($fake);
 });
 

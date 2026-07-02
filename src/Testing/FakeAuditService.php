@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Testing;
 
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
-use CertaMesh\Gaze\Audit\AuditService;
-use CertaMesh\Gaze\Audit\PurgeBuilder;
-use CertaMesh\Gaze\Audit\QueryBuilder;
+use CertaMesh\Gaze\Contracts\AuditService as AuditServiceContract;
 
-final class FakeAuditService extends AuditService
+/**
+ * Test double for the audit verbs. Implements `Contracts\AuditService`
+ * directly (no longer extends the concrete `Audit\AuditService`), so it
+ * carries no inherited process-invoking state.
+ */
+final class FakeAuditService implements AuditServiceContract
 {
     /** @var list<array{before: string, dry_run: bool}> */
     private array $purgeCalls = [];
@@ -19,16 +22,14 @@ final class FakeAuditService extends AuditService
      */
     public function __construct(
         private readonly ?\Closure $purgeHandler = null,
-    ) {
-        // Deliberately skip parent constructor — fake never invokes process.
-    }
+    ) {}
 
-    public function purge(): PurgeBuilder
+    public function purge(): FakePurgeBuilder
     {
         return new FakePurgeBuilder($this);
     }
 
-    public function query(): QueryBuilder
+    public function query(): FakeQueryBuilder
     {
         return new FakeQueryBuilder;
     }
