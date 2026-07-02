@@ -19,8 +19,6 @@ use CertaMesh\Gaze\GazeSession;
  */
 final class FakeGaze implements GazeContract
 {
-    private const TOKEN_PATTERN = '/<(?:Email|Name|Location|Organization)_\d+>|<Custom:[a-z0-9_]*_\d+>|\b(?:email|name|location|organization)_\d+\b|\bcustom:[a-z0-9_]*_\d+\b|\bemail\d+@example\.test\b|<[A-Z][a-zA-Z]+_\d+>|<[a-z][a-z_]+_\d+>|\b[A-Z][a-zA-Z]+_\d+\b|\b[a-z][a-z_]+_\d+\b/';
-
     /** @var list<array{text: string, threshold: float|null}> */
     private array $cleanCalls = [];
 
@@ -35,7 +33,7 @@ final class FakeGaze implements GazeContract
     private readonly FakeDaemonManager $daemonManager;
 
     /**
-     * @param  \Closure(string): GazeSession|null  $cleanHandler
+     * @param  \Closure(string, ?float): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
@@ -60,11 +58,16 @@ final class FakeGaze implements GazeContract
         $this->cleanCalls[] = ['text' => $text, 'threshold' => $threshold];
 
         if ($this->cleanHandler !== null) {
-            return ($this->cleanHandler)($text);
+            // Always invoked with both arguments. PHP user-land closures
+            // silently ignore surplus arguments, so pre-existing handlers
+            // typed (string $text) keep working unchanged, while handlers
+            // declaring (string $text, ?float $threshold) can branch on the
+            // per-call threshold exactly like the real Gaze::clean() does.
+            return ($this->cleanHandler)($text, $threshold);
         }
 
         return new GazeSession(
-            cleanText: $this->fakeCleanText($text),
+            cleanText: FakeTokenizer::mask($text),
             ciphertext: EncryptedBlob::wrap(base64_encode(json_encode(['text' => $text], JSON_THROW_ON_ERROR))),
             detections: 1,
         );
@@ -135,40 +138,5 @@ final class FakeGaze implements GazeContract
     public function restoreCalls(): array
     {
         return $this->restoreCalls;
-    }
-
-    private function fakeCleanText(string $text): string
-    {
-        $cleanText = preg_replace_callback(
-            self::TOKEN_PATTERN,
-            static function (array $match): string {
-                $token = $match[0];
-
-                if (preg_match('/^email\d+@example\.test$/', $token) === 1) {
-                    return 'email1@example.test';
-                }
-
-                if (str_starts_with($token, '<Custom:')) {
-                    return '<Custom:order_id_1>';
-                }
-
-                if (str_starts_with($token, 'custom:')) {
-                    return 'custom:order_id_1';
-                }
-
-                if (str_starts_with($token, '<')) {
-                    return ctype_lower($token[1]) ? '<name_1>' : '<Name_1>';
-                }
-
-                return ctype_lower($token[0]) ? 'name_1' : 'Name_1';
-            },
-            $text,
-        );
-
-        if (! is_string($cleanText) || $cleanText === $text) {
-            return str_replace('Alice', 'Name_1', $text);
-        }
-
-        return $cleanText;
     }
 }

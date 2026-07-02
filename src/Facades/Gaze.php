@@ -37,7 +37,7 @@ final class Gaze extends Facade
      * Swap the bound Gaze service for a FakeGaze and return it so tests can
      * chain assertions. Mirrors Laravel's Queue::fake() / Mail::fake() idiom.
      *
-     * @param  \Closure(string): GazeSession|null  $cleanHandler
+     * @param  \Closure(string, ?float): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
@@ -78,6 +78,32 @@ final class Gaze extends Facade
         PHPUnit::assertTrue($matched, 'Expected Gaze::clean to be called with given text, but it was not.');
     }
 
+    public static function assertMasked(?string $expectedText = null): void
+    {
+        $fake = self::requireFake();
+
+        if ($expectedText === null) {
+            PHPUnit::assertNotEmpty(
+                $fake->maskCalls(),
+                'Expected Gaze::mask to be called at least once.',
+            );
+
+            return;
+        }
+
+        $matched = false;
+
+        foreach ($fake->maskCalls() as $call) {
+            if ($call['text'] === $expectedText) {
+                $matched = true;
+
+                break;
+            }
+        }
+
+        PHPUnit::assertTrue($matched, 'Expected Gaze::mask to be called with given text, but it was not.');
+    }
+
     public static function assertRestored(?string $expectedText = null): void
     {
         $fake = self::requireFake();
@@ -110,6 +136,17 @@ final class Gaze extends Facade
             $expected,
             $fake->cleanCalls(),
             "Expected Gaze::clean to be called {$expected} time(s).",
+        );
+    }
+
+    public static function assertMaskCount(int $expected): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertCount(
+            $expected,
+            $fake->maskCalls(),
+            "Expected Gaze::mask to be called {$expected} time(s).",
         );
     }
 
@@ -169,6 +206,16 @@ final class Gaze extends Facade
         PHPUnit::assertEmpty(
             $fake->cleanCalls(),
             'Expected Gaze::clean not to be called.',
+        );
+    }
+
+    public static function assertNothingMasked(): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertEmpty(
+            $fake->maskCalls(),
+            'Expected Gaze::mask not to be called.',
         );
     }
 
