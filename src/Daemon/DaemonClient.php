@@ -29,6 +29,12 @@ use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
  */
 final class DaemonClient implements DaemonClientContract
 {
+    /** Grace period between SIGTERM and SIGKILL escalation, in seconds. */
+    private const TERM_GRACE_SECONDS = 2.0;
+
+    /** Poll interval while waiting for child exit, in microseconds. */
+    private const TERM_POLL_INTERVAL_US = 50_000;
+
     /** @var resource|null */
     private $process = null;
 
@@ -37,9 +43,6 @@ final class DaemonClient implements DaemonClientContract
 
     /** @var resource|null */
     private $stdout = null;
-
-    /** @var resource|null */
-    private $stderr = null;
 
     private bool $busy = false;
 
@@ -89,13 +92,7 @@ final class DaemonClient implements DaemonClientContract
 
         $argv = array_merge([$this->binary, 'daemon'], $this->flags);
 
-        $descriptors = [
-            0 => ['pipe', 'r'],
-            1 => ['pipe', 'w'],
-            2 => $this->stderrPath !== null
-                ? ['file', $this->stderrPath, 'a']
-                : ['pipe', 'w'],
-        ];
+        $descriptors = self::descriptorSpec($this->stderrPath);
 
         $pipes = [];
         $process = @proc_open($argv, $descriptors, $pipes);
@@ -109,7 +106,29 @@ final class DaemonClient implements DaemonClientContract
         $this->process = $process;
         $this->stdin = $pipes[0];
         $this->stdout = $pipes[1];
-        $this->stderr = $pipes[2] ?? null;
+    }
+
+    /**
+     * proc_open descriptor spec for the daemon child.
+     *
+     * Child stderr is never wired to a pipe: nothing in the request loop
+     * reads stderr, so a chatty daemon would fill the ~64KB pipe buffer,
+     * block on its next stderr write, and stall every subsequent request
+     * until the deadline. Instead stderr goes to `stderrPath` when
+     * configured (`gaze.daemon.stderr_path`), otherwise to /dev/null —
+     * neither can exert backpressure on the child.
+     *
+     * @internal exposed as a pure function so tests can pin the spec.
+     *
+     * @return array<int, array{0: string, 1: string, 2?: string}>
+     */
+    public static function descriptorSpec(?string $stderrPath): array
+    {
+        return [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['file', $stderrPath ?? '/dev/null', 'a'],
+        ];
     }
 
     public function request(string $sessionId, string $text): CleanResponse
@@ -136,14 +155,7 @@ final class DaemonClient implements DaemonClientContract
                 JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
             )."\n";
 
-            $written = @fwrite($this->stdin, $payload);
-            if ($written === false || $written !== strlen($payload)) {
-                throw new GazeDaemonTransportException(
-                    'broken pipe writing daemon request',
-                    $sessionId,
-                );
-            }
-            @fflush($this->stdin);
+            $this->writeRequest($payload, $sessionId);
 
             $line = $this->readLine($sessionId);
 
@@ -180,23 +192,127 @@ final class DaemonClient implements DaemonClientContract
         if (is_resource($this->stdout)) {
             @fclose($this->stdout);
         }
-        if (is_resource($this->stderr)) {
-            @fclose($this->stderr);
-        }
-        if (is_resource($this->process)) {
-            @proc_terminate($this->process);
-            @proc_close($this->process);
+        $process = $this->process;
+        if (is_resource($process)) {
+            @proc_terminate($process);
+            $this->awaitExitOrKill($process);
+            @proc_close($process);
         }
 
         $this->stdin = null;
         $this->stdout = null;
-        $this->stderr = null;
         $this->process = null;
     }
 
     public function __destruct()
     {
         $this->disconnect();
+    }
+
+    /**
+     * SIGTERM has already been sent; poll for child exit during a short
+     * grace period, then escalate to SIGKILL.
+     *
+     * proc_close() blocks until the child is gone, so without escalation a
+     * daemon that ignores SIGTERM would hang disconnect() — and with it
+     * the Octane worker's request teardown — indefinitely.
+     *
+     * @param  resource  $process
+     */
+    private function awaitExitOrKill($process): void
+    {
+        $deadline = microtime(true) + self::TERM_GRACE_SECONDS;
+
+        while (microtime(true) < $deadline) {
+            $status = @proc_get_status($process);
+            if ($status['running'] !== true) {
+                return;
+            }
+
+            usleep(self::TERM_POLL_INTERVAL_US);
+        }
+
+        // SIGKILL cannot be caught or ignored — proc_close() will return.
+        @proc_terminate($process, 9);
+    }
+
+    /**
+     * Write one newline-terminated JSON frame to daemon stdin, honouring
+     * the per-request millisecond deadline.
+     *
+     * A wedged daemon that stops draining stdin leaves the pipe buffer
+     * full; a plain blocking fwrite() would then hang the PHP worker
+     * indefinitely — past `request_timeout_ms`. Non-blocking writes plus
+     * stream_select() bound every wait; on deadline the request fails
+     * closed with GazeDaemonTimeoutException. Exceptions never carry
+     * payload text (PII discipline).
+     */
+    private function writeRequest(string $payload, string $sessionId): void
+    {
+        $stdin = $this->stdin;
+        if (! is_resource($stdin)) {
+            throw new GazeDaemonTransportException('daemon stdin closed', $sessionId);
+        }
+
+        $deadline = microtime(true) + ($this->requestTimeoutMs / 1000);
+        $length = strlen($payload);
+        $offset = 0;
+
+        @stream_set_blocking($stdin, false);
+        try {
+            while ($offset < $length) {
+                $written = @fwrite($stdin, substr($payload, $offset));
+                if ($written === false) {
+                    throw new GazeDaemonTransportException(
+                        'broken pipe writing daemon request',
+                        $sessionId,
+                    );
+                }
+
+                $offset += $written;
+                if ($offset >= $length) {
+                    break;
+                }
+
+                if ($written === 0 && feof($stdin)) {
+                    throw new GazeDaemonTransportException(
+                        'broken pipe writing daemon request',
+                        $sessionId,
+                    );
+                }
+
+                $remaining = max(0.0, $deadline - microtime(true));
+                if ($remaining === 0.0) {
+                    throw new GazeDaemonTimeoutException(
+                        "daemon request exceeded {$this->requestTimeoutMs}ms",
+                        $sessionId,
+                    );
+                }
+
+                $write = [$stdin];
+                $read = $except = null;
+                $microsec = (int) ($remaining * 1_000_000);
+                $sec = intdiv($microsec, 1_000_000);
+                $usec = $microsec % 1_000_000;
+
+                $ready = @stream_select($read, $write, $except, $sec, $usec);
+                if ($ready === false) {
+                    throw new GazeDaemonTransportException('select() on daemon stdin failed', $sessionId);
+                }
+                if ($ready === 0) {
+                    throw new GazeDaemonTimeoutException(
+                        "daemon request exceeded {$this->requestTimeoutMs}ms",
+                        $sessionId,
+                    );
+                }
+            }
+
+            @fflush($stdin);
+        } finally {
+            if (is_resource($stdin)) {
+                @stream_set_blocking($stdin, true);
+            }
+        }
     }
 
     /**
