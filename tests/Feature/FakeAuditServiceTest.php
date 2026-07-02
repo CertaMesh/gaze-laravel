@@ -133,9 +133,9 @@ it('assertNothingAudited fails after an export or a safety-net query', function 
 });
 
 it('FakeQueryBuilder records applied filters for assertions', function () {
-    Gaze::fake();
+    $fake = Gaze::fake();
 
-    $builder = Gaze::audit()->query()
+    $builder = $fake->audit()->query()
         ->whereClass('email')
         ->whereSource('email.global')
         ->whereAction('tokenize')
