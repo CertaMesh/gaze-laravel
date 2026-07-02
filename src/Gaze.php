@@ -389,6 +389,17 @@ class Gaze implements AuditRunner, GazeContract
     }
 
     /**
+     * @internal Audit-export process invocation. Not a generic command runner;
+     * hard-scoped to the `audit export` stage.
+     *
+     * @param  list<string>  $command
+     */
+    public function runForAuditExport(array $command): ProcessResult
+    {
+        return $this->run($command, '', 'audit export');
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function decodeResponse(string $output, string $stage): array

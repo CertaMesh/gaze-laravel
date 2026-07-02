@@ -31,4 +31,11 @@ interface AuditRunner
      * @param  list<string>  $command
      */
     public function runForAuditQuery(array $command): ProcessResult;
+
+    /**
+     * Audit-export process invocation, hard-scoped to `gaze audit export`.
+     *
+     * @param  list<string>  $command
+     */
+    public function runForAuditExport(array $command): ProcessResult;
 }
