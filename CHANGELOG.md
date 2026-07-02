@@ -6,6 +6,23 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Changed (BREAKING)
 
+- `GazeSafetyNetFailureException` no longer implements the `NonRetryable`,
+  `Retryable`, and `RetryableWithAlert` marker interfaces. It previously
+  implemented **all three at once** (the truth lived in its variant-driven
+  `is*()` methods), so any adopter branching on `$e instanceof NonRetryable`
+  misclassified retryable safety-net variants (`Timeout`, `Other`) as terminal.
+  It now implements the new `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition`
+  contract (`retryDisposition(): RetryAction`), which
+  `GazeRetryPolicy::classify()` consults generically before the marker
+  interfaces — the class-specific special case in the policy is gone. Unknown
+  upstream variants continue to fail closed (`RetryAction::Fail`); every
+  documented variant classifies exactly as before. **Migration:** replace
+  `$e instanceof NonRetryable/Retryable/RetryableWithAlert` checks against this
+  exception with `GazeRetryPolicy::classify($e)` or, in hand-rolled chains, an
+  `$e instanceof HasRetryDisposition` arm (checked first). The `is*()` helper
+  methods and `safetyNetVariant()` are unchanged. Pre-1.0 break; this contract
+  freezes at 1.0.
+
 - Root namespace renamed `Naoray\GazeLaravel` → `CertaMesh\Gaze`. Migration:
   replace `use Naoray\GazeLaravel\…;` with `use CertaMesh\Gaze\…;`. The `Gaze`
   facade alias and the Packagist package name `empiretwo/gaze-laravel` are
