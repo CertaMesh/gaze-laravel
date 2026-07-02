@@ -35,7 +35,7 @@ final class FakeGaze implements GazeContract
     private readonly FakeDaemonManager $daemonManager;
 
     /**
-     * @param  \Closure(string): GazeSession|null  $cleanHandler
+     * @param  \Closure(string, ?float): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
@@ -60,7 +60,12 @@ final class FakeGaze implements GazeContract
         $this->cleanCalls[] = ['text' => $text, 'threshold' => $threshold];
 
         if ($this->cleanHandler !== null) {
-            return ($this->cleanHandler)($text);
+            // Always invoked with both arguments. PHP user-land closures
+            // silently ignore surplus arguments, so pre-existing handlers
+            // typed (string $text) keep working unchanged, while handlers
+            // declaring (string $text, ?float $threshold) can branch on the
+            // per-call threshold exactly like the real Gaze::clean() does.
+            return ($this->cleanHandler)($text, $threshold);
         }
 
         return new GazeSession(
