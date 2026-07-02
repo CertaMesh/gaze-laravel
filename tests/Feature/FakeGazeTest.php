@@ -73,4 +73,5 @@ it('matches the real token grammar for clean-text fixtures', function (string $i
     'wrapped custom token' => ['<Custom:order_id_1>', '<Custom:order_id_1>'],
     'format-preserving email token' => ['email1@example.test', 'email1@example.test'],
     'bare lowercase token' => ['name_1', 'name_1'],
+    'real email address' => ['bob@example.invalid', '<Email_1>'],
 ]);
