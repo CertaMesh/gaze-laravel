@@ -5,6 +5,7 @@ declare(strict_types=1);
 use CertaMesh\Gaze\Audit\AuditService;
 use CertaMesh\Gaze\Audit\PurgeBuilder;
 use CertaMesh\Gaze\Audit\QueryBuilder;
+use CertaMesh\Gaze\Audit\SafetyNetQueryBuilder;
 use CertaMesh\Gaze\Contracts\AuditRunner as AuditRunnerContract;
 use CertaMesh\Gaze\Contracts\AuditService as AuditServiceContract;
 use CertaMesh\Gaze\Contracts\DaemonManager as DaemonManagerContract;
@@ -12,6 +13,7 @@ use CertaMesh\Gaze\Contracts\DaemonSession as DaemonSessionContract;
 use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Contracts\PurgeBuilder as PurgeBuilderContract;
 use CertaMesh\Gaze\Contracts\QueryBuilder as QueryBuilderContract;
+use CertaMesh\Gaze\Contracts\SafetyNetQueryBuilder as SafetyNetQueryBuilderContract;
 use CertaMesh\Gaze\Daemon\DaemonManager;
 use CertaMesh\Gaze\Daemon\DaemonSession;
 use CertaMesh\Gaze\Facades\Gaze as GazeFacade;
@@ -33,7 +35,8 @@ it('concrete Gaze implements Contracts\Gaze and Contracts\AuditRunner', function
 it('concrete audit services implement their contracts', function () {
     expect(is_a(AuditService::class, AuditServiceContract::class, true))->toBeTrue()
         ->and(is_a(PurgeBuilder::class, PurgeBuilderContract::class, true))->toBeTrue()
-        ->and(is_a(QueryBuilder::class, QueryBuilderContract::class, true))->toBeTrue();
+        ->and(is_a(QueryBuilder::class, QueryBuilderContract::class, true))->toBeTrue()
+        ->and(is_a(SafetyNetQueryBuilder::class, SafetyNetQueryBuilderContract::class, true))->toBeTrue();
 });
 
 it('concrete daemon services implement their contracts', function () {
@@ -92,7 +95,8 @@ it('every fake implements its contract', function () {
         ->and(new FakeDaemonManager)->toBeInstanceOf(DaemonManagerContract::class)
         ->and((new FakeDaemonManager)->session('s'))->toBeInstanceOf(DaemonSessionContract::class)
         ->and((new FakeAuditService)->purge())->toBeInstanceOf(PurgeBuilderContract::class)
-        ->and((new FakeAuditService)->query())->toBeInstanceOf(QueryBuilderContract::class);
+        ->and((new FakeAuditService)->query())->toBeInstanceOf(QueryBuilderContract::class)
+        ->and((new FakeAuditService)->safetyNetQuery())->toBeInstanceOf(SafetyNetQueryBuilderContract::class);
 });
 
 it('fakes no longer extend the concrete service classes', function () {
@@ -101,7 +105,8 @@ it('fakes no longer extend the concrete service classes', function () {
         ->and(new FakeDaemonManager)->not->toBeInstanceOf(DaemonManager::class)
         ->and((new FakeDaemonManager)->session('s'))->not->toBeInstanceOf(DaemonSession::class)
         ->and((new FakeAuditService)->purge())->not->toBeInstanceOf(PurgeBuilder::class)
-        ->and((new FakeAuditService)->query())->not->toBeInstanceOf(QueryBuilder::class);
+        ->and((new FakeAuditService)->query())->not->toBeInstanceOf(QueryBuilder::class)
+        ->and((new FakeAuditService)->safetyNetQuery())->not->toBeInstanceOf(SafetyNetQueryBuilder::class);
 });
 
 // --- previously-fatal inherited surface now behaves sanely ----------------

@@ -66,6 +66,30 @@ it('rawOutput is always populated; count is null when stdout has no row pattern'
     expect($result->count)->toBeNull();
 });
 
+it('parses the upstream 0.11.x JSON stdout on dry-run (count = matched)', function () {
+    Process::fake([
+        '*' => Process::result(output: '{"dry_run":true,"matched":7,"deleted":0}'."\n"),
+    ]);
+
+    $result = $this->makeGaze()->audit('/tmp/audit.sqlite')->purge()->before('2026-01-01T00:00:00Z')->dryRun();
+
+    expect($result->matched)->toBe(7)
+        ->and($result->deleted)->toBe(0)
+        ->and($result->count)->toBe(7);
+});
+
+it('parses the upstream 0.11.x JSON stdout on execute (count = deleted)', function () {
+    Process::fake([
+        '*' => Process::result(output: '{"dry_run":false,"matched":5,"deleted":5}'."\n"),
+    ]);
+
+    $result = $this->makeGaze()->audit('/tmp/audit.sqlite')->purge()->before('2026-01-01T00:00:00Z')->execute();
+
+    expect($result->matched)->toBe(5)
+        ->and($result->deleted)->toBe(5)
+        ->and($result->count)->toBe(5);
+});
+
 it('accepts a Carbon instance for before() and serializes to ISO8601', function () {
     Process::fake(['*' => Process::result(output: "0 rows purged\n")]);
 

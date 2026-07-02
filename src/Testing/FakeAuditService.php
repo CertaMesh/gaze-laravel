@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Testing;
 
+use CertaMesh\Gaze\Audit\AuditExportResult;
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
 use CertaMesh\Gaze\Contracts\AuditService as AuditServiceContract;
 
@@ -17,11 +18,19 @@ final class FakeAuditService implements AuditServiceContract
     /** @var list<array{before: string, dry_run: bool}> */
     private array $purgeCalls = [];
 
+    /** @var list<array{output: string|null, format: string, filters: array<string, string|true>}> */
+    private array $exportCalls = [];
+
+    /** @var list<array{filters: array<string, string>}> */
+    private array $safetyNetQueryCalls = [];
+
     /**
      * @param  \Closure(string, bool): AuditPurgeResult|null  $purgeHandler
+     * @param  \Closure(string|null, string): AuditExportResult|null  $exportHandler
      */
     public function __construct(
         private readonly ?\Closure $purgeHandler = null,
+        private readonly ?\Closure $exportHandler = null,
     ) {}
 
     public function purge(): FakePurgeBuilder
@@ -31,7 +40,12 @@ final class FakeAuditService implements AuditServiceContract
 
     public function query(): FakeQueryBuilder
     {
-        return new FakeQueryBuilder;
+        return new FakeQueryBuilder(audit: $this);
+    }
+
+    public function safetyNetQuery(): FakeSafetyNetQueryBuilder
+    {
+        return new FakeSafetyNetQueryBuilder(audit: $this);
     }
 
     public function recordPurgeCall(string $before, bool $dryRun): AuditPurgeResult
@@ -46,10 +60,48 @@ final class FakeAuditService implements AuditServiceContract
     }
 
     /**
+     * @param  array<string, string|true>  $filters
+     */
+    public function recordExportCall(?string $output, string $format, array $filters): AuditExportResult
+    {
+        $this->exportCalls[] = ['output' => $output, 'format' => $format, 'filters' => $filters];
+
+        if ($this->exportHandler !== null) {
+            return ($this->exportHandler)($output, $format);
+        }
+
+        return new AuditExportResult(format: $format, path: $output, rawOutput: '');
+    }
+
+    /**
      * @return list<array{before: string, dry_run: bool}>
      */
     public function purgeCalls(): array
     {
         return $this->purgeCalls;
+    }
+
+    /**
+     * @return list<array{output: string|null, format: string, filters: array<string, string|true>}>
+     */
+    public function exportCalls(): array
+    {
+        return $this->exportCalls;
+    }
+
+    /**
+     * @param  array<string, string>  $filters
+     */
+    public function recordSafetyNetQueryCall(array $filters): void
+    {
+        $this->safetyNetQueryCalls[] = ['filters' => $filters];
+    }
+
+    /**
+     * @return list<array{filters: array<string, string>}>
+     */
+    public function safetyNetQueryCalls(): array
+    {
+        return $this->safetyNetQueryCalls;
     }
 }
