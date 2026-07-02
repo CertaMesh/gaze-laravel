@@ -8,7 +8,7 @@ namespace CertaMesh\Gaze;
  * Typed projection of the upstream gaze `leak_report` — the verification signal
  * the clean pipeline emits alongside the redacted text.
  *
- * Mirrors the upstream `LeakReportResponse` shape (gaze v0.11.1,
+ * Mirrors the upstream `LeakReportResponse` shape (gaze v0.11.2,
  * crates/gaze-cli/src/pipeline/run.rs). The adapter previously dropped this
  * field entirely, leaving callers to infer safety from the detection count —
  * which over-asserts, since a high count never proves a span did not bleed

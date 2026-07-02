@@ -28,6 +28,23 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
   facade alias and the Packagist package name `empiretwo/gaze-laravel` are
   unchanged.
 
+### Changed
+
+- Bump the pinned upstream `gaze` binary from `0.11.1` to `0.11.2`. Adopters
+  get the new default recognizers for free by taking the pin: EU VAT IDs,
+  ISO-length-gated IBANs, and spaced international E.164 phone numbers. The
+  pin also picks up the NER loader fix for the Kiji bundle (relevant to the
+  `kiji-distilbert` safety-net backend) and upstream proxy/email-TLD
+  recognizer hardening. No adapter surface change; see
+  `docs/how-to/upgrading.md` (`v0.11.1 → v0.11.2`) and the re-adjudicated
+  TokenBridge entry in `docs/reference/upstream-coverage.md`.
+- `BinaryDownloader::alreadyInstalled()` now compares the semver token
+  extracted from `gaze --version` output **exactly** (`===`) instead of via
+  substring match — previously an installed `0.11.10` would have satisfied a
+  `0.11.1` pin and skipped the download.
+- CI derives `GAZE_VERSION` from `BinaryDownloader::PINNED_VERSION` after
+  `composer install` instead of hardcoding the version in the workflow.
+
 ### Added
 
 - Clean `leak_report` surfaced as a `GazeSession` trust state (MINOR + trust fix).
