@@ -139,6 +139,21 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
   hijacking the global `Symfony\Contracts\HttpClient\HttpClientInterface`
   binding; host apps or packages that (perhaps unknowingly) relied on gaze's
   retrying client via the generic interface must now bind their own.
+- `DaemonClient` no longer wires the daemon child's stderr to a pipe that
+  nothing reads. A chatty daemon could fill the ~64KB kernel pipe buffer,
+  block on its next stderr write, and time out every subsequent request.
+  When `gaze.daemon.stderr_path` is unset, child stderr now goes to
+  `/dev/null`; an explicit path is honoured as before (append mode).
+- `DaemonClient::request()` no longer issues an unbounded blocking
+  `fwrite()` to daemon stdin. A wedged daemon that stopped draining its
+  stdin pipe could hang the PHP worker indefinitely — past
+  `request_timeout_ms`. Writes are now non-blocking and
+  `stream_select()`-bounded by the same millisecond deadline as reads,
+  failing closed with `GazeDaemonTimeoutException` (no payload text in
+  the exception).
+- `DaemonClient::disconnect()` now escalates SIGTERM → (≈2s grace,
+  polling `proc_get_status`) → SIGKILL before `proc_close()`, so a daemon
+  that ignores SIGTERM can no longer hang teardown of the Octane worker.
 - Correct the stale `gaze:doctor` core-extended deprecation notice. It
   claimed "Removal target: v0.10.0", but upstream never removed the pack —
   it still soft-aliases `core-extended` → `core` with a runtime warning
