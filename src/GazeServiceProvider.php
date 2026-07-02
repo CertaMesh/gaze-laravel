@@ -157,13 +157,13 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             );
         });
 
-        $this->app->singleton(HttpClientInterface::class, function (): HttpClientInterface {
+        $this->app->singleton('gaze.http_client', function (): HttpClientInterface {
             return new RetryableHttpClient(HttpClient::create(), maxRetries: 2);
         });
 
         $this->app->singleton(LaravelNerFetcher::class, function (Application $app): LaravelNerFetcher {
             return new LaravelNerFetcher(
-                client: $app->make(HttpClientInterface::class),
+                client: $app->make('gaze.http_client'),
                 resourcesDir: __DIR__.'/../resources/ner',
             );
         });
@@ -174,7 +174,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             $version = BinaryInstaller::PINNED_VERSION;
             $url = "https://github.com/CertaMesh/gaze/releases/download/v{$version}/SHA256SUMS.ner";
 
-            return NerManifest::fromUrl($url, $app->make(HttpClientInterface::class));
+            return NerManifest::fromUrl($url, $app->make('gaze.http_client'));
         });
 
         $this->app->singleton(PolicyTomlPatcher::class, function (Application $app): PolicyTomlPatcher {
@@ -269,7 +269,7 @@ class GazeServiceProvider extends ServiceProvider implements DeferrableProvider
             AuditService::class,
             DaemonClientContract::class,
             DaemonManager::class,
-            HttpClientInterface::class,
+            'gaze.http_client',
             LaravelNerFetcher::class,
             NerFetcher::class,
             NerManifest::class,
