@@ -37,7 +37,7 @@ final class Gaze extends Facade
      * Swap the bound Gaze service for a FakeGaze and return it so tests can
      * chain assertions. Mirrors Laravel's Queue::fake() / Mail::fake() idiom.
      *
-     * @param  \Closure(string): GazeSession|null  $cleanHandler
+     * @param  \Closure(string, ?float): GazeSession|null  $cleanHandler
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
