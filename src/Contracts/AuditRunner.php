@@ -38,4 +38,12 @@ interface AuditRunner
      * @param  list<string>  $command
      */
     public function runForAuditExport(array $command): ProcessResult;
+
+    /**
+     * Safety-net-query process invocation, hard-scoped to
+     * `gaze audit safety-net query`.
+     *
+     * @param  list<string>  $command
+     */
+    public function runForAuditSafetyNetQuery(array $command): ProcessResult;
 }

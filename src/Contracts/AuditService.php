@@ -17,7 +17,14 @@ interface AuditService
     public function purge(): PurgeBuilder;
 
     /**
-     * Fluent builder for `gaze audit query`.
+     * Fluent builder for `gaze audit query` (and, via
+     * `QueryBuilder::export()`, `gaze audit export`).
      */
     public function query(): QueryBuilder;
+
+    /**
+     * Fluent builder for `gaze audit safety-net query` — upstream's only
+     * `safety-net` subcommand, hence the flattened method name.
+     */
+    public function safetyNetQuery(): SafetyNetQueryBuilder;
 }

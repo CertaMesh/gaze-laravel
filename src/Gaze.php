@@ -400,6 +400,17 @@ class Gaze implements AuditRunner, GazeContract
     }
 
     /**
+     * @internal Safety-net-query process invocation. Not a generic command
+     * runner; hard-scoped to the `audit safety-net query` stage.
+     *
+     * @param  list<string>  $command
+     */
+    public function runForAuditSafetyNetQuery(array $command): ProcessResult
+    {
+        return $this->run($command, '', 'audit safety-net query');
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function decodeResponse(string $output, string $stage): array

@@ -21,6 +21,9 @@ final class FakeAuditService implements AuditServiceContract
     /** @var list<array{output: string|null, format: string, filters: array<string, string|true>}> */
     private array $exportCalls = [];
 
+    /** @var list<array{filters: array<string, string>}> */
+    private array $safetyNetQueryCalls = [];
+
     /**
      * @param  \Closure(string, bool): AuditPurgeResult|null  $purgeHandler
      * @param  \Closure(string|null, string): AuditExportResult|null  $exportHandler
@@ -38,6 +41,11 @@ final class FakeAuditService implements AuditServiceContract
     public function query(): FakeQueryBuilder
     {
         return new FakeQueryBuilder(audit: $this);
+    }
+
+    public function safetyNetQuery(): FakeSafetyNetQueryBuilder
+    {
+        return new FakeSafetyNetQueryBuilder(audit: $this);
     }
 
     public function recordPurgeCall(string $before, bool $dryRun): AuditPurgeResult
@@ -79,5 +87,21 @@ final class FakeAuditService implements AuditServiceContract
     public function exportCalls(): array
     {
         return $this->exportCalls;
+    }
+
+    /**
+     * @param  array<string, string>  $filters
+     */
+    public function recordSafetyNetQueryCall(array $filters): void
+    {
+        $this->safetyNetQueryCalls[] = ['filters' => $filters];
+    }
+
+    /**
+     * @return list<array{filters: array<string, string>}>
+     */
+    public function safetyNetQueryCalls(): array
+    {
+        return $this->safetyNetQueryCalls;
     }
 }
