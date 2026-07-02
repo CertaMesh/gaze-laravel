@@ -226,14 +226,47 @@ supervision is OS-owned. Use systemd / Horizon / supervisord primitives.
 
 ### Daemon Flags
 
-| Upstream flag | Laravel surface |
-|---|---|
-| `--policy=` | `gaze.daemon.policy_path` / `GAZE_DAEMON_POLICY_PATH` |
-| `--audit-db=` | `gaze.daemon.audit_db_path` / `GAZE_DAEMON_AUDIT_DB_PATH` |
-| `--idle-timeout=` | `gaze.daemon.idle_timeout_s` / `GAZE_DAEMON_IDLE_TIMEOUT_S` |
-| n/a (adapter-side ceiling) | `gaze.daemon.request_timeout_ms` / `GAZE_DAEMON_REQUEST_TIMEOUT_MS` (default 5000) |
-| n/a (adapter spawn override) | `gaze.daemon.binary_path` / `GAZE_DAEMON_BINARY_PATH` |
-| n/a (adapter spawn stderr) | `gaze.daemon.stderr_path` / `GAZE_DAEMON_STDERR_PATH` |
+`gaze:daemon:serve` forwards **every** flag the pinned v0.11.1
+`gaze daemon --help` surface accepts. Daemon-specific knobs live under
+`gaze.daemon.*`; the shared pipeline flags source the same top-level
+`gaze.*` keys the one-shot `Gaze::clean()` path forwards, so a configured
+pipeline behaves identically in both runtimes. Flags marked *artisan
+option* can also be overridden per-invocation on `gaze:daemon:serve`.
+
+| Upstream flag | Laravel surface | Artisan option |
+|---|---|---|
+| `--policy=` | `gaze.daemon.policy_path` / `GAZE_DAEMON_POLICY_PATH` | `--policy=` |
+| `--audit-db=` | `gaze.daemon.audit_db_path` / `GAZE_DAEMON_AUDIT_DB_PATH` | `--audit-db=` |
+| `--idle-timeout=` | `gaze.daemon.idle_timeout_s` / `GAZE_DAEMON_IDLE_TIMEOUT_S` | `--idle-timeout=` |
+| `--session-idle-timeout=` | `gaze.daemon.session_idle_timeout_s` / `GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S` | `--session-idle-timeout=` |
+| `--session-cap=` | `gaze.daemon.session_cap` / `GAZE_DAEMON_SESSION_CAP` | `--session-cap=` |
+| `--locale=` | `gaze.locale` / `GAZE_LOCALE` (shared with one-shot) | `--locale=` |
+| `--ner-threshold=` | `gaze.ner_threshold` / `GAZE_NER_THRESHOLD` (shared with one-shot) | `--ner-threshold=` |
+| `--ner-model-dir=` | `gaze.daemon.ner_model_dir` / `GAZE_DAEMON_NER_MODEL_DIR` | config-only |
+| `--ner-locale=` | `gaze.daemon.ner_locale` / `GAZE_DAEMON_NER_LOCALE` | config-only |
+| `--safety-net=` | `gaze.safety_net` / `GAZE_SAFETY_NET` (truthy → `openai-filter`, mirroring one-shot) | config-only |
+| `--safety-net-backend=` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` | config-only |
+| `--openai-filter-device=` | `gaze.safety_net_device` / `GAZE_SAFETY_NET_DEVICE` | config-only |
+| `--openai-filter-command=` | `gaze.openai_filter_command` / `GAZE_OPENAI_FILTER_COMMAND` | config-only |
+| `--openai-filter-checkpoint=` | `gaze.openai_filter_checkpoint` / `GAZE_OPENAI_FILTER_CHECKPOINT` | config-only |
+| `--openai-filter-operating-point=` | `gaze.openai_filter_operating_point` / `GAZE_OPENAI_FILTER_OPERATING_POINT` | config-only |
+| `--kiji-backend=` | `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` | config-only |
+| `--kiji-distilbert-command=` | `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` | config-only |
+| `--kiji-distilbert-model-dir=` | `gaze.kiji_distilbert_model_dir` / `GAZE_KIJI_DISTILBERT_MODEL_DIR` | config-only |
+| `--kiji-distilbert-locales=` | `gaze.daemon.kiji_distilbert_locales` / `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` (no one-shot equivalent) | config-only |
+| `--safety-net-timeout-ms=` | `gaze.safety_net_timeout_ms` / `GAZE_SAFETY_NET_TIMEOUT_MS` | config-only |
+| `--safety-net-input-limit-bytes=` | `gaze.safety_net_input_limit_bytes` / `GAZE_SAFETY_NET_INPUT_LIMIT_BYTES` | config-only |
+| `--safety-net-mode=` | `gaze.safety_net_mode` / `GAZE_SAFETY_NET_MODE` | config-only |
+| `--safety-net-fallback=` | `gaze.safety_net_fallback` / `GAZE_SAFETY_NET_FALLBACK` | config-only |
+| n/a (adapter-side ceiling) | `gaze.daemon.request_timeout_ms` / `GAZE_DAEMON_REQUEST_TIMEOUT_MS` (default 5000) | — |
+| n/a (adapter spawn override) | `gaze.daemon.binary_path` / `GAZE_DAEMON_BINARY_PATH` | — |
+| n/a (adapter spawn stderr) | `gaze.daemon.stderr_path` / `GAZE_DAEMON_STDERR_PATH` | — |
+
+Note: `--kiji-distilbert-precision` exists on `gaze clean` but NOT on
+`gaze daemon` in v0.11.1, so `:serve` does not forward it. The
+`Gaze::daemon()` Facade hot path (`DaemonClient` spawn) forwards the
+policy / idle-timeout / audit-db trio only; full parity there is a
+follow-up.
 
 Intentionally NOT shipped: `gaze.daemon.events.enabled` (reserved
 P1-violation), `gaze.daemon.extra_flags` (P3 velocity signal),
