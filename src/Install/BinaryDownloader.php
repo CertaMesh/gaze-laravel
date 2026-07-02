@@ -29,7 +29,7 @@ use Symfony\Component\Process\Process;
 class BinaryDownloader
 {
     /** Pinned per gaze-laravel release. Bumped intentionally. */
-    public const PINNED_VERSION = '0.11.1';
+    public const PINNED_VERSION = '0.11.2';
 
     /** Canonical, hard-pinned release base. */
     public const RELEASE_BASE = 'https://github.com/CertaMesh/gaze/releases/download';
@@ -140,6 +140,13 @@ class BinaryDownloader
         };
     }
 
+    /**
+     * True when the executable at $binPath reports exactly $version.
+     *
+     * The semver token is extracted from the `--version` output and compared
+     * with `===` — a naive substring check would let `0.11.1` satisfy a pin of
+     * `0.11.10` (and vice versa), silently skipping a required download.
+     */
     public static function alreadyInstalled(string $binPath, string $version): bool
     {
         if (! is_executable($binPath)) {
@@ -160,8 +167,17 @@ class BinaryDownloader
         }
 
         $output = $process->getOutput();
+        if (! is_string($output)) {
+            return false;
+        }
 
-        return is_string($output) && str_contains($output, $version);
+        // Extract the version token (e.g. `gaze 0.11.2` → `0.11.2`), then
+        // compare exactly. Pre-release/build suffixes are part of the token.
+        if (preg_match('/\b(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\b/', $output, $m) !== 1) {
+            return false;
+        }
+
+        return $m[1] === $version;
     }
 
     public static function verifyChecksum(string $tarPath, string $sumsPath, string $asset): void

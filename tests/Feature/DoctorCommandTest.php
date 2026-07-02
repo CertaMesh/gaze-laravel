@@ -5,6 +5,7 @@ declare(strict_types=1);
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\EncryptedBlob;
 use CertaMesh\Gaze\GazeSession;
+use CertaMesh\Gaze\Install\BinaryDownloader;
 use Illuminate\Support\Facades\Process;
 
 it('reports doctor readiness without deep round-trip', function () {
@@ -273,7 +274,7 @@ it('skips the restore-telemetry probe when gaze.restore_telemetry is off', funct
     );
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
 
-    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+    Process::fake(['*' => Process::result(output: 'gaze '.BinaryDownloader::PINNED_VERSION."\n")]);
 
     $this->artisan('gaze:doctor')
         ->assertExitCode(0)
@@ -289,7 +290,7 @@ it('warns when restore_telemetry is on but no audit_db_path is configured', func
     $this->app['config']->set('gaze.restore_telemetry', true);
     $this->app['config']->set('gaze.audit_db_path', null);
 
-    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+    Process::fake(['*' => Process::result(output: 'gaze '.BinaryDownloader::PINNED_VERSION."\n")]);
 
     $this->artisan('gaze:doctor')
         ->assertExitCode(0)
@@ -305,7 +306,7 @@ it('warns when restore_telemetry is on but the audit_db_path parent is not writa
     $this->app['config']->set('gaze.restore_telemetry', true);
     $this->app['config']->set('gaze.audit_db_path', '/nonexistent-gaze-dir-'.bin2hex(random_bytes(4)).'/audit.sqlite');
 
-    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+    Process::fake(['*' => Process::result(output: 'gaze '.BinaryDownloader::PINNED_VERSION."\n")]);
 
     $this->artisan('gaze:doctor')
         ->assertExitCode(0)
@@ -324,7 +325,7 @@ it('passes the restore-telemetry probe when on and the audit_db_path parent is w
     $this->app['config']->set('gaze.restore_telemetry', true);
     $this->app['config']->set('gaze.audit_db_path', $dir.'/audit.sqlite');
 
-    Process::fake(['*' => Process::result(output: "gaze 0.11.1\n")]);
+    Process::fake(['*' => Process::result(output: 'gaze '.BinaryDownloader::PINNED_VERSION."\n")]);
 
     try {
         $this->artisan('gaze:doctor')

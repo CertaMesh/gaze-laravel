@@ -28,7 +28,7 @@ it('returns false from alreadyInstalled when binary is missing', function () {
     expect(BinaryInstaller::alreadyInstalled($this->tmpDir.'/nope', '0.1.0'))->toBeFalse();
 });
 
-it('matches alreadyInstalled when version output contains the version', function () {
+it('matches alreadyInstalled only when the version output token is exactly the version', function () {
     $path = gl_makeProcessFixture(
         $this->tmpDir,
         'gaze',
@@ -36,8 +36,21 @@ it('matches alreadyInstalled when version output contains the version', function
     );
 
     expect(BinaryInstaller::alreadyInstalled($path, '0.3.0-rc.3'))->toBeTrue()
-        ->and(BinaryInstaller::alreadyInstalled($path, '0.3.0'))->toBeTrue()
+        ->and(BinaryInstaller::alreadyInstalled($path, '0.3.0'))->toBeFalse()
         ->and(BinaryInstaller::alreadyInstalled($path, '0.4.0'))->toBeFalse();
+});
+
+it('does not let a longer installed version substring-satisfy a shorter pin', function () {
+    // `str_contains('gaze 0.11.10', '0.11.1')` is true — the exact-token
+    // compare must reject it so the pinned 0.11.1 download still happens.
+    $path = gl_makeProcessFixture(
+        $this->tmpDir,
+        'gaze',
+        "echo 'gaze 0.11.10'.PHP_EOL;",
+    );
+
+    expect(BinaryInstaller::alreadyInstalled($path, '0.11.1'))->toBeFalse()
+        ->and(BinaryInstaller::alreadyInstalled($path, '0.11.10'))->toBeTrue();
 });
 
 it('returns false from alreadyInstalled when version probe exits non-zero', function () {

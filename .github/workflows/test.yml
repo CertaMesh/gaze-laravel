@@ -22,7 +22,8 @@ jobs:
 
     env:
       GAZE_SKIP_BINARY_DOWNLOAD: "1"
-      GAZE_VERSION: "0.11.1"
+      # GAZE_VERSION is exported after "Install dependencies" from the single
+      # source of truth, BinaryDownloader::PINNED_VERSION — no literal here.
 
     steps:
       - name: Checkout
@@ -64,6 +65,12 @@ jobs:
 
       - name: Install dependencies
         run: composer update --no-interaction --prefer-dist --prefer-stable --optimize-autoloader
+
+      - name: Export pinned gaze version
+        # Single source of truth: BinaryDownloader::PINNED_VERSION. Keeps the
+        # CI pin from drifting when the constant is bumped.
+        run: |
+          echo "GAZE_VERSION=$(php -r 'require "vendor/autoload.php"; echo CertaMesh\Gaze\Install\BinaryDownloader::PINNED_VERSION;')" >> "$GITHUB_ENV"
 
       - name: Run tests
         run: composer test
