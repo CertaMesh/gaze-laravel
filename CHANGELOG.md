@@ -110,6 +110,12 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
   because gaze-cli's `run_restore` never enables the Phase-B DLP builder. This
   surface ships for restore-decision and unknown-token audit trails, NOT for
   outbound-DLP fresh-PII detection. Do not rely on it for DLP.
+- `Gaze::assertMasked(?string $expectedText = null)`,
+  `Gaze::assertMaskCount(int $expected)` and `Gaze::assertNothingMasked()`
+  facade assertions (MINOR). `mask()` calls were already recorded by
+  `FakeGaze::maskCalls()` but had no assertion helpers, unlike every other
+  recorded verb. Signatures and failure messages mirror the existing
+  `assertCleaned` / `assertCleanCount` / `assertNothingCleaned` family.
 
 ### Changed
 
@@ -145,6 +151,23 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Fixed
 
+- `FakeGaze::clean()` now forwards the per-call `$threshold` to a custom
+  `$cleanHandler` (second argument), so handlers can branch on it the way
+  the real `Gaze::clean()` forwards `--ner-threshold`. Docblocks widen to
+  `\Closure(string, ?float): GazeSession`. BC-safe: PHP user-land closures
+  ignore surplus arguments, so existing single-parameter handlers keep
+  working unchanged.
+- Fake masking parity between the one-shot and daemon paths.
+  `FakeDaemonManager` masked only real email addresses while `FakeGaze`
+  carried the full multi-class token grammar (despite a comment claiming
+  they mirrored each other). Both fakes now delegate to one internal
+  `Testing\FakeTokenizer` — the full grammar plus real-email masking — so
+  `Gaze::fake()` masks identically via `clean()` and
+  `daemon()->session(...)->clean()`. Daemon fake output is now richer
+  (class/custom tokens and the `Alice` name fallback are masked, not just
+  emails), and `FakeGaze` additionally masks real email addresses to
+  `<Email_1>`. The daemon fake also computes `clean_text` once per request
+  instead of twice.
 - Correct the stale `gaze:doctor` core-extended deprecation notice. It
   claimed "Removal target: v0.10.0", but upstream never removed the pack —
   it still soft-aliases `core-extended` → `core` with a runtime warning
