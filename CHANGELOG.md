@@ -66,6 +66,20 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `Entry`, `CleanResponse`, `LeakReport`) intentionally remain concrete classes
   with no interfaces. `FakeQueryBuilder` gains
   `wasRestrictedToRestoreEvents(): bool` for assertions.
+- Full upstream flag parity for `gaze:daemon:serve` (MINOR). The command now
+  forwards **every** flag the pinned gaze v0.11.1 `daemon` subcommand accepts
+  (previously only `--policy` / `--idle-timeout` / `--audit-db`), so daemons
+  with safety-net or NER overrides can be launched via artisan. New artisan
+  options (override config): `--session-idle-timeout`, `--session-cap`,
+  `--locale`, `--ner-threshold`. New `gaze.daemon.*` config keys
+  (`GAZE_DAEMON_*` env): `session_idle_timeout_s`, `session_cap`,
+  `ner_model_dir`, `ner_locale`, `kiji_distilbert_locales`. The shared
+  pipeline flags — `--locale`, `--ner-threshold`, and the full safety-net /
+  OpenAI-filter / Kiji family — source the same top-level `gaze.*` keys the
+  one-shot `Gaze::clean()` path forwards, so a configured pipeline behaves
+  identically in both runtimes; artifact paths stay config-only, mirroring
+  the one-shot posture. Pure flag forwarding — no PHP-side logic. See
+  `docs/reference/upstream-coverage.md#daemon-flags`.
 - Clean `leak_report` surfaced as a `GazeSession` trust state (MINOR + trust fix).
   `Gaze::clean()` previously **dropped** the upstream `leak_report` — the
   pipeline's own coverage check — leaving callers to infer safety from the

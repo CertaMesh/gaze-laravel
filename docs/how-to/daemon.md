@@ -75,8 +75,35 @@ populating a key forwards the matching flag.
 | `gaze.daemon.audit_db_path` | `GAZE_DAEMON_AUDIT_DB_PATH` | `null` | Forwarded as `--audit-db=`. Daemon-emitted rows stamp `provenance_stage = "daemon"`. |
 | `gaze.daemon.request_timeout_ms` | `GAZE_DAEMON_REQUEST_TIMEOUT_MS` | `5000` | Adapter-side per-request ceiling. Raise it for cold first requests when policy + Kiji ORT init exceed 5s. |
 | `gaze.daemon.idle_timeout_s` | `GAZE_DAEMON_IDLE_TIMEOUT_S` | `null` | Forwarded as `--idle-timeout=`. Daemon exits cleanly when no request arrives within the window. |
+| `gaze.daemon.session_idle_timeout_s` | `GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S` | `null` | Forwarded as `--session-idle-timeout=`. Sessions idle beyond the window are evicted (upstream default 3600 s). |
+| `gaze.daemon.session_cap` | `GAZE_DAEMON_SESSION_CAP` | `null` | Forwarded as `--session-cap=`. Maximum live sessions before LRU eviction (upstream default 1000). |
+| `gaze.daemon.ner_model_dir` | `GAZE_DAEMON_NER_MODEL_DIR` | `null` | Forwarded as `--ner-model-dir=`. Overrides the policy `[ner].model_dir`. |
+| `gaze.daemon.ner_locale` | `GAZE_DAEMON_NER_LOCALE` | `null` | Forwarded as `--ner-locale=`. Overrides the policy `[ner].locale`. |
+| `gaze.daemon.kiji_distilbert_locales` | `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` | `null` | Forwarded as `--kiji-distilbert-locales=`. Locale list for the Kiji DistilBERT safety-net backend (no top-level one-shot equivalent). |
 | `gaze.daemon.binary_path` | `GAZE_DAEMON_BINARY_PATH` | `null` | Override for the `gaze` binary path used by `:serve`. Falls back to `BinaryResolver` resolution. |
 | `gaze.daemon.stderr_path` | `GAZE_DAEMON_STDERR_PATH` | `null` | File path the daemon's stderr is appended to when spawned via the adapter's `DaemonClient`. Null inherits stderr from the supervisor. |
+
+### Shared pipeline keys
+
+`gaze:daemon:serve` also forwards the shared pipeline flags from the
+**same top-level `gaze.*` keys the one-shot `Gaze::clean()` path uses**,
+so a configured pipeline behaves identically in both runtimes — no
+duplicate daemon-scoped copies to keep in sync:
+
+- `gaze.locale` → `--locale=`
+- `gaze.ner_threshold` → `--ner-threshold=`
+- `gaze.safety_net` (truthy) → `--safety-net=openai-filter`
+- `gaze.safety_net_backend` → `--safety-net-backend=`
+- `gaze.safety_net_device` → `--openai-filter-device=`
+- `gaze.openai_filter_command` / `_checkpoint` / `_operating_point` → `--openai-filter-*=`
+- `gaze.kiji_backend`, `gaze.kiji_distilbert_command`, `gaze.kiji_distilbert_model_dir` → `--kiji-*=`
+- `gaze.safety_net_timeout_ms` / `_input_limit_bytes` / `_mode` / `_fallback` → `--safety-net-*=`
+
+Safety-net artifact paths and backend selectors are **config-only** —
+mirroring the one-shot posture that artifacts are deployment config, not
+per-invocation knobs. See the
+[upstream coverage matrix](../reference/upstream-coverage.md#daemon-flags)
+for the full flag ↔ key table.
 
 Intentionally NOT shipped: `gaze.daemon.events.enabled`,
 `gaze.daemon.extra_flags`, and connections-style
@@ -89,8 +116,33 @@ TWO commands. Supervision is OS-owned (systemd / Horizon / supervisord)
 
 | Artisan | Upstream | Behaviour |
 |---|---|---|
-| `php artisan gaze:daemon:serve` | `gaze daemon` | Foreground wrapper. Blocks. Streams stdout/stderr verbatim. SIGTERM/SIGINT are forwarded to the child via pcntl handlers so supervisor stop signals reach the graceful-shutdown loop. Use as a systemd `ExecStart=` or a Horizon-process command. |
+| `php artisan gaze:daemon:serve` | `gaze daemon` | Foreground wrapper. Blocks. Streams stdout/stderr verbatim. SIGTERM/SIGINT are forwarded to the child via pcntl handlers so supervisor stop signals reach the graceful-shutdown loop. Use as a systemd `ExecStart=` or a Horizon-process command. Forwards the full v0.11.1 `gaze daemon` flag surface from config; operational knobs can be overridden per-invocation: `--policy=`, `--idle-timeout=`, `--session-idle-timeout=`, `--session-cap=`, `--audit-db=`, `--locale=`, `--ner-threshold=`. |
 | `php artisan gaze:daemon:status` | n/a | Best-effort `pgrep -af "gaze daemon"`. Returns visible PIDs. **NOT** a supervisor — daemons launched under a different UID, or by your supervisor in an isolated cgroup, are invisible. Query your supervisor for ground truth. |
+
+### Launch examples
+
+```bash
+# Config-driven (recommended under a supervisor): the pipeline keys are
+# the same top-level gaze.* env vars the one-shot path reads.
+GAZE_DAEMON_POLICY_PATH=/etc/gaze/policy.toml \
+GAZE_DAEMON_SESSION_CAP=500 \
+GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S=900 \
+GAZE_SAFETY_NET_BACKEND=kiji-distilbert \
+GAZE_KIJI_BACKEND=ort \
+GAZE_KIJI_DISTILBERT_MODEL_DIR=/opt/kiji/model \
+php artisan gaze:daemon:serve
+
+# Ad-hoc override of the operational knobs (timeouts, caps, locale,
+# NER threshold). CLI options win over config.
+php artisan gaze:daemon:serve \
+    --policy=/etc/gaze/policy.toml \
+    --idle-timeout=1800 \
+    --session-idle-timeout=900 \
+    --session-cap=250 \
+    --audit-db=/var/lib/gaze/audit.sqlite \
+    --locale=de,en \
+    --ner-threshold=0.8
+```
 
 Intentionally NOT shipped: `:start`, `:stop`, `:restart`, `:logs`. The
 upstream daemon binary is a foreground stdio worker (`gaze daemon` has

@@ -306,6 +306,12 @@ return [
     | All keys default to null so the upstream binary applies its own
     | defaults; populating a key forwards the value as the matching flag.
     |
+    | `gaze:daemon:serve` also forwards the shared pipeline flags —
+    | `--locale`, `--ner-threshold`, and the full safety-net / OPF / Kiji
+    | family — sourced from the SAME top-level `gaze.*` keys the one-shot
+    | `Gaze::clean()` path uses, so a configured pipeline behaves
+    | identically in both runtimes. Only daemon-specific knobs live here.
+    |
     | The upstream `daemon` subcommand may be feature-gated. When the binary
     | lacks the feature, `php artisan gaze:daemon:serve` will fail at first
     | invocation. Doctor's `--deep` probe pre-flights this and surfaces:
@@ -348,6 +354,43 @@ return [
          * seconds. Null lets the binary apply its default.
          */
         'idle_timeout_s' => env('GAZE_DAEMON_IDLE_TIMEOUT_S'),
+
+        /*
+         * Per-session idle eviction window forwarded as
+         * `--session-idle-timeout=`. Integer seconds. Null lets the binary
+         * apply its default (3600 s in v0.11.x). Evicted sessions write an
+         * audit row with `source = "daemon.session_eviction"`.
+         */
+        'session_idle_timeout_s' => env('GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S'),
+
+        /*
+         * Maximum live sessions before LRU eviction, forwarded as
+         * `--session-cap=`. Null lets the binary apply its default
+         * (1000 in v0.11.x).
+         */
+        'session_cap' => env('GAZE_DAEMON_SESSION_CAP'),
+
+        /*
+         * Optional policy `[ner].model_dir` override forwarded as
+         * `--ner-model-dir=`. Null omits the flag and keeps the policy's
+         * own model directory.
+         */
+        'ner_model_dir' => env('GAZE_DAEMON_NER_MODEL_DIR'),
+
+        /*
+         * Optional policy `[ner].locale` override forwarded as
+         * `--ner-locale=`. Null omits the flag and keeps the policy's
+         * own NER locale.
+         */
+        'ner_locale' => env('GAZE_DAEMON_NER_LOCALE'),
+
+        /*
+         * Optional comma-separated locale list for the Kiji DistilBERT
+         * safety-net backend, forwarded as `--kiji-distilbert-locales=`.
+         * Daemon-scoped because the one-shot path exposes no top-level
+         * equivalent. Null omits the flag.
+         */
+        'kiji_distilbert_locales' => env('GAZE_DAEMON_KIJI_DISTILBERT_LOCALES'),
 
         /*
          * Override path for the `gaze` binary used by `gaze:daemon:serve`.
