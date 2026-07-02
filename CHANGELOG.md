@@ -13,6 +13,20 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- Service contracts under `CertaMesh\Gaze\Contracts`: `Gaze`, `AuditService`,
+  `PurgeBuilder`, `QueryBuilder`, `DaemonManager`, `DaemonSession` (full public
+  API of each service), plus the `@internal` `AuditRunner` carrying the
+  audit-scoped process runners (`runForAuditPurge`/`runForAuditQuery`) so they
+  stay out of the public `Contracts\Gaze` surface. Concrete services implement
+  their contracts; the container binds the contracts canonically and aliases the
+  concrete FQCNs to them, so `app(Gaze::class)` and
+  `app(Contracts\Gaze::class)` resolve the same singleton. The `Gaze` facade
+  accessor now resolves `Contracts\Gaze`, and `Gaze::fake()` swaps the contract
+  binding (concrete-name resolution follows via the alias). Type-hint the
+  contracts, not the concretes. Value objects (`GazeSession`, `EncryptedBlob`,
+  `Entry`, `CleanResponse`, `LeakReport`) intentionally remain concrete classes
+  with no interfaces. `FakeQueryBuilder` gains
+  `wasRestrictedToRestoreEvents(): bool` for assertions.
 - Clean `leak_report` surfaced as a `GazeSession` trust state (MINOR + trust fix).
   `Gaze::clean()` previously **dropped** the upstream `leak_report` — the
   pipeline's own coverage check — leaving callers to infer safety from the
@@ -99,6 +113,19 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Changed
 
+- **Potentially BREAKING for tests:** the testing fakes (`FakeGaze`,
+  `FakeAuditService`, `FakeDaemonManager`, `FakeDaemonSession`,
+  `FakePurgeBuilder`, `FakeQueryBuilder`) now implement the new
+  `CertaMesh\Gaze\Contracts\*` interfaces directly and no longer extend the
+  concrete service classes (previously they bypassed the parent constructors,
+  leaving dozens of readonly promoted properties uninitialized — any inherited
+  method not overridden fataled with an uninitialized-typed-property `Error`).
+  If your code type-hints a concrete service (e.g. `Gaze $gaze`,
+  `Daemon\DaemonManager`) and you pass it a fake in tests, switch the hint to
+  the corresponding contract. Fake call-recording behavior (`cleanCalls()`,
+  `maskCalls()`, purge/daemon assertions) is unchanged;
+  `FakeDaemonManager::client()` now throws an explicit `LogicException`
+  instead of fataling.
 - `gaze:install-ner` renamed to `gaze:install:ner` (MINOR). The old name keeps
   working as a deprecated alias, so existing scripts are unaffected. A new `--yes`
   flag confirms a headless install WITHOUT re-downloading the model or overwriting
