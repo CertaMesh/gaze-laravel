@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Facades;
 
 use Carbon\CarbonInterface;
+use CertaMesh\Gaze\Audit\AuditExportResult;
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
 use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Daemon\CleanResponse;
@@ -41,14 +42,16 @@ final class Gaze extends Facade
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
+     * @param  \Closure(string|null, string): AuditExportResult|null  $auditExportHandler
      */
     public static function fake(
         ?\Closure $cleanHandler = null,
         ?\Closure $restoreHandler = null,
         ?\Closure $auditPurgeHandler = null,
         ?\Closure $daemonCleanHandler = null,
+        ?\Closure $auditExportHandler = null,
     ): FakeGaze {
-        $fake = new FakeGaze($cleanHandler, $restoreHandler, $auditPurgeHandler, $daemonCleanHandler);
+        $fake = new FakeGaze($cleanHandler, $restoreHandler, $auditPurgeHandler, $daemonCleanHandler, $auditExportHandler);
         self::swap($fake);
 
         return $fake;
@@ -224,12 +227,45 @@ final class Gaze extends Facade
         );
     }
 
+    public static function assertAuditExported(?string $path = null): void
+    {
+        $fake = self::requireFake();
+        $calls = $fake->audit()->exportCalls();
+
+        if ($path === null) {
+            PHPUnit::assertNotEmpty(
+                $calls,
+                'Expected Gaze::audit()->query()->export() to be called at least once.',
+            );
+
+            return;
+        }
+
+        foreach ($calls as $call) {
+            if ($call['output'] === $path) {
+                PHPUnit::assertTrue(true);
+
+                return;
+            }
+        }
+
+        PHPUnit::fail('Expected Gaze::audit()->query()->export() to be called with the given output path, but it was not.');
+    }
+
     public static function assertNothingAudited(): void
     {
         $fake = self::requireFake();
 
         PHPUnit::assertEmpty(
             $fake->audit()->purgeCalls(),
+            'Expected Gaze audit verbs not to be called.',
+        );
+        PHPUnit::assertEmpty(
+            $fake->audit()->exportCalls(),
+            'Expected Gaze audit verbs not to be called.',
+        );
+        PHPUnit::assertEmpty(
+            $fake->audit()->safetyNetQueryCalls(),
             'Expected Gaze audit verbs not to be called.',
         );
     }
