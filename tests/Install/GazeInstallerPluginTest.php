@@ -173,7 +173,7 @@ it('is idempotent when Composer bin-dir has no gaze binary', function () {
 });
 
 it('pins the Composer package name used by the installer plugin', function () {
-    expect(GazeInstallerPlugin::PACKAGE_NAME)->toBe('empiretwo/gaze-laravel');
+    expect(GazeInstallerPlugin::PACKAGE_NAME)->toBe('certamesh/gaze-laravel');
 });
 
 function glp_recursiveRemove(string $path): void

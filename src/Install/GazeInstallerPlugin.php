@@ -25,7 +25,7 @@ use Composer\Plugin\PluginInterface;
  */
 final class GazeInstallerPlugin implements EventSubscriberInterface, PluginInterface
 {
-    public const PACKAGE_NAME = 'empiretwo/gaze-laravel';
+    public const PACKAGE_NAME = 'certamesh/gaze-laravel';
 
     /**
      * @var Closure(Composer, IOInterface): void
