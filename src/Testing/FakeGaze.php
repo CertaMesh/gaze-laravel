@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Testing;
 
+use CertaMesh\Gaze\Audit\AuditExportResult;
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
 use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\Daemon\CleanResponse;
@@ -37,14 +38,16 @@ final class FakeGaze implements GazeContract
      * @param  \Closure(GazeSession, string): string|null  $restoreHandler
      * @param  \Closure(string, bool): AuditPurgeResult|null  $auditPurgeHandler
      * @param  \Closure(string, string): CleanResponse|null  $daemonCleanHandler
+     * @param  \Closure(string|null, string): AuditExportResult|null  $auditExportHandler
      */
     public function __construct(
         private readonly ?\Closure $cleanHandler = null,
         private readonly ?\Closure $restoreHandler = null,
         ?\Closure $auditPurgeHandler = null,
         ?\Closure $daemonCleanHandler = null,
+        ?\Closure $auditExportHandler = null,
     ) {
-        $this->auditService = new FakeAuditService($auditPurgeHandler);
+        $this->auditService = new FakeAuditService($auditPurgeHandler, $auditExportHandler);
         $this->daemonManager = new FakeDaemonManager($daemonCleanHandler);
     }
 
