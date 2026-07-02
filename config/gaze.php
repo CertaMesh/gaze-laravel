@@ -72,8 +72,11 @@ return [
     'audit_db_path' => env('GAZE_AUDIT_DB_PATH'),
 
     /*
-     * BCP47 locale hint forwarded to `gaze clean` as `--locale=<value>`
-     * (e.g. `en`, `de`). Null passes no flag.
+     * Locale hint forwarded to `gaze clean` as `--locale=<value>`. The value
+     * is passed verbatim, and upstream parses it as a comma-separated,
+     * priority-ordered BCP47 fallback chain — so both a single locale
+     * (`GAZE_LOCALE=de`) and a chain (`GAZE_LOCALE=de-DE,en`) work; earlier
+     * entries win. Null passes no flag.
      */
     'locale' => env('GAZE_LOCALE'),
 

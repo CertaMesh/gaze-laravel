@@ -268,7 +268,9 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 1. **Bundle unification.** The published `resources/policy.toml` now ships
    `bundled = ["core"]` only. Adopters who copied the previous version
    with `["core", "core-extended"]` should drop `core-extended` and pass
-   a locale flag (`GAZE_LOCALE=de-DE` or similar) to keep
+   a locale flag (`GAZE_LOCALE=de-DE` or similar; a comma-separated
+   priority fallback chain like `GAZE_LOCALE=de-DE,en` is also accepted
+   and forwarded verbatim) to keep
    `phone.national.*` / `postal.*` coverage.
 2. **Binary pin bump.** `BinaryInstaller::PINNED_VERSION` jumps from
    `0.7.2` to `0.8.0`. The `GAZE_VERSION` env override is still honoured

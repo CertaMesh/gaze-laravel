@@ -24,12 +24,19 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.11.2.
 | `--session-ttl` | `gaze.session_ttl_seconds` / `GAZE_SESSION_TTL` |
 | `--session-scope` | `gaze.session_scope` / `GAZE_SESSION_SCOPE` |
 | `--audit-db` | `gaze.audit_db_path` / `GAZE_AUDIT_DB_PATH` |
-| `--locale` | `gaze.locale` / `GAZE_LOCALE` |
+| `--locale` | `gaze.locale` / `GAZE_LOCALE` — passed verbatim. Upstream accepts a **comma-separated, priority-ordered fallback chain** (`--help`: "Active locale fallback chain, comma separated and priority ordered"), so `GAZE_LOCALE=de-DE,en` works today; a single BCP47 value is just a chain of one. |
+| `--ner-model-dir` (runtime) | **Not exposed.** Runtime override of policy `[ner].model_dir` on `gaze clean`. Deferred — the adapter only sets `model_dir` at install time via `gaze:install:ner` writing `policy.toml`. See [Deferred](#deferred). |
+| `--ner-locale` (runtime) | **Not exposed.** Runtime override of policy `[ner].locale` on `gaze clean`. Deferred — install-time only via `gaze:install:ner --locale`. See [Deferred](#deferred). |
 | `--ner-threshold` | per-call `Gaze::clean($text, $threshold)` arg + `gaze.ner_threshold` / `GAZE_NER_THRESHOLD` (override policy `[ner]` threshold, 0.0–1.0 inclusive; per-call wins over config; null = upstream policy default) |
 | `--rulepack-bundled` | `gaze.rulepacks` / `GAZE_RULEPACKS` |
 | `--rulepack-path` | `gaze.rulepack_paths` / `GAZE_RULEPACK_PATHS` |
 | `--safety-net` | `gaze.safety_net` / `GAZE_SAFETY_NET` |
 | `--safety-net-backend` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` (v0.8.x; `openai-filter` \| `kiji-distilbert`) |
+| `--safety-net-registry` | **Not exposed.** v0.9.0 locale-aware Pass-3 registry dispatch (boolean). Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
+| `--safety-net-add` | **Not exposed.** Repeatable registry backend add (`openai-filter` \| `kiji-distilbert`). Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
+| `--opf-locales` | **Not exposed.** Locale list for the OPF registry entry. Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
+| `--kiji-distilbert-locales` | **Not exposed.** Locale list for the Kiji DistilBERT registry entry. Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
+| `--opf-command` / `--opf-checkpoint` | **No surface needed** — upstream `--help` marks these as aliases for `--openai-filter-command` / `--openai-filter-checkpoint` "in registry examples". The adapter forwards the canonical spellings (rows above); the aliases add no capability. |
 | `--kiji-backend` | `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` (v0.9; `subprocess` \| `ort`) |
 | `--kiji-distilbert-precision` | `gaze.kiji_distilbert_precision` / `GAZE_KIJI_DISTILBERT_PRECISION` (v0.9; `fp32` \| `int8`) |
 | `--kiji-distilbert-command` | `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` (v0.8.x) |
@@ -96,8 +103,11 @@ matching BCP47 locale.
 | UK NINO | UK | `None` (cue-gated) | 3 (locale_gated) |
 | Indian PAN | IN | `None` (cue-gated) | 3 (locale_gated) |
 
-The Laravel adapter forwards `--locale=<bcp47>` via `gaze.locale` /
-`GAZE_LOCALE`; no code change is needed to opt in.
+The Laravel adapter forwards `--locale=<value>` via `gaze.locale` /
+`GAZE_LOCALE`; no code change is needed to opt in. The value is passed
+**verbatim**, and upstream parses it as a comma-separated,
+priority-ordered fallback chain — so both a single BCP47 hint
+(`GAZE_LOCALE=de`) and a chain (`GAZE_LOCALE=de-DE,en`) work today.
 
 ## Audit row columns (v0.8.0)
 
@@ -165,6 +175,31 @@ when the key is null.
 model dir is set and carries `SHA256SUMS`, `labels.json`, `model.onnx`,
 and `tokenizer.json` before the binary fails the first `gaze clean`
 with a `SafetyNetArtifactMissing` envelope.
+
+## Safety-net registry (v0.9.0)
+
+Upstream v0.9.0 adds a **locale-aware Pass-3 safety-net registry**: instead
+of one global backend, `--safety-net-registry` enables registry dispatch,
+`--safety-net-add` registers one backend per use (repeatable), and
+`--opf-locales` / `--kiji-distilbert-locales` scope each registry entry to a
+locale list. All four flags are present on the pinned binary's
+`gaze clean --help`.
+
+The adapter does **not** expose this family yet — honest status: **deferred**,
+not wrapped and not passthrough (no config key or argv reaches these flags).
+
+| Upstream flag | Verdict | Notes |
+|---|---|---|
+| `--safety-net-registry` | **defer** | Boolean registry-dispatch switch. Single-backend selection (`gaze.safety_net_backend`) covers current adopters. |
+| `--safety-net-add` | **defer** | Repeatable — needs a list-shaped config key (`gaze.safety_net_registry.backends`-style), which deserves design rather than an ad-hoc CSV env var. |
+| `--opf-locales` | **defer** | Per-entry locale scoping for the OPF backend. Only meaningful once the registry itself is exposed. |
+| `--kiji-distilbert-locales` | **defer** | Per-entry locale scoping for the Kiji DistilBERT backend. Same dependency. |
+| `--opf-command` / `--opf-checkpoint` | no surface needed | Upstream aliases for the already-wrapped `--openai-filter-command` / `--openai-filter-checkpoint`. |
+
+Wrap trigger: an adopter running multi-locale traffic that needs different
+Pass-3 backends per locale. Until then the existing single
+`--safety-net-backend` surface plus the `--locale` fallback chain is the
+supported path. Tracked in [Deferred](#deferred).
 
 ## Daemon (v0.11.0)
 
@@ -336,3 +371,5 @@ flow through (enforced by a hostile-fixture test).
 | `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. The v0.11.x `gaze-document` split (#279) keeps OCR a non-goal — still deferred, not re-scoped. Tracked separately. |
 | `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
 | `gaze proxy install-launchd` / `install-systemd-user` | Upstream stubs the launchd / systemd integrations in v0.8.0 (return `"reserved for v0.8.x"`). Adapter will ship `php artisan gaze:proxy:install` once upstream implements them. |
+| `gaze clean --ner-model-dir` / `--ner-locale` (runtime NER overrides) | Runtime overrides of policy `[ner].model_dir` / `[ner].locale` — distinct from the **install-time** variants the adapter already owns (`gaze:install:ner --dest --locale` writes them into `policy.toml`). Currently **not exposed**: no config key or per-call arg forwards them. Deferring keeps one source of truth for NER placement (the policy file `gaze:doctor` validates); a per-request model-dir swap has no adopter demand yet. Wrap-later candidate: `gaze.ner_model_dir` / `gaze.ner_locale` config passthrough (additive MINOR) once an adopter needs per-environment model dirs without policy edits. |
+| Safety-net registry family (`--safety-net-registry`, `--safety-net-add`, `--opf-locales`, `--kiji-distilbert-locales`, v0.9.0) | Locale-aware Pass-3 registry dispatch — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090) for per-flag verdicts. Not exposed; the single-backend `gaze.safety_net_backend` surface covers current adopters. Wrap once an adopter needs per-locale backend routing (list-shaped config, additive MINOR). |
