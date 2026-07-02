@@ -8,10 +8,10 @@ use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\Install\KijiArtifacts;
+use Devium\Toml\Toml;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Process\Factory as ProcessFactory;
-use Yosymfony\Toml\Toml;
 
 final class DoctorCommand extends Command
 {
@@ -106,8 +106,19 @@ final class DoctorCommand extends Command
         }
 
         try {
-            $parsed = Toml::parseFile($policyPath);
-        } catch (\Throwable) {
+            $body = file_get_contents($policyPath);
+            if ($body === false) {
+                throw new \RuntimeException('could not read file');
+            }
+
+            /** @var array<string, mixed> $parsed */
+            $parsed = Toml::decode($body, asArray: true);
+        } catch (\Throwable $e) {
+            $this->warn(
+                "policy at {$policyPath} could not be parsed as TOML ({$e->getMessage()}) — "
+                .'skipping deprecated-rulepack check. The gaze binary will likely reject this policy too.'
+            );
+
             return;
         }
 

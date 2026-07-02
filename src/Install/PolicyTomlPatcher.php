@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Install;
 
-use Yosymfony\Toml\Exception\ParseException;
-use Yosymfony\Toml\Toml;
+use Devium\Toml\Toml;
+use Devium\Toml\TomlError;
 
 final class PolicyTomlPatcher
 {
@@ -115,10 +115,10 @@ final class PolicyTomlPatcher
     {
         try {
             /** @var array<string, mixed> $parsed */
-            $parsed = Toml::parse($body);
+            $parsed = Toml::decode($body, asArray: true);
 
-            return is_array($parsed) ? $parsed : [];
-        } catch (ParseException $e) {
+            return $parsed;
+        } catch (TomlError $e) {
             throw new NerManifestInvalidException('invalid policy TOML: '.$e->getMessage(), previous: $e);
         }
     }

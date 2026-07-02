@@ -116,6 +116,30 @@ TOML);
     }
 });
 
+it('warns when policy.toml cannot be parsed as TOML', function () {
+    $tmpPolicy = tempnam(sys_get_temp_dir(), 'gaze-doctor-policy-').'.toml';
+    file_put_contents($tmpPolicy, "[policy.rulepacks\nbundled = broken");
+
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', $tmpPolicy);
+    $this->app['config']->set('gaze.rulepacks', []);
+
+    Process::fake([
+        '*' => Process::result(output: "gaze 0.8.0\n"),
+    ]);
+
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(0)
+            ->expectsOutputToContain('could not be parsed as TOML');
+    } finally {
+        @unlink($tmpPolicy);
+    }
+});
+
 it('does not probe proxy feature when gaze.proxy is at defaults', function () {
     $this->app->instance(
         BinaryResolver::class,
