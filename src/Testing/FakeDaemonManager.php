@@ -4,18 +4,17 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Testing;
 
+use CertaMesh\Gaze\Contracts\DaemonManager as DaemonManagerContract;
 use CertaMesh\Gaze\Daemon\CleanResponse;
-use CertaMesh\Gaze\Daemon\DaemonManager;
-use CertaMesh\Gaze\Daemon\DaemonSession;
+use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 
 /**
  * Test double for the `Gaze::daemon()` chain. Records every call and
  * returns a deterministic `CleanResponse` so assertions can run without
  * a real `gaze daemon` subprocess.
  *
- * Extends `DaemonManager` so `FakeGaze::daemon()` honors the parent
- * `Gaze::daemon(): DaemonManager` return type. The parent constructor
- * is bypassed since the fake never resolves a real client.
+ * Implements `Contracts\DaemonManager` directly (no longer extends the
+ * concrete `DaemonManager`), so it never carries a real client.
  *
  * Adopter usage:
  *
@@ -23,21 +22,19 @@ use CertaMesh\Gaze\Daemon\DaemonSession;
  *     Gaze::daemon()->session('agent-a')->clean('hi');
  *     Gaze::assertDaemonCleaned('agent-a');
  */
-final class FakeDaemonManager extends DaemonManager
+final class FakeDaemonManager implements DaemonManagerContract
 {
     /** @var list<array{session_id: string, text: string}> */
     private array $calls = [];
 
-    /** @var array<string, DaemonSession> */
+    /** @var array<string, FakeDaemonSession> */
     private array $sessionDoubles = [];
 
     public function __construct(
         private readonly ?\Closure $cleanHandler = null,
-    ) {
-        // Deliberately skip parent constructor — fake never invokes a real client.
-    }
+    ) {}
 
-    public function session(string $id): DaemonSession
+    public function session(string $id): FakeDaemonSession
     {
         if (! isset($this->sessionDoubles[$id])) {
             $this->sessionDoubles[$id] = new FakeDaemonSession($id, $this);
@@ -65,6 +62,17 @@ final class FakeDaemonManager extends DaemonManager
                 'manifest' => [],
                 'tokens' => [],
             ],
+        );
+    }
+
+    /**
+     * The fake never spawns a daemon, so there is no client to expose.
+     * Fails loudly instead of pretending a transport exists.
+     */
+    public function client(): DaemonClientContract
+    {
+        throw new \LogicException(
+            'FakeDaemonManager holds no real daemon client. Bind a DaemonClientContract test double directly if your test needs client-level access.'
         );
     }
 
