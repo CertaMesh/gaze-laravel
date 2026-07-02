@@ -288,15 +288,17 @@ final class Gaze extends Facade
             return;
         }
 
+        $matched = false;
+
         foreach ($calls as $call) {
             if ($call['output'] === $path) {
-                PHPUnit::assertTrue(true);
+                $matched = true;
 
-                return;
+                break;
             }
         }
 
-        PHPUnit::fail('Expected Gaze::audit()->query()->export() to be called with the given output path, but it was not.');
+        PHPUnit::assertTrue($matched, 'Expected Gaze::audit()->query()->export() to be called with the given output path, but it was not.');
     }
 
     public static function assertNothingAudited(): void
