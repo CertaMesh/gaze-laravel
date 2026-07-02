@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Daemon;
 
+use CertaMesh\Gaze\Contracts\DaemonManager as DaemonManagerContract;
 use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 
 /**
@@ -19,7 +20,7 @@ use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
  * agent loop don't pay the DTO allocation cost. The bound client is shared
  * — sessions are addressing labels on the wire, not separate runtimes.
  */
-class DaemonManager
+class DaemonManager implements DaemonManagerContract
 {
     /** @var array<string, DaemonSession> */
     private array $sessions = [];

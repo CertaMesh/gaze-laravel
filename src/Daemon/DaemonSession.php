@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Daemon;
 
+use CertaMesh\Gaze\Contracts\DaemonSession as DaemonSessionContract;
 use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 
 /**
@@ -15,7 +16,7 @@ use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
  * can't accidentally hand a worker a session bound to a daemon process the
  * worker never saw. Resolve a fresh `Gaze::daemon()` per worker tick.
  */
-class DaemonSession
+class DaemonSession implements DaemonSessionContract
 {
     public function __construct(
         public readonly string $sessionId,
