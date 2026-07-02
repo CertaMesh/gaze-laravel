@@ -91,6 +91,8 @@ class RedactAndForwardJob implements ShouldQueue
 | `RetryAction::ReleaseWithAlert` | Exception implements `RetryableWithAlert` | Fires `GazeInfraAlert` event, then calls `$job->release($delay)` |
 | `RetryAction::Throw` | Exception does not implement any Gaze retry interface | Re-throws — not a Gaze exception |
 
+**Variant-dependent exceptions:** before checking the marker interfaces above, `classify()` consults `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition` and returns `$e->retryDisposition()` directly. `GazeSafetyNetFailureException` uses this contract because its retry lane depends on the upstream safety-net `variant` sidecar (`Timeout` retries, `InputTooLarge` fails, `SuspectedLeak` alerts, unknown variants fail closed) — it implements none of the static markers. If you hand-roll an `instanceof` chain instead of calling `classify()`, add a `HasRetryDisposition` arm first.
+
 ### Backoff resolution
 
 `GazeRetryPolicy` resolves the release delay from your job's `$backoff` property:

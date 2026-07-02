@@ -158,7 +158,7 @@ SafetyNet failures map onto three typed exceptions. All three sit under the
 | Exception | When raised | Exit | Retry policy | Accessors |
 |---|---|---|---|---|
 | `GazeSafetyNetConfigException` | Config invalid (e.g. `safety_net_backend=kiji-distilbert` with no `kiji_distilbert_command`). | 3 | NonRetryable | inherited |
-| `GazeSafetyNetFailureException` | Backend ran but failed (`Timeout`, `WeightsMissing`, `InputTooLarge`, `Unsupported`, `SuspectedLeak`, `Runtime`, `InvalidOutput`, `ModelUnavailable`, `Unavailable`, `Other`). | 3 | varies — classify via `GazeRetryPolicy::classify()` | `safetyNetVariant(): string` |
+| `GazeSafetyNetFailureException` | Backend ran but failed (`Timeout`, `WeightsMissing`, `InputTooLarge`, `Unsupported`, `SuspectedLeak`, `Runtime`, `InvalidOutput`, `ModelUnavailable`, `Unavailable`, `Other`). | 3 | varies — implements `HasRetryDisposition`; classify via `GazeRetryPolicy::classify()` or `retryDisposition()` | `safetyNetVariant(): string` |
 | `GazeSafetyNetArtifactMissingException` (v0.9.0 new) | Backend's pinned artifact bundle is incomplete. Currently raised by the Kiji backend; the contract is generic for future pinned-artifact backends. | 2 | NonRetryable | `backend(): string`, `path(): string` |
 
 Use `GazeRetryPolicy::classify()` to route exceptions onto your queue's
@@ -190,23 +190,42 @@ final class CleanRequestJob
 }
 ```
 
-### Caveat — do not branch on `instanceof` for `GazeSafetyNetFailureException`
+### Variant-dependent retry disposition (`HasRetryDisposition`)
 
-`GazeSafetyNetFailureException` is unusual: it implements **all three** retry
-marker contracts (`NonRetryable`, `Retryable`, `RetryableWithAlert`)
-simultaneously, because the upstream `SafetyNetFailure` envelope carries a
-`variant` string (`Timeout`, `SuspectedLeak`, `WeightsMissing`, etc.) that
-decides the retry lane at runtime. A naive `instanceof NonRetryable` check
-outside `GazeRetryPolicy::classify()` always matches, even for retryable
-variants. **Always classify via `GazeRetryPolicy::classify()`** — it inspects
-`safetyNetVariant()` and routes correctly:
+`GazeSafetyNetFailureException` is unusual: the upstream `SafetyNetFailure`
+envelope carries a `variant` string (`Timeout`, `SuspectedLeak`,
+`WeightsMissing`, etc.) that decides the retry lane at runtime, so no static
+marker interface (`NonRetryable`, `Retryable`, `RetryableWithAlert`) can
+describe it — it implements **none** of them. Instead it implements
+`CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition`, whose
+`retryDisposition(): RetryAction` inspects `safetyNetVariant()`:
 
 - `Timeout`, `Other` → `RetryAction::ReleaseWithBackoff`
 - `SuspectedLeak` → `RetryAction::ReleaseWithAlert` (fires `GazeInfraAlert`)
-- `WeightsMissing`, `InputTooLarge`, `Unsupported` → `RetryAction::Fail`
+- `WeightsMissing`, `InputTooLarge`, `Unsupported` — and any variant this
+  package does not know yet — → `RetryAction::Fail` (fail closed)
 
-This is the resolved design Q5 from the v0.6.6 dogfooding pass; the roadmap
-scratchpad (`SafetyNetFailure { variant }` row) carries the full caveat.
+`GazeRetryPolicy::classify()` consults `HasRetryDisposition` before the marker
+interfaces, so classification works with no special-casing. If you branch on
+markers yourself, add a `HasRetryDisposition` arm first:
+
+```php
+use CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
+
+// Either delegate entirely:
+$action = GazeRetryPolicy::classify($e);
+
+// Or, in a hand-rolled instanceof chain, check the disposition contract first:
+if ($e instanceof HasRetryDisposition) {
+    $action = $e->retryDisposition();
+}
+```
+
+> **History:** before v1.0 this exception implemented all three markers
+> simultaneously, which made a naive `instanceof NonRetryable` match even for
+> retryable variants. That contradiction is resolved by `HasRetryDisposition`
+> (design Q5 from the v0.6.6 dogfooding pass).
 
 ## Migration notes (v0.8.x → v0.9.x)
 

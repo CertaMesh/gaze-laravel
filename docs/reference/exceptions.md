@@ -22,7 +22,7 @@ All exceptions live under `CertaMesh\Gaze\Exceptions`. They form a typed hierarc
     ├── GazeIntegrityException           (exit bucket 3 — integrity/session error)
     │   ├── GazeUnknownTokenException    (NonRetryable)
     │   ├── GazeResponseDecodeException  (NonRetryable)
-    │   ├── GazeSafetyNetFailureException (variant-dependent retry policy)
+    │   ├── GazeSafetyNetFailureException (HasRetryDisposition — variant-dependent retry policy)
     │   ├── GazeUnsupportedSessionScopeException (NonRetryable)
     │   ├── GazeInvalidSignatureException (NonRetryable)
     │   ├── GazeInvalidBlobVersionException (NonRetryable + RequiresFreshClean)
@@ -139,16 +139,19 @@ pinning by adding `schema_version = "0.1"` to the top of `policy.toml`.
 
 ### Safety-net and session-scope exceptions
 
-`GazeSafetyNetFailureException::safetyNetVariant()` returns the upstream sidecar variant. `GazeRetryPolicy` classifies those variants as:
+`GazeSafetyNetFailureException::safetyNetVariant()` returns the upstream sidecar variant. Because the retry lane depends on that runtime value, the class implements none of the static marker interfaces; it implements `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition`, and `retryDisposition(): RetryAction` (consulted first by `GazeRetryPolicy::classify()`) maps the variants as:
 
-| Safety-net variant | Retry behaviour |
+| Safety-net variant | `retryDisposition()` |
 |---|---|
-| `Timeout` | `Retryable` → release |
-| `InputTooLarge` | `NonRetryable` → fail |
-| `Unsupported` | `NonRetryable` → fail |
-| `WeightsMissing` | `NonRetryable` → fail |
-| `SuspectedLeak` | `RetryableWithAlert` → release + alert |
-| `Other` | `Retryable` → release |
+| `Timeout` | `ReleaseWithBackoff` → release |
+| `InputTooLarge` | `Fail` |
+| `Unsupported` | `Fail` |
+| `WeightsMissing` | `Fail` |
+| `SuspectedLeak` | `ReleaseWithAlert` → release + alert |
+| `Other` | `ReleaseWithBackoff` → release |
+| any unknown variant | `Fail` (fail closed) |
+
+Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for this exception — it matches none of them. Use `GazeRetryPolicy::classify($e)` or `$e->retryDisposition()`.
 
 `GazeSafetyNetConfigException` extends `GazePolicyConfigException`, so existing catch blocks for policy/config failures keep working.
 

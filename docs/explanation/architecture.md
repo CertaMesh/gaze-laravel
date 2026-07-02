@@ -166,6 +166,13 @@ All exceptions extend `GazeException extends \RuntimeException`.
 | `ReleaseWithAlert` | `RetryableWithAlert` | fires `GazeInfraAlert` event, then `$job->release($delay)` |
 | `Throw` | unknown exception | re-throws — lets framework handle it |
 
+Exceptions whose retry lane depends on runtime state implement
+`HasRetryDisposition` instead of a static marker; `classify()` consults it
+before the marker arms and returns `$e->retryDisposition()` directly.
+`GazeSafetyNetFailureException` (variant-dependent: `Timeout` retries,
+`SuspectedLeak` alerts, `InputTooLarge`/unknown variants fail) is the sole
+implementer today.
+
 ---
 
 ## 5. Known Limitations and Design Constraints
