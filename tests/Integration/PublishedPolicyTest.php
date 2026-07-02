@@ -30,7 +30,7 @@ beforeEach(function () {
     }
 
     $this->app['config']->set('gaze.binary', $binary);
-    $this->app['config']->set('gaze.policy_path', dirname(__DIR__, 2).'/policy.toml.example');
+    $this->app['config']->set('gaze.policy_path', gl_integrationPolicyPath());
 });
 
 it('redacts the German fixture across email + invoice + amount + org + location + iban + phone + postal', function () {

@@ -12,7 +12,7 @@ beforeEach(function () {
     }
 
     $this->app['config']->set('gaze.binary', $binary);
-    $this->app['config']->set('gaze.policy_path', realpath(__DIR__.'/../../policy.toml.example'));
+    $this->app['config']->set('gaze.policy_path', gl_integrationPolicyPath());
     $this->app['config']->set('gaze.session_ttl_seconds', 1);
 });
 

@@ -8,7 +8,7 @@ it('publishes a v0.4 multi-class policy with bundled rulepacks', function () {
 
     $body = file_get_contents($sourcePath);
     if (! is_string($body)) {
-        throw new RuntimeException('could not read policy.toml.example');
+        throw new RuntimeException('could not read resources/policy.toml');
     }
 
     expect($body)->toBeString()->not->toBe('');

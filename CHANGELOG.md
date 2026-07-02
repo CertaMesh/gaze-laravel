@@ -203,6 +203,10 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 - `DaemonClient::disconnect()` now escalates SIGTERM → (≈2s grace,
   polling `proc_get_status`) → SIGKILL before `proc_close()`, so a daemon
   that ignores SIGTERM can no longer hang teardown of the Octane worker.
+- Integration tests no longer point at the long-deleted `policy.toml.example`
+  (moved to `resources/policy.toml` in #55); a missing policy fixture now hard-fails
+  instead of silently skipping, and the cross-session test asserts the upstream
+  token-isolation fix (`GazeUnknownTokenException`) instead of the legacy rc.3 leak.
 - Correct the stale `gaze:doctor` core-extended deprecation notice. It
   claimed "Removal target: v0.10.0", but upstream never removed the pack —
   it still soft-aliases `core-extended` → `core` with a runtime warning
