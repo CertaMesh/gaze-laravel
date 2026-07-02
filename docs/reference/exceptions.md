@@ -181,7 +181,7 @@ Thrown when the binary exits successfully (or with a non-zero code) but the stdo
 
 ### `GazeBinaryMissingException`
 
-Not queue-facing. Thrown during binary resolution at the point `BinaryResolver::resolve()` is called. Fix by ensuring the binary is installed (`composer require empiretwo/gaze-laravel` triggers the Composer plugin) or by setting `GAZE_BINARY` to a valid path.
+Not queue-facing. Thrown during binary resolution at the point `BinaryResolver::resolve()` is called. Fix by ensuring the binary is installed (`composer require certamesh/gaze-laravel` triggers the Composer plugin) or by setting `GAZE_BINARY` to a valid path.
 
 ### `GazePipelineException`
 

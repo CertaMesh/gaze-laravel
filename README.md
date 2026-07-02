@@ -1,11 +1,11 @@
 # gaze-laravel
 
-[![Latest Stable Version](https://img.shields.io/packagist/v/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
-[![Total Downloads](https://img.shields.io/packagist/dt/empiretwo/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/empiretwo/gaze-laravel)
+[![Latest Stable Version](https://img.shields.io/packagist/v/certamesh/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/certamesh/gaze-laravel)
+[![Total Downloads](https://img.shields.io/packagist/dt/certamesh/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/certamesh/gaze-laravel)
 ![PHP Version](https://img.shields.io/badge/PHP-%5E8.2-777BB4?style=flat-square&logo=php&logoColor=white)
 ![Laravel Version](https://img.shields.io/badge/Laravel-11%20%7C%7C%2012%20%7C%7C%2013-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 [![Tests](https://img.shields.io/github/actions/workflow/status/CertaMesh/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/CertaMesh/gaze-laravel/actions/workflows/test.yml)
-[![License](https://img.shields.io/packagist/l/empiretwo/gaze-laravel.svg?style=flat-square)](https://github.com/CertaMesh/gaze-laravel/blob/main/LICENSE)
+[![License](https://img.shields.io/packagist/l/certamesh/gaze-laravel.svg?style=flat-square)](https://github.com/CertaMesh/gaze-laravel/blob/main/LICENSE)
 
 > Pseudonymize PII / PHI / secrets before they cross the LLM boundary — one `Gaze::clean()` call out, `Gaze::restore()` back, fully reversible owner-side.
 
@@ -53,7 +53,7 @@ re-implements pseudonymization in PHP.
 Two steps:
 
 ```bash
-composer require empiretwo/gaze-laravel
+composer require certamesh/gaze-laravel
 php artisan gaze:install
 ```
 
@@ -205,7 +205,11 @@ and compliance boundaries.
 
 ## Upgrading
 
-Per-minor walkthroughs live in [`docs/how-to/upgrading.md`](./docs/how-to/upgrading.md);
+The migration guide for the upcoming release — the `certamesh/gaze-laravel`
+package rename and the `Naoray\GazeLaravel` → `CertaMesh\Gaze` namespace
+rename — lives in [UPGRADING.md](./UPGRADING.md). Per-minor walkthroughs for
+earlier versions live in
+[`docs/how-to/upgrading.md`](./docs/how-to/upgrading.md);
 pair them with the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md). The current
 pin is **v0.11.2** — see the `v0.11.1 → v0.11.2` section for what the pin bump

@@ -1,8 +1,22 @@
 # Upgrading
 
-Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
+Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
+
+## v0.11.1 → v0.12.0 (Unreleased)
+
+> **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
+> This release is BREAKING on identity only: the Composer package renames
+> `empiretwo/gaze-laravel` → `certamesh/gaze-laravel` (swap the requirement
+> and the `config.allow-plugins` key) and the PHP root namespace renames
+> `Naoray\GazeLaravel` → `CertaMesh\Gaze` (mechanical `use`-statement replace;
+> the `Gaze` facade alias is unchanged). It also adds the `GazeSession`
+> coverage/trust state (`coverageState()` / `hasSuspectedLeak()`) and a
+> per-call NER threshold (`Gaze::clean($text, threshold: 0.65)` with
+> `gaze.ner_threshold` / `GAZE_NER_THRESHOLD` as the default). Full steps,
+> before/after snippets, and the queued-payload caveat live in the root
+> [UPGRADING.md](../../UPGRADING.md).
 
 ## v0.11.1 → v0.11.2
 
@@ -87,7 +101,9 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 ### Action required
 
 - **None** for the correctness fixes — taking the v0.11.1 pin is sufficient.
-  Run `composer install` (or `composer update empiretwo/gaze-laravel`) and
+  Run `composer install` (or `composer update empiretwo/gaze-laravel` — the
+  package name at the v0.11.x line; renamed to `certamesh/gaze-laravel` in
+  v0.12.0) and
   confirm `php artisan gaze:doctor` reports the pinned binary at `0.11.1`.
 - **Only if you want restore audit trails:** set `GAZE_RESTORE_TELEMETRY=1`
   and a `gaze.audit_db_path`, then read restore rows via
