@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Audit;
 
 use CertaMesh\Gaze\BinaryResolver;
+use CertaMesh\Gaze\Contracts\AuditRunner;
+use CertaMesh\Gaze\Contracts\AuditService as AuditServiceContract;
 use CertaMesh\Gaze\Exceptions\GazeAuditDbNotConfiguredException;
-use CertaMesh\Gaze\Gaze;
 
-class AuditService
+class AuditService implements AuditServiceContract
 {
     public function __construct(
-        protected readonly Gaze $gaze,
+        protected readonly AuditRunner $gaze,
         protected readonly BinaryResolver $resolver,
         protected readonly ?string $auditDbPath,
     ) {}

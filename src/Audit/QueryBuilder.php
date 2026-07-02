@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Audit;
 
 use CertaMesh\Gaze\BinaryResolver;
-use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Contracts\AuditRunner;
+use CertaMesh\Gaze\Contracts\QueryBuilder as QueryBuilderContract;
 
 /**
  * Runs `gaze audit query` and parses the TSV output into rows.
  * Each row is a list of column values; the outer list is all matching rows.
  * Column count and order follow the upstream `gaze audit query` contract.
  */
-class QueryBuilder
+class QueryBuilder implements QueryBuilderContract
 {
     /**
      * Default-initialised (not constructor-promoted) so subclasses that skip the
@@ -22,7 +23,7 @@ class QueryBuilder
     protected bool $onlyRestoreEvents = false;
 
     public function __construct(
-        protected readonly Gaze $gaze,
+        protected readonly AuditRunner $gaze,
         protected readonly BinaryResolver $resolver,
         protected readonly string $auditDbPath,
     ) {}

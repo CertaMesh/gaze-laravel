@@ -6,17 +6,20 @@ namespace CertaMesh\Gaze\Testing;
 
 use Carbon\CarbonInterface;
 use CertaMesh\Gaze\Audit\AuditPurgeResult;
-use CertaMesh\Gaze\Audit\PurgeBuilder;
+use CertaMesh\Gaze\Contracts\PurgeBuilder as PurgeBuilderContract;
 
-final class FakePurgeBuilder extends PurgeBuilder
+/**
+ * Test double for the purge builder. Implements `Contracts\PurgeBuilder`
+ * directly and records executed purges on the owning `FakeAuditService`.
+ * Mirrors the real builder's `before()`-required discipline.
+ */
+final class FakePurgeBuilder implements PurgeBuilderContract
 {
     private ?string $before = null;
 
     public function __construct(
         private readonly FakeAuditService $audit,
-    ) {
-        // Deliberately skip parent constructor — fake never invokes process.
-    }
+    ) {}
 
     public function before(CarbonInterface|string $timestamp): self
     {
