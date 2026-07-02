@@ -118,6 +118,10 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Fixed
 
+- The NER-download HTTP client is now bound as `gaze.http_client` instead of
+  hijacking the global `Symfony\Contracts\HttpClient\HttpClientInterface`
+  binding; host apps or packages that (perhaps unknowingly) relied on gaze's
+  retrying client via the generic interface must now bind their own.
 - Correct the stale `gaze:doctor` core-extended deprecation notice. It
   claimed "Removal target: v0.10.0", but upstream never removed the pack —
   it still soft-aliases `core-extended` → `core` with a runtime warning
