@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
 use CertaMesh\Gaze\Gaze;
 
 beforeEach(function () {
@@ -11,10 +12,10 @@ beforeEach(function () {
     }
 
     $this->app['config']->set('gaze.binary', $binary);
-    $this->app['config']->set('gaze.policy_path', realpath(__DIR__.'/../../policy.toml.example'));
+    $this->app['config']->set('gaze.policy_path', gl_integrationPolicyPath());
 });
 
-it('documents the current rc.3 cross-session behavior for the pinned contract', function () {
+it('isolates tokens across sessions for the pinned contract', function () {
     $gaze = $this->app->make(Gaze::class);
 
     $sessionA = $gaze->clean('alice@example.com');
@@ -22,11 +23,8 @@ it('documents the current rc.3 cross-session behavior for the pinned contract', 
 
     expect($sessionA->ciphertext->ciphertext())->not->toBe($sessionB->ciphertext->ciphertext());
 
-    // When upstream fixes cross-session token isolation, this legacy behavior
-    // should fail in one of three acceptable ways: the foreign token remains
-    // unchanged, restore returns an empty string, or GazeUnknownTokenException
-    // is thrown. Flip this to a positive assertion once that fix lands.
-    $restored = $gaze->restore($sessionA, $sessionB->cleanText);
-
-    expect($restored)->toBe('alice@example.com');
-});
+    // Upstream fixed cross-session token isolation: restoring session A's blob
+    // against session B's tokens must not leak session A's PII. The pinned
+    // binary (v0.11.x) rejects the foreign token outright.
+    $gaze->restore($sessionA, $sessionB->cleanText);
+})->throws(GazeUnknownTokenException::class);
