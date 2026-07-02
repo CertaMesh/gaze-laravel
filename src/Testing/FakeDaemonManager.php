@@ -51,14 +51,18 @@ final class FakeDaemonManager implements DaemonManagerContract
             return ($this->cleanHandler)($sessionId, $text);
         }
 
+        // Same shared tokenizer as FakeGaze::clean(), so the daemon path
+        // masks identically to the one-shot path under Gaze::fake().
+        $cleanText = FakeTokenizer::mask($text);
+
         return new CleanResponse(
             sessionId: $sessionId,
-            cleanText: $this->fakeCleanText($text),
+            cleanText: $cleanText,
             manifest: [],
             tokens: [],
             raw: [
                 'session_id' => $sessionId,
-                'clean_text' => $this->fakeCleanText($text),
+                'clean_text' => $cleanText,
                 'manifest' => [],
                 'tokens' => [],
             ],
@@ -82,16 +86,5 @@ final class FakeDaemonManager implements DaemonManagerContract
     public function calls(): array
     {
         return $this->calls;
-    }
-
-    private function fakeCleanText(string $text): string
-    {
-        // Mirror FakeGaze::fakeCleanText simple-token semantics so adopter
-        // tests that read clean_text get a predictable masked shape.
-        return preg_replace(
-            '/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/',
-            '<Email_1>',
-            $text,
-        ) ?? $text;
     }
 }
