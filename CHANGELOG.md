@@ -13,6 +13,52 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 ### Added
 
+- Audit parity with upstream 0.11.x (MINOR). Four surfaces, all pure argv
+  forwarding — no PHP-side filtering:
+  - **Query filters:** `Audit\QueryBuilder` grows fluent methods for every
+    upstream `gaze audit query` filter flag — `whereClass()` (`--class` is a
+    PHP reserved word; the `where` prefix is kept consistent for the other
+    value filters), `whereSource()`, `whereAction()`, `whereDocumentKind()`,
+    `from()`/`to()` (Carbon → ISO 8601 UTC Zulu), `whereSession()`,
+    `hasAmbiguity()`, `whereAmbiguityReason()`, `whereCollisionFamily()`,
+    `whereCollisionVariant()`, alongside the existing `onlyRestoreEvents()`.
+    Flags assemble in upstream `--help` order for deterministic argv.
+  - **Export:** `QueryBuilder::export(?string $output = null, string $format = 'jsonl')`
+    runs `gaze audit export`, reusing the accumulated filter state (upstream
+    applies the identical filter flags to both subcommands). Returns a new
+    `Audit\AuditExportResult` (`format`, `path`, `rawOutput`, plus
+    `rowCount()`/`rows()` derived from captured stdout JSONL — upstream
+    reports no count of its own and only accepts `jsonl` in 0.11.x; the
+    format is forwarded verbatim).
+  - **Safety-net query:** `Gaze::audit()->safetyNetQuery()` wraps
+    `gaze audit safety-net query` (flattened name — `query` is upstream's
+    only `safety-net` subcommand) via the new
+    `Contracts\SafetyNetQueryBuilder` / `Audit\SafetyNetQueryBuilder` with
+    `whereLeakKind()`, `whereRawLabel()`, `whereMappedClass()`,
+    `whereFieldPath()`, `from()`/`to()`. Help snapshots pinned for both new
+    subcommands.
+  - **`php artisan gaze:audit:purge`:** scheduler-friendly wrapper around the
+    purge builder — `--before=` (ISO 8601 or Carbon-parseable relative
+    expression, normalised to UTC Zulu), `--audit-db=` per-run override,
+    `--dry-run`, and `--force` to bypass the interactive confirmation on the
+    destructive path. Exit codes SUCCESS/FAILURE/INVALID.
+
+  Upstream `gaze audit purge` stdout is now pinned
+  (`{"dry_run":bool,"matched":N,"deleted":N}`, verified against the real
+  0.11.1 binary — the previous `"N rows"` regex never matched it, so
+  `AuditPurgeResult::$count` was always null): `AuditPurgeResult` additively
+  gains `$matched`/`$deleted`, and `$count` is now populated (`matched` on
+  dry runs, `deleted` on real runs). Query/safety-net rows keep the thin TSV
+  contract — positional `list<list<string>>` whose first row is upstream's
+  header line; string-keyed access goes through `export()` JSONL.
+
+  Testing surface: fake builders record `appliedFilters()` keyed by upstream
+  flag name; `FakeAuditService` records `exportCalls()`/`safetyNetQueryCalls()`;
+  `Gaze::fake()` accepts an `auditExportHandler`;
+  `Gaze::assertAuditExported(?string $path)` added and
+  `Gaze::assertNothingAudited()` now also fails on export/safety-net calls.
+  The `@internal` `Contracts\AuditRunner` grows `runForAuditExport()` and
+  `runForAuditSafetyNetQuery()`.
 - Service contracts under `CertaMesh\Gaze\Contracts`: `Gaze`, `AuditService`,
   `PurgeBuilder`, `QueryBuilder`, `DaemonManager`, `DaemonSession` (full public
   API of each service), plus the `@internal` `AuditRunner` carrying the

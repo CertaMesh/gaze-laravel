@@ -11,8 +11,10 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.11.1.
 | `gaze clean` | `CertaMesh\Gaze\Gaze::clean()` |
 | `gaze clean` (one-way output reshape) | `CertaMesh\Gaze\Gaze::mask()` — redacts the clean inventory into masked labels (`[Class]` default, or a `callable(Entry): string`). NON-reversible: no session blob, no `restore()` counterpart. Adds no detection — reshapes `clean()`'s tokens only. |
 | `gaze restore` | `CertaMesh\Gaze\Gaze::restore()` |
-| `gaze audit query` | `Gaze::audit()->query()` |
-| `gaze audit purge` | `Gaze::audit()->purge()` |
+| `gaze audit query` | `Gaze::audit()->query()` — fluent builder covering all 11 upstream filter flags (see [Audit query/export filters](#audit-queryexport-filters-v011x)) |
+| `gaze audit export` | `Gaze::audit()->query()->…->export(?string $output, string $format = 'jsonl')` — reuses the query builder's filter state (upstream applies the identical filter flags to both subcommands) |
+| `gaze audit purge` | `Gaze::audit()->purge()` + `php artisan gaze:audit:purge` (scheduler-friendly; `--before` ISO 8601/relative, `--audit-db`, `--dry-run`, `--force`) |
+| `gaze audit safety-net query` | `Gaze::audit()->safetyNetQuery()` — flattened name; `query` is upstream's only `safety-net` subcommand |
 
 ## Clean Flags
 
@@ -101,18 +103,58 @@ The Laravel adapter forwards `--locale=<bcp47>` via `gaze.locale` /
 
 ## Audit row columns (v0.8.0)
 
-Upstream v0.8.0 adds two columns to `gaze audit query` JSON output:
+Upstream v0.8.0 adds two columns to the `gaze audit query` output:
 
 | Column | Notes |
 |---|---|
 | `recognizer_id` | Stable string identifier for the recognizer that produced a span. |
 | `recognizer_version_id` | `<recognizer_id>_v<N>` suffix; bumps on recognizer behaviour changes for replay-stability. |
 
-`Audit\QueryBuilder::parseRows()` returns the rows as `array<string,
-mixed>` and does not strip unknown fields — both columns flow through
-verbatim. Adopters index by string key (`$row['recognizer_version_id']`).
+`gaze audit query` prints **TSV**, and `Audit\QueryBuilder::execute()`
+returns it as positional rows — `list<list<string>>`, where the FIRST row
+is upstream's header line (column names). Rows are NOT keyed by string;
+columns are located by matching against the header row. No columns are
+stripped — everything upstream prints flows through verbatim. For
+string-keyed rows (`$row['recognizer_version_id']`), use
+`QueryBuilder::export()`: `gaze audit export` emits JSONL objects keyed by
+column name, decoded by `AuditExportResult::rows()` for stdout exports.
 A typed `AuditRow` DTO is tracked as a future ergonomics nicety, not a
 blocker.
+
+## Audit query/export filters (v0.11.x)
+
+All `gaze audit query` / `gaze audit export` filter flags forward through
+the fluent `Audit\QueryBuilder` (pure argv forwarding — no PHP-side
+filtering). `--class` is a PHP reserved word as a method name, hence the
+`where` prefix, kept consistent across the value filters:
+
+| Upstream flag | Builder method |
+|---|---|
+| `--class` | `whereClass(string)` |
+| `--source` | `whereSource(string)` |
+| `--action` | `whereAction(string)` |
+| `--document-kind` | `whereDocumentKind(string)` |
+| `--from` | `from(CarbonInterface\|string)` (Carbon → ISO 8601 UTC Zulu) |
+| `--to` | `to(CarbonInterface\|string)` (same normalisation) |
+| `--session` | `whereSession(string)` |
+| `--has-ambiguity` | `hasAmbiguity()` |
+| `--ambiguity-reason` | `whereAmbiguityReason(string)` |
+| `--collision-family` | `whereCollisionFamily(string)` |
+| `--collision-variant` | `whereCollisionVariant(string)` |
+| `--restore-events` | `onlyRestoreEvents()` |
+| `--format` (export only) | `export()` `$format` arg, forwarded verbatim (upstream 0.11.x accepts only `jsonl`) |
+| `--output` (export only) | `export()` `$output` arg; null exports to stdout, captured on `AuditExportResult` |
+
+`gaze audit safety-net query` filters forward through
+`Audit\SafetyNetQueryBuilder` the same way:
+
+| Upstream flag | Builder method |
+|---|---|
+| `--leak-kind` | `whereLeakKind(string)` |
+| `--raw-label` | `whereRawLabel(string)` |
+| `--mapped-class` | `whereMappedClass(string)` |
+| `--field-path` | `whereFieldPath(string)` |
+| `--from` / `--to` | `from()` / `to()` (Carbon → ISO 8601 UTC Zulu) |
 
 ## Proxy (v0.8.1)
 
@@ -251,8 +293,9 @@ NORTH_STAR §6).
 | `CertaMesh\Gaze\Audit\QueryBuilder::onlyRestoreEvents()` | Forwards `--restore-events` to scope an audit query to restore rows |
 | `--policy` restore alias | Redundant with the already-forwarded `--restore-mode`; **document-only, NO new Laravel surface** |
 
-Six new audit columns surface through `Audit\QueryBuilder`, indexed by
-string key like the v0.8.0 recognizer columns:
+Six new audit columns surface through `Audit\QueryBuilder` — positional
+TSV columns located via the header row (or string-keyed via `export()`),
+like the v0.8.0 recognizer columns:
 
 | Column | Notes |
 |---|---|
