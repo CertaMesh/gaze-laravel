@@ -5,10 +5,13 @@ declare(strict_types=1);
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Facades\Gaze as GazeFacade;
 use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\GazeServiceProvider;
 use CertaMesh\Gaze\Install\LaravelNerFetcher;
 use CertaMesh\Gaze\Install\NerFetcher;
 use CertaMesh\Gaze\Install\NerInstaller;
 use CertaMesh\Gaze\Install\NerManifest;
+use Symfony\Component\HttpClient\RetryableHttpClient;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 it('resolves Gaze as a singleton', function () {
     $a = $this->app->make(Gaze::class);
@@ -74,6 +77,26 @@ it('fails loudly on an invalid dedicated key', function () {
 
     $this->app->make('gaze.encrypter');
 })->throws(RuntimeException::class, 'base64-encoded 32 bytes');
+
+it('does not bind the generic Symfony HttpClientInterface app-wide', function () {
+    // Regression: binding the generic interface from a DeferrableProvider
+    // hijacks host-app/third-party resolutions and collides in the
+    // deferred-services map when two packages do the same.
+    expect($this->app->bound(HttpClientInterface::class))->toBeFalse();
+
+    $provider = new GazeServiceProvider($this->app);
+    expect($provider->provides())
+        ->not->toContain(HttpClientInterface::class)
+        ->toContain('gaze.http_client');
+});
+
+it('resolves gaze.http_client as a retrying singleton', function () {
+    $a = $this->app->make('gaze.http_client');
+    $b = $this->app->make('gaze.http_client');
+
+    expect($a)->toBeInstanceOf(RetryableHttpClient::class)
+        ->and($a)->toBe($b);
+});
 
 it('binds NerInstaller as a singleton', function () {
     $this->app->instance(NerManifest::class, NerManifest::fromString(gl_nerChecksumFixture()));
