@@ -133,6 +133,10 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
   takeover vector if the handle is re-registered.
   (`BinaryInstaller::RELEASE_BASE`, `GazeServiceProvider` NER fetch.)
 
+### Documentation
+
+- README / getting-started examples no longer pass `$request->string('body')` (an `Illuminate\Support\Stringable`, which fatals against `clean(string $text)` under `strict_types=1`) — they use `$request->input('body')` with a callout explaining the trap; `examples/clean-before-openai.php` (+ `examples/README.md`) now demonstrates the `coverageState()` / `hasSuspectedLeak()` trust gate before text crosses the model boundary.
+
 ## [0.11.1] - 2026-05-18
 
 ### Changed
