@@ -167,9 +167,6 @@ class BinaryDownloader
         }
 
         $output = $process->getOutput();
-        if (! is_string($output)) {
-            return false;
-        }
 
         // Extract the version token (e.g. `gaze 0.11.2` → `0.11.2`), then
         // compare exactly. Pre-release/build suffixes are part of the token.

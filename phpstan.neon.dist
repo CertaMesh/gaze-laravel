@@ -13,6 +13,12 @@ parameters:
     # cross-version pattern didn't fire on it.
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
+        # --- ContractConformanceTest (#116) pins concrete-implements-contract
+        #     facts with is_a(); phpstan 2 proves them statically and reports
+        #     always-true — that is precisely what the test locks in. ---
+        -
+            identifier: function.alreadyNarrowedType
+            path: tests/Feature/ContractConformanceTest.php
         # --- pest v3: test-closure $this typed as the PHPUnit TestCase ---
         -
             message: '#^Access to an undefined property PHPUnit\\Framework\\TestCase::\$#'
@@ -59,16 +65,11 @@ parameters:
             message: '#^Parameter \#1 \$path of function basename expects string, string\|null given\.$#'
             paths:
                 - tests/*
-        # --- Laravel 13 / Symfony Console 8: phpstan 1.x cannot fully reflect the
-        # Symfony Command base under PHP 8.4, so inherited Command exit-code
-        # constants and the Command supertype read as unknown. False positives
-        # (the constants exist; the classes are Commands) — resolved at the root by
-        # phpstan 2.x. Remove these two when the analyser is bumped.
+        # --- phpstan stub imprecision: pcntl_signal_get_handler() is stubbed as
+        # returning callable(): mixed|int, so invoking the retrieved handler with
+        # the signal number reads as an arity error. Real pcntl handlers receive
+        # (int $signo, mixed $siginfo); the call is correct at runtime.
         -
-            message: '#^Access to undefined constant .*Command::(SUCCESS|FAILURE|INVALID)\.$#'
+            message: '#^Callable callable\(\): mixed invoked with 1 parameter, 0 required\.$#'
             paths:
-                - src/Console/*
-        -
-            message: '#^Parameter \#1 \$command of class Symfony\\Component\\Console\\Tester\\CommandTester constructor expects .*, CertaMesh\\Gaze\\Console\\.* given\.$#'
-            paths:
-                - tests/*
+                - tests/Feature/Console/Daemon/DaemonServeSigtermTest.php
