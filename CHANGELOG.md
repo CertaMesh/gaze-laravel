@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`) will be documented in this file.
+All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-laravel`, originally `naoray/gaze-laravel`) will be documented in this file.
 
 ## [Unreleased]
 
@@ -25,8 +25,13 @@ All notable changes to `empiretwo/gaze-laravel` (formerly `naoray/gaze-laravel`)
 
 - Root namespace renamed `Naoray\GazeLaravel` → `CertaMesh\Gaze`. Migration:
   replace `use Naoray\GazeLaravel\…;` with `use CertaMesh\Gaze\…;`. The `Gaze`
-  facade alias and the Packagist package name `empiretwo/gaze-laravel` are
-  unchanged.
+  facade alias is unchanged.
+- Composer package renamed `empiretwo/gaze-laravel` → `certamesh/gaze-laravel`
+  (CertaMesh is the canonical project identity). Migration:
+  `composer remove empiretwo/gaze-laravel && composer require certamesh/gaze-laravel`,
+  and update the `config.allow-plugins` key in your `composer.json` from
+  `empiretwo/gaze-laravel` to `certamesh/gaze-laravel` so the binary-installer
+  plugin keeps running. See [UPGRADING.md](UPGRADING.md) for the full guide.
 
 ### Changed
 
@@ -673,7 +678,7 @@ Adopter ergonomics wave: ships a real multi-class default policy, a cold-latency
 
 ## [0.4.0] - 2026-04-26
 
-> **Historical note (post-2026-05 public flip):** This release predates both the public flip of `EmpireTwo/gaze` and the vendor rename to `empiretwo/gaze-laravel`. The install instructions below required a GitHub Personal Access Token because `gaze` was a private repo, and reference the legacy package name `naoray/gaze-laravel`. **No PAT is required as of v0.6.x, and the current package name is `empiretwo/gaze-laravel`.** Adopters on current versions should follow `README.md` install instructions instead. The block below is preserved for reproducibility of historical builds.
+> **Historical note (post-2026-05 public flip):** This release predates both the public flip of `EmpireTwo/gaze` and the vendor rename to `empiretwo/gaze-laravel`. The install instructions below required a GitHub Personal Access Token because `gaze` was a private repo, and reference the legacy package name `naoray/gaze-laravel`. **No PAT is required as of v0.6.x, and the current package name is `certamesh/gaze-laravel` (briefly `empiretwo/gaze-laravel` in between).** Adopters on current versions should follow `README.md` install instructions instead. The block below is preserved for reproducibility of historical builds.
 
 First stable adopter-facing release. Bundles the v0.3 retarget with full upstream `gaze` v0.4.5 lockstep, real Composer-plugin-driven binary install, `GAZE_GITHUB_TOKEN` auth for private upstream artifacts, and CI matrix coverage.
 

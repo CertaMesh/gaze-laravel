@@ -7,7 +7,7 @@ For the full API reference see [README.md](../../README.md).
 ## 1. Install
 
 ```bash
-composer require empiretwo/gaze-laravel
+composer require certamesh/gaze-laravel
 php artisan gaze:install
 ```
 
