@@ -91,15 +91,17 @@ final class Gaze extends Facade
             return;
         }
 
+        $matched = false;
+
         foreach ($fake->maskCalls() as $call) {
             if ($call['text'] === $expectedText) {
-                PHPUnit::assertTrue(true);
+                $matched = true;
 
-                return;
+                break;
             }
         }
 
-        PHPUnit::fail('Expected Gaze::mask to be called with given text, but it was not.');
+        PHPUnit::assertTrue($matched, 'Expected Gaze::mask to be called with given text, but it was not.');
     }
 
     public static function assertRestored(?string $expectedText = null): void
