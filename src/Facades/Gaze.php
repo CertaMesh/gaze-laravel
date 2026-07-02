@@ -78,6 +78,30 @@ final class Gaze extends Facade
         PHPUnit::assertTrue($matched, 'Expected Gaze::clean to be called with given text, but it was not.');
     }
 
+    public static function assertMasked(?string $expectedText = null): void
+    {
+        $fake = self::requireFake();
+
+        if ($expectedText === null) {
+            PHPUnit::assertNotEmpty(
+                $fake->maskCalls(),
+                'Expected Gaze::mask to be called at least once.',
+            );
+
+            return;
+        }
+
+        foreach ($fake->maskCalls() as $call) {
+            if ($call['text'] === $expectedText) {
+                PHPUnit::assertTrue(true);
+
+                return;
+            }
+        }
+
+        PHPUnit::fail('Expected Gaze::mask to be called with given text, but it was not.');
+    }
+
     public static function assertRestored(?string $expectedText = null): void
     {
         $fake = self::requireFake();
@@ -110,6 +134,17 @@ final class Gaze extends Facade
             $expected,
             $fake->cleanCalls(),
             "Expected Gaze::clean to be called {$expected} time(s).",
+        );
+    }
+
+    public static function assertMaskCount(int $expected): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertCount(
+            $expected,
+            $fake->maskCalls(),
+            "Expected Gaze::mask to be called {$expected} time(s).",
         );
     }
 
@@ -169,6 +204,16 @@ final class Gaze extends Facade
         PHPUnit::assertEmpty(
             $fake->cleanCalls(),
             'Expected Gaze::clean not to be called.',
+        );
+    }
+
+    public static function assertNothingMasked(): void
+    {
+        $fake = self::requireFake();
+
+        PHPUnit::assertEmpty(
+            $fake->maskCalls(),
+            'Expected Gaze::mask not to be called.',
         );
     }
 
