@@ -6,7 +6,7 @@ See [AGENTS.md](./AGENTS.md) for the shared repo rules and tooling preference.
 
 `gaze-laravel` is the **PHP gate of [`gaze`](https://github.com/CertaMesh/gaze)**. When upstream `gaze` ships a feature, this package exposes it via idiomatic Laravel surfaces — Facade methods, artisan commands, config keys — when it makes sense in PHP. Detection logic stays upstream; this package never re-implements pseudonymization in PHP.
 
-Living roadmap: Solo scratchpad `convention/living-roadmap` (1550) → `roadmap/gaze-feature-coverage` (1538). Orchestrators maintain on every release.
+Living roadmap: Solo project `gaze-laravel` scratchpads — see `review-2026-07-02-00-overview` (id 107) for the current review/priority state. Orchestrators maintain on every release.
 
 See AGENTS.md §Mission for the full operational implications.
 

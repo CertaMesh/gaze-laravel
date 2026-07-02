@@ -222,6 +222,19 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   takeover vector if the handle is re-registered.
   (`BinaryInstaller::RELEASE_BASE`, `GazeServiceProvider` NER fetch.)
 
+### Documentation
+
+- Coverage-table honesty pass: `docs/reference/upstream-coverage.md` now lists
+  the previously omitted `gaze clean` runtime NER overrides (`--ner-model-dir`,
+  `--ner-locale`) and the v0.9.0 safety-net registry flag family
+  (`--safety-net-registry`, `--safety-net-add`, `--opf-locales`,
+  `--kiji-distilbert-locales`, plus the `--opf-command`/`--opf-checkpoint`
+  aliases) with explicit **defer** verdicts — none of these are exposed by the
+  adapter today. Also documents that `gaze.locale` / `GAZE_LOCALE` is forwarded
+  verbatim and upstream parses it as a comma-separated priority fallback chain
+  (`GAZE_LOCALE=de-DE,en` already works); config docblock and upgrade guide
+  updated to match. No behavior change.
+
 ## [0.11.1] - 2026-05-18
 
 ### Changed
