@@ -1,6 +1,6 @@
 # Upstream Coverage
 
-Living parity checklist for upstream `CertaMesh/gaze` v0.11.1.
+Living parity checklist for upstream `CertaMesh/gaze` v0.11.2.
 
 > Adopter usage: [docs/safety-net.md](../how-to/safety-net.md). Why surfaces land here vs. defer: [docs/NORTH_STAR.md](../NORTH_STAR.md) (surface promotion rule). GDPR posture for these surfaces (pseudonymization, storage limitation, erasure): [docs/explanation/gdpr.md](../explanation/gdpr.md) — adopter guidance, not legal advice.
 
@@ -173,9 +173,10 @@ exposes it via the `Gaze::daemon()` Facade chain, a flat config block,
 and TWO artisan commands. See [docs/daemon.md](../how-to/daemon.md) for the
 adopter quickstart.
 
-The upstream binary pin is now **v0.11.1**. The v0.9.1 → v0.11.1 hardening
+The upstream binary pin is now **v0.11.2**. The v0.9.1 → v0.11.1 hardening
 (NER fail-closed, byte-exact restore, strict manifest-restore) is all
 passthrough — no new daemon flag — see [Upstream v0.9.1 → v0.11.1 deltas](#upstream-v091--v0111-deltas).
+For the v0.11.2 pin deltas see [Upstream v0.11.1 → v0.11.2 deltas](#upstream-v0111--v0112-deltas).
 
 ### Commands
 
@@ -232,11 +233,24 @@ adopter surface, `defer` = documented non-goal.
 | NER fail-closed (#290/#293), byte-exact restore (#295), strict manifest-restore (#262, MCP-only) + binary pin bump | passthrough | PATCH | Detection / restore-determinism hardening upstream; nothing new for the adapter to forward beyond the existing pin. Reinforces reversibility (NORTH_STAR §4), changes no surface. |
 | Restore telemetry + audit columns (#261/#270) | **wrap** | MINOR | New opt-in adopter surface — see [Restore telemetry (v0.11.x)](#restore-telemetry-v011x) below. |
 | Clean `leak_report` (verification signal on `gaze clean --format=json`) | **wrap** | MINOR | The adapter previously dropped this field. Now surfaced as a typed `LeakReport` + `CoverageState` trust state on `GazeSession` — see [Clean leak report & trust state (v0.11.x)](#clean-leak-report--trust-state-v011x) below. |
-| TokenBridge index-search (#327) | **defer** | none | Persists raw PII unencrypted on disk and routes through an MCP chokepoint — both NORTH_STAR non-goals ("no plaintext session state at rest"; MCP lifecycle). See Deferred. |
+| TokenBridge index-search (#327) | **defer** | none | Verdict as adjudicated against v0.11.1. The "unencrypted on disk" leg of this rationale was resolved upstream in v0.11.2 (encrypted indexes at rest) — see the re-adjudicated entry in [Deferred](#deferred). |
 | `gaze-mcp-bridge` (#330) | **defer** | none | MCP server lifecycle — explicit non-goal. See Deferred. |
 | CLI accessibility gate (#287) | internal-only | none | Human-TTY affordance; the adapter always invokes with `--format=json`, so the gate never engages. No surface. |
-| `core-extended` rulepack | still-available alias | n/a | `gaze:doctor`'s "Removal target: v0.10.0" line was **stale** — upstream never removed the pack. It still soft-aliases through v0.11.1; documented as available, not removed. See [upgrading.md](../how-to/upgrading.md). |
+| `core-extended` rulepack | still-available alias | n/a | `gaze:doctor`'s "Removal target: v0.10.0" line was **stale** — upstream never removed the pack. It still soft-aliases through v0.11.2; documented as available, not removed. See [upgrading.md](../how-to/upgrading.md). |
 | `gaze-document` split (#279) | already-covered | none | OCR / document pipeline stays a deferred non-goal. See Deferred. |
+
+## Upstream v0.11.1 → v0.11.2 deltas
+
+Gap analysis for the v0.11.2 pin bump (upstream released 2026-06-23). Same
+verdict vocabulary as above.
+
+| Upstream change | Verdict | Adapter SemVer | Notes |
+|---|---|---|---|
+| New default recognizers: EU VAT IDs, ISO-length-gated IBANs, spaced international E.164 phones | passthrough | PATCH | Detection additions in the default recognizer set — adopters get them purely by taking the pin. No new flag, no new adapter surface. |
+| NER loader fix for the Kiji bundle (optional `config.json`, conditional `token_type_ids`) | passthrough | PATCH | Fixes the `kiji-distilbert` backend load path. The existing `gaze.kiji_*` config keys forward unchanged. |
+| Proxy PII-surface + email-TLD recognizer hardening | passthrough | PATCH | Correctness fixes inside the binary; nothing to forward. |
+| `gaze setup` (one-command onboarding: NER install + policy + doctor) | **defer** | none | The Laravel onboarding path is already covered by `php artisan gaze:install` / `gaze:install:ner` + `gaze:doctor`, which additionally handle the adapter-side pieces (config publish, binary pin) that upstream `setup` knows nothing about. Delegating those artisans to `gaze setup` internally is a future option, not a gap. |
+| TokenBridge: encrypted indexes at rest (ChaCha20-Poly1305, `GAZE_INDEX_KEY`, `os-keychain`), `gaze index ingest --on-residual redact\|strict`, real error detail | **defer** | none | Removes the plaintext-PII blocker from the v0.11.1 adjudication; the surface is now a **promotion candidate** — see the re-adjudicated entry in [Deferred](#deferred). |
 
 ## Restore telemetry (v0.11.x)
 
@@ -313,11 +327,12 @@ flow through (enforced by a hostile-fixture test).
 
 | Upstream surface | Reason |
 |---|---|
-| Per-detection byte spans (`start` / `end`) on `gaze clean --format=json` entries | **Upstream feature request.** As of the v0.11.1 pin, clean `--format=json` `entries[]` keys are exactly `{class, raw, token, family}` — there are **no byte offsets**. Computing span positions in PHP is a NORTH_STAR non-goal (it would re-derive detection geometry outside upstream). Blocked on upstream adding per-detection byte spans (start/end) to the clean `--format=json` contract; until then `Gaze::mask()` ships on the collision-safe token map instead. A `length()` / offset accessor on `Entry`/`GazeSession` lands as an additive MINOR once upstream emits the spans. |
+| Per-detection byte spans (`start` / `end`) on `gaze clean --format=json` entries | **Upstream feature request.** As of the v0.11.2 pin, clean `--format=json` `entries[]` keys are exactly `{class, raw, token, family}` — there are **no byte offsets**. Computing span positions in PHP is a NORTH_STAR non-goal (it would re-derive detection geometry outside upstream). Blocked on upstream adding per-detection byte spans (start/end) to the clean `--format=json` contract; until then `Gaze::mask()` ships on the collision-safe token map instead. A `length()` / offset accessor on `Entry`/`GazeSession` lands as an additive MINOR once upstream emits the spans. |
 | `--context-json` | P1 design item; needs PHP API design before exposure. |
 | `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
 | `gaze-mcp-bridge` (#330) | MCP server lifecycle — explicit NORTH_STAR non-goal. Not a Laravel idiom; lives upstream. Tracked with the other `gaze mcp *` surfaces above. |
-| TokenBridge index-search (#327) | Persists raw PII **unencrypted on disk** and routes through an MCP chokepoint — both NORTH_STAR non-goals ("no plaintext session state at rest"; MCP lifecycle). Not wrapped. |
+| `gaze setup` (v0.11.2 one-command onboarding) | The Laravel path is covered by `php artisan gaze:install` / `gaze:install:ner` + `gaze:doctor`, which also handle the adapter-side pieces (config publish, pinned-binary install) that upstream `setup` does not know about. Delegating the artisans to `gaze setup` internally is a future option; a separate wrap would only duplicate the surface. |
+| TokenBridge index-search (`gaze index`, #327) | **Re-adjudicated at the v0.11.2 pin.** The v0.11.1 deferral leaned on two legs: (1) indexes persisted raw PII **unencrypted on disk** — **resolved upstream in v0.11.2** (ChaCha20-Poly1305 per-index encryption at rest, `GAZE_INDEX_KEY`, optional `os-keychain`; plus `gaze index ingest --on-residual redact\|strict` for residual safety-net hits); (2) the search flow routes through an MCP chokepoint, and owner-side gated search over redacted corpora sits outside this package's thin clean/restore gate — **still holds**. Verdict stays **defer** on leg 2 alone, but the surface is now a **promotion candidate**: a wrap would be `php artisan gaze:index:ingest` / `gaze:index:search` artisans plus a `gaze.index_key` / `GAZE_INDEX_KEY` config passthrough (key material handled like `GAZE_ENCRYPTION_KEY`, never logged). Promote once an adopter files a concrete Laravel-side use case. |
 | `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. The v0.11.x `gaze-document` split (#279) keeps OCR a non-goal — still deferred, not re-scoped. Tracked separately. |
 | `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
 | `gaze proxy install-launchd` / `install-systemd-user` | Upstream stubs the launchd / systemd integrations in v0.8.0 (return `"reserved for v0.8.x"`). Adapter will ship `php artisan gaze:proxy:install` once upstream implements them. |

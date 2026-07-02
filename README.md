@@ -208,8 +208,10 @@ and compliance boundaries.
 Per-minor walkthroughs live in [`docs/how-to/upgrading.md`](./docs/how-to/upgrading.md);
 pair them with the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md). The current
-pin is **v0.11.1** — see the `v0.9.0 → v0.11.1` section for adoption notes, the
-opt-in restore-telemetry surface (and its audit-trail-not-DLP caveat), and the NER
+pin is **v0.11.2** — see the `v0.11.1 → v0.11.2` section for what the pin bump
+brings (new default recognizers, `gaze setup`, NER loader fix), and the
+`v0.9.0 → v0.11.1` section for the earlier adoption notes, the opt-in
+restore-telemetry surface (and its audit-trail-not-DLP caveat), and the NER
 fail-closed / byte-exact restore rationale.
 
 ## Known limitations

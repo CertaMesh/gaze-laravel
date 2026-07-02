@@ -4,6 +4,37 @@ Per-minor upgrade guide for `empiretwo/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.11.1 → v0.11.2
+
+> Keyed by the **upstream binary pin** (advances from `gaze` v0.11.1 to
+> **v0.11.2**). Pure pin bump — no new adapter surface, no wire-contract
+> change; the clean/restore round trip is unchanged.
+
+1. **Binary pin bump `0.11.1` → `0.11.2`.** `BinaryDownloader::PINNED_VERSION`
+   is now `0.11.2`; `composer install` / `composer update` re-downloads and
+   SHA256-verifies the pinned binary. Hold the previous binary temporarily with
+   `GAZE_VERSION=0.11.1` while you validate.
+2. **New default recognizers — free coverage, no adopter action.** Upstream
+   v0.11.2 detects EU VAT IDs, ISO-length-gated IBANs, and spaced international
+   E.164 phone numbers by default. Adopted purely by taking the pin.
+3. **NER loader fix for the Kiji bundle.** Detection NER now loads the shipped
+   Kiji model bundle (optional `config.json` metadata, conditional
+   `token_type_ids`). Relevant if you use the `kiji-distilbert` safety-net
+   backend; no config change needed.
+4. **`gaze setup` (upstream one-command onboarding) is not wrapped.**
+   `php artisan gaze:install` / `gaze:install:ner` already cover the Laravel
+   onboarding path — see
+   [upstream-coverage.md](../reference/upstream-coverage.md#upstream-v0111--v0112-deltas).
+5. **TokenBridge indexes are now encrypted at rest upstream.** The `gaze index`
+   surface stays unwrapped for now, but the 0.11.1 plaintext-PII deferral
+   rationale no longer applies — see the re-adjudicated entry in
+   [upstream-coverage.md](../reference/upstream-coverage.md#deferred).
+
+### Action required
+
+- **None.** Run `composer install` (or `composer update empiretwo/gaze-laravel`)
+  and confirm `php artisan gaze:doctor` reports the pinned binary at `0.11.2`.
+
 ## v0.9.0 → v0.11.1
 
 > Keyed by the **upstream binary pin** (advances from `gaze` v0.9.0 to
