@@ -32,3 +32,5 @@ class DraftReplyJob implements ShouldQueue
 ```
 
 `PolicyOpen` is treated as alert-and-fail, not retryable. Unknown throwables are rethrown to Laravel.
+
+Safety-net failures (`GazeSafetyNetFailureException`) are variant-dependent: they implement `HasRetryDisposition` rather than a static marker interface, so classify them via `GazeRetryPolicy::classify()` / `dispatch()` or `$e->retryDisposition()` — never via `instanceof NonRetryable`. See [Queue integration](./queue-integration.md#retryaction-values).

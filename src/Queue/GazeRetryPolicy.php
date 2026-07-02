@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Queue;
 
 use CertaMesh\Gaze\Events\GazeInfraAlert;
-use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition;
 use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
 use CertaMesh\Gaze\Queue\Contracts\Retryable;
 use CertaMesh\Gaze\Queue\Contracts\RetryableWithAlert;
@@ -16,9 +16,7 @@ final class GazeRetryPolicy
     public static function classify(\Throwable $e): RetryAction
     {
         return match (true) {
-            $e instanceof GazeSafetyNetFailureException && $e->isNonRetryable() => RetryAction::Fail,
-            $e instanceof GazeSafetyNetFailureException && $e->isRetryableWithAlert() => RetryAction::ReleaseWithAlert,
-            $e instanceof GazeSafetyNetFailureException && $e->isRetryable() => RetryAction::ReleaseWithBackoff,
+            $e instanceof HasRetryDisposition => $e->retryDisposition(),
             $e instanceof NonRetryable => RetryAction::Fail,
             $e instanceof RetryableWithAlert => RetryAction::ReleaseWithAlert,
             $e instanceof Retryable => RetryAction::ReleaseWithBackoff,

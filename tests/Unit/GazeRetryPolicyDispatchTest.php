@@ -9,6 +9,9 @@ use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
 use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
 use CertaMesh\Gaze\Exceptions\GazeUnsupportedSessionScopeException;
+use CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition;
+use CertaMesh\Gaze\Queue\Contracts\NonRetryable;
+use CertaMesh\Gaze\Queue\Contracts\Retryable;
 use CertaMesh\Gaze\Queue\GazeRetryPolicy;
 use CertaMesh\Gaze\Queue\RetryAction;
 use Illuminate\Support\Facades\Event;
@@ -152,3 +155,70 @@ it('classifies new safety-net and session-scope variants', function (Throwable $
     'safety net other' => [new GazeSafetyNetFailureException('other', 3, hash('sha256', ''), 'Other'), RetryAction::ReleaseWithBackoff],
     'unsupported session scope' => [new GazeUnsupportedSessionScopeException('scope', 3, hash('sha256', ''), 'global'), RetryAction::Fail],
 ]);
+
+it('classifies unknown safety-net variants as Fail', function () {
+    // Upstream may ship variants this package does not know yet (Runtime,
+    // InvalidOutput, ModelUnavailable, ...). Fail closed rather than retry.
+    expect(GazeRetryPolicy::classify(new GazeSafetyNetFailureException('runtime', 3, hash('sha256', ''), 'Runtime')))
+        ->toBe(RetryAction::Fail);
+});
+
+it('does not mark safety-net failures with static retry marker interfaces', function () {
+    // Adopters branch on `$e instanceof NonRetryable` / `Retryable` outside
+    // GazeRetryPolicy. A variant-dependent exception must not satisfy static
+    // markers, or a retryable Timeout would be misclassified as terminal.
+    $retryable = new GazeSafetyNetFailureException('timeout', 3, hash('sha256', ''), 'Timeout');
+    $terminal = new GazeSafetyNetFailureException('large', 3, hash('sha256', ''), 'InputTooLarge');
+
+    expect($retryable)->not->toBeInstanceOf(NonRetryable::class)
+        ->and($terminal)->not->toBeInstanceOf(Retryable::class)
+        ->and($terminal)->not->toBeInstanceOf(NonRetryable::class);
+});
+
+it('exposes the variant-dependent disposition via HasRetryDisposition', function (GazeSafetyNetFailureException $exception, RetryAction $action) {
+    expect($exception)->toBeInstanceOf(HasRetryDisposition::class)
+        ->and($exception->retryDisposition())->toBe($action)
+        ->and(GazeRetryPolicy::classify($exception))->toBe($action);
+})->with([
+    'timeout releases with backoff' => [new GazeSafetyNetFailureException('timeout', 3, hash('sha256', ''), 'Timeout'), RetryAction::ReleaseWithBackoff],
+    'suspected leak releases with alert' => [new GazeSafetyNetFailureException('leak', 3, hash('sha256', ''), 'SuspectedLeak'), RetryAction::ReleaseWithAlert],
+    'input too large fails' => [new GazeSafetyNetFailureException('large', 3, hash('sha256', ''), 'InputTooLarge'), RetryAction::Fail],
+]);
+
+it('dispatches a generic HasRetryDisposition exception without a special case', function () {
+    Event::fake();
+
+    $job = new class
+    {
+        public ?Throwable $failed = null;
+
+        public mixed $released = null;
+
+        public int $backoff = 45;
+
+        public function fail(Throwable $e): void
+        {
+            $this->failed = $e;
+        }
+
+        public function release(int $delay): void
+        {
+            $this->released = $delay;
+        }
+    };
+
+    $exception = new class('adopter', 0, null) extends RuntimeException implements HasRetryDisposition
+    {
+        public function retryDisposition(): RetryAction
+        {
+            return RetryAction::ReleaseWithAlert;
+        }
+    };
+
+    GazeRetryPolicy::dispatch($exception, $job);
+
+    expect($job->failed)->toBeNull()
+        ->and($job->released)->toBe(45);
+
+    Event::assertDispatched(GazeInfraAlert::class);
+});
