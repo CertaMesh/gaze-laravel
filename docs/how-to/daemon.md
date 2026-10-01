@@ -45,8 +45,8 @@ Gaze::daemon()->session('agent-thread-a')->clean($prompt);
 
 - Multi-turn agent loops that redact every assistant turn.
 - Worker queues processing dozens-to-thousands of short documents.
-- Any caller that would otherwise pay binary startup + Kiji ORT init on
-  every redaction.
+- Any caller that would otherwise pay binary startup + safety-net model
+  init (e.g. Nym's ONNX Runtime) on every redaction.
 
 Use the one-shot `Gaze::clean()` / `Gaze::restore()` path when:
 
@@ -73,13 +73,12 @@ populating a key forwards the matching flag.
 |---|---|---|---|
 | `gaze.daemon.policy_path` | `GAZE_DAEMON_POLICY_PATH` | `null` | Forwarded as `--policy=`. Setting this key is the opt-in signal; doctor's daemon section stays silent while null. |
 | `gaze.daemon.audit_db_path` | `GAZE_DAEMON_AUDIT_DB_PATH` | `null` | Forwarded as `--audit-db=`. Daemon-emitted rows stamp `provenance_stage = "daemon"`. |
-| `gaze.daemon.request_timeout_ms` | `GAZE_DAEMON_REQUEST_TIMEOUT_MS` | `5000` | Adapter-side per-request ceiling. Raise it for cold first requests when policy + Kiji ORT init exceed 5s. |
+| `gaze.daemon.request_timeout_ms` | `GAZE_DAEMON_REQUEST_TIMEOUT_MS` | `5000` | Adapter-side per-request ceiling. Raise it for cold first requests when policy load + safety-net model init (e.g. Nym) exceed 5s. |
 | `gaze.daemon.idle_timeout_s` | `GAZE_DAEMON_IDLE_TIMEOUT_S` | `null` | Forwarded as `--idle-timeout=`. Daemon exits cleanly when no request arrives within the window. |
 | `gaze.daemon.session_idle_timeout_s` | `GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S` | `null` | Forwarded as `--session-idle-timeout=`. Sessions idle beyond the window are evicted (upstream default 3600 s). |
 | `gaze.daemon.session_cap` | `GAZE_DAEMON_SESSION_CAP` | `null` | Forwarded as `--session-cap=`. Maximum live sessions before LRU eviction (upstream default 1000). |
 | `gaze.daemon.ner_model_dir` | `GAZE_DAEMON_NER_MODEL_DIR` | `null` | Forwarded as `--ner-model-dir=`. Overrides the policy `[ner].model_dir`. |
 | `gaze.daemon.ner_locale` | `GAZE_DAEMON_NER_LOCALE` | `null` | Forwarded as `--ner-locale=`. Overrides the policy `[ner].locale`. |
-| `gaze.daemon.kiji_distilbert_locales` | `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` | `null` | Forwarded as `--kiji-distilbert-locales=`. Locale list for the Kiji DistilBERT safety-net backend (no top-level one-shot equivalent). |
 | `gaze.daemon.binary_path` | `GAZE_DAEMON_BINARY_PATH` | `null` | Override for the `gaze` binary path used by `:serve`. Falls back to `BinaryResolver` resolution. |
 | `gaze.daemon.stderr_path` | `GAZE_DAEMON_STDERR_PATH` | `null` | File path the daemon's stderr is appended to when spawned via the adapter's `DaemonClient`. Null inherits stderr from the supervisor. |
 
@@ -97,11 +96,21 @@ copies to keep in sync:
 - `gaze.locale` → `--locale=`
 - `gaze.ner_threshold` → `--ner-threshold=`
 - `gaze.safety_net` (truthy) → `--safety-net=openai-filter`
-- `gaze.safety_net_backend` → `--safety-net-backend=`
+- `gaze.safety_net_backend` → `--safety-net-backend=` (only while
+  `gaze.safety_net` is truthy — gaze >= 0.15 rejects a lone selector)
 - `gaze.safety_net_device` → `--openai-filter-device=`
 - `gaze.openai_filter_command` / `_checkpoint` / `_operating_point` → `--openai-filter-*=`
-- `gaze.kiji_backend`, `gaze.kiji_distilbert_command`, `gaze.kiji_distilbert_model_dir` → `--kiji-*=`
 - `gaze.safety_net_timeout_ms` / `_input_limit_bytes` / `_mode` / `_fallback` → `--safety-net-*=`
+
+The Kiji DistilBERT safety net was removed upstream in gaze 0.15.0: no
+`--kiji-*` flag is forwarded any more (`gaze.kiji_*`,
+`gaze.daemon.kiji_distilbert_locales` / `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES`
+are ignored, and `gaze:doctor` warns about them). An enabled safety net with
+`GAZE_SAFETY_NET_BACKEND=kiji-distilbert` fails closed before either spawn
+path starts the daemon (`GazeSafetyNetConfigException`; `gaze:daemon:serve`
+prints it and exits 1). See
+[SafetyNet → Kiji was removed upstream](./safety-net.md#kiji-was-removed-upstream-in-gaze-0150)
+for the move to Nym.
 
 Safety-net artifact paths and backend selectors are **config-only** —
 mirroring the one-shot posture that artifacts are deployment config, not
@@ -131,9 +140,9 @@ TWO commands. Supervision is OS-owned (systemd / Horizon / supervisord)
 GAZE_DAEMON_POLICY_PATH=/etc/gaze/policy.toml \
 GAZE_DAEMON_SESSION_CAP=500 \
 GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S=900 \
-GAZE_SAFETY_NET_BACKEND=kiji-distilbert \
-GAZE_KIJI_BACKEND=ort \
-GAZE_KIJI_DISTILBERT_MODEL_DIR=/opt/kiji/model \
+GAZE_SAFETY_NET=true \
+GAZE_SAFETY_NET_BACKEND=nym \
+GAZE_NYM_MODEL_DIR=/var/lib/gaze/nym \
 php artisan gaze:daemon:serve
 
 # Ad-hoc override of the operational knobs (timeouts, caps, locale,

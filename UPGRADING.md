@@ -16,7 +16,11 @@ upcoming release in full; per-minor guides for earlier versions live in
 
 1. **New `GazeSafetyNetUsageException`; `GazeUnsupportedSessionScopeException`
    deprecated.** See [Error variants](#error-variants-safetynetusage-added-unsupportedsessionscope-deprecated).
-2. **`--safety-net-backend` is forwarded only when the safety net is enabled.**
+2. **Kiji safety net removed (BREAKING).** Upstream gaze 0.15.0 deleted the
+   Kiji DistilBERT backend; an enabled `kiji-distilbert` backend now fails
+   closed before spawning, and every Kiji config key, env var and installer
+   option is gone. See [Kiji safety net removed](#kiji-safety-net-removed-breaking).
+3. **`--safety-net-backend` is forwarded only when the safety net is enabled.**
    No action needed: `GAZE_SAFETY_NET=false` with a leftover
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
@@ -37,6 +41,58 @@ is deprecated and never thrown: an invalid `GAZE_SESSION_SCOPE` has always
 surfaced as `GazePolicyConfigDetailException` at the adapter's pins. If you
 catch the deprecated class, catch `GazePolicyConfigDetailException` instead.
 Both stay until 1.0.
+
+### Kiji safety net removed (BREAKING)
+
+Upstream gaze 0.15.0 deleted the Kiji DistilBERT safety net and every
+`--kiji-*` flag ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)).
+A 0.15 binary rejects them with a bare `PolicyConfig` error, so v0.14.0:
+
+- forwards no `--kiji-*` flag, whatever Kiji config is left, and drops the
+  `gaze.safety_net.kiji.*` group, `gaze.daemon.kiji_distilbert_locales`, the
+  Kiji env vars and the four `GazeOptions::$kiji*` properties;
+- throws `GazeSafetyNetConfigException` (exit 2) from `Gaze::clean()` /
+  `mask()`, `Gaze::daemon()` and `gaze:daemon:serve` **before spawning** when
+  the safety net is enabled with `GAZE_SAFETY_NET_BACKEND=kiji-distilbert`.
+  `Gaze::restore()` is unaffected — sessions cleaned under Kiji still restore;
+- removes `kiji` and `--kiji-model-dir` from `gaze:install:safety-net` and
+  `gaze:install` (`--safety-net=kiji` fails without touching `.env`), and the
+  `$kijiModelDir` parameter of `SafetyNetConfigurator::pairsFor()`:
+  `pairsFor('opf', null, $command, $checkpoint)` becomes
+  `pairsFor('opf', $command, $checkpoint)`.
+
+Migration:
+
+1. **Delete the Kiji config.** Remove `GAZE_KIJI_BACKEND`,
+   `GAZE_KIJI_DISTILBERT_PRECISION`, `GAZE_KIJI_DISTILBERT_COMMAND`,
+   `GAZE_KIJI_DISTILBERT_MODEL_DIR` and `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES`
+   from `.env` and your deployment environment. In a published
+   `config/gaze.php`, delete the `kiji` block under `safety_net` (or the
+   pre-v0.13 flat `kiji_*` keys) and `daemon.kiji_distilbert_locales`.
+2. **Pick what replaces it:**
+   - **No safety net:** set `GAZE_SAFETY_NET=false` and drop
+     `GAZE_SAFETY_NET_BACKEND=kiji-distilbert` (a disabled net no longer
+     forwards the selector, but doctor still warns about it).
+   - **Nym** (compiled into the release binary):
+     1. As the user that runs gaze (PHP-FPM / queue worker), fetch the bundle
+        with the adapter's binary: `vendor/bin/gaze setup --safety-net nym`.
+     2. Set `GAZE_SAFETY_NET=true` and `GAZE_SAFETY_NET_BACKEND=nym`.
+     3. Set `GAZE_NYM_MODEL_DIR` to the bundle directory in the **real process
+        environment** of the PHP worker — systemd `Environment=`, supervisord
+        `environment=`, the container's `ENV`, or PHP-FPM `env[...]`. The gaze
+        subprocess inherits it; the adapter has no config key for it. A `.env`
+        entry alone is not enough: `php artisan config:cache` stops `.env`
+        from being loaded, so the inherited variable would vanish.
+
+     First-class Nym config and installer support is tracked in
+     [#157](https://github.com/CertaMesh/gaze-laravel/issues/157).
+3. **Refresh the config:** `php artisan config:clear` (or re-run
+   `php artisan config:cache`).
+4. **Run `php artisan gaze:doctor`.** `FAIL` with
+   `kiji-distilbert removed in gaze 0.15.0` means an enabled net still selects
+   Kiji; a `kiji config … ignored` warning lists leftover keys or env vars to
+   delete. On Nym, add `--deep` to exercise the bundle through a real
+   clean/restore round-trip.
 
 ## v0.12.0 → v0.13.0
 

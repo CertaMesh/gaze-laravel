@@ -33,16 +33,17 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.12.0.
 | `--rulepack-bundled` | `gaze.rulepacks` / `GAZE_RULEPACKS` |
 | `--rulepack-path` | `gaze.rulepack_paths` / `GAZE_RULEPACK_PATHS` |
 | `--safety-net` | `gaze.safety_net` / `GAZE_SAFETY_NET` |
-| `--safety-net-backend` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` (v0.8.x; `openai-filter` \| `kiji-distilbert`) |
+| `--safety-net-backend` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` (v0.8.x; `openai-filter` \| `nym` since gaze 0.15.0). Forwarded only while `gaze.safety_net` is enabled. `kiji-distilbert` was removed upstream in gaze 0.15.0 — the adapter fails closed before spawning (`GazeSafetyNetConfigException`). |
 | `--safety-net-registry` | **Not exposed.** v0.9.0 locale-aware Pass-3 registry dispatch (boolean). Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
-| `--safety-net-add` | **Not exposed.** Repeatable registry backend add (`openai-filter` \| `kiji-distilbert`). Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
+| `--safety-net-add` | **Not exposed.** Repeatable registry backend add (`openai-filter` \| `nym`; `kiji-distilbert` until gaze 0.15.0). Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
 | `--opf-locales` | **Not exposed.** Locale list for the OPF registry entry. Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
-| `--kiji-distilbert-locales` | **Not exposed.** Locale list for the Kiji DistilBERT registry entry. Deferred — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090). |
+| `--kiji-distilbert-locales` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). Was the Kiji registry-entry locale list; never exposed on the one-shot path. |
 | `--opf-command` / `--opf-checkpoint` | **No surface needed** — upstream `--help` marks these as aliases for `--openai-filter-command` / `--openai-filter-checkpoint` "in registry examples". The adapter forwards the canonical spellings (rows above); the aliases add no capability. |
-| `--kiji-backend` | `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` (v0.9; `subprocess` \| `ort`) |
-| `--kiji-distilbert-precision` | `gaze.kiji_distilbert_precision` / `GAZE_KIJI_DISTILBERT_PRECISION` (v0.9; `fp32` \| `int8`) |
-| `--kiji-distilbert-command` | `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` (v0.8.x) |
-| `--kiji-distilbert-model-dir` | `gaze.kiji_distilbert_model_dir` / `GAZE_KIJI_DISTILBERT_MODEL_DIR` (v0.8.x) |
+| `--kiji-backend` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` removed in adapter v0.14.0; leftover values are ignored and `gaze:doctor` warns. |
+| `--kiji-distilbert-precision` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_distilbert_precision` / `GAZE_KIJI_DISTILBERT_PRECISION` removed in adapter v0.14.0 (ignored, doctor warns). |
+| `--kiji-distilbert-command` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` removed in adapter v0.14.0 (ignored, doctor warns). |
+| `--kiji-distilbert-model-dir` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_distilbert_model_dir` / `GAZE_KIJI_DISTILBERT_MODEL_DIR` removed in adapter v0.14.0 (ignored, doctor warns). |
+| `--nym-model-dir` / `--nym-intra-threads` (gaze >= 0.15.0) | **Not exposed.** The binary reads the Nym bundle path from `GAZE_NYM_MODEL_DIR` in its inherited process environment — see [SafetyNet → Kiji was removed upstream](../how-to/safety-net.md#kiji-was-removed-upstream-in-gaze-0150). First-class Nym config is tracked in [#157](https://github.com/CertaMesh/gaze-laravel/issues/157). |
 | `--openai-filter-device` | `gaze.safety_net_device` / `GAZE_SAFETY_NET_DEVICE` |
 | `--openai-filter-command` | `gaze.openai_filter_command` / `GAZE_OPENAI_FILTER_COMMAND` |
 | `--openai-filter-checkpoint` | `gaze.openai_filter_checkpoint` / `GAZE_OPENAI_FILTER_CHECKPOINT` |
@@ -207,17 +208,15 @@ when the key is null.
 
 | Knob | Upstream default | Adapter key | Notes |
 |---|---|---|---|
-| `--safety-net-backend` | `openai-filter` | `gaze.safety_net_backend` | Set to `kiji-distilbert` to opt into the Tier 2.5 DistilBERT NER subprocess. Wins over the legacy `--safety-net=<kind>` flag when both are set. |
-| `--kiji-distilbert-command` | (PATH lookup) | `gaze.kiji_distilbert_command` | Local Kiji binary path. |
-| `--kiji-distilbert-model-dir` | (none — fails closed) | `gaze.kiji_distilbert_model_dir` | Pinned-artifact directory. Required when the backend is `kiji-distilbert`. |
+| `--safety-net-backend` | `openai-filter` | `gaze.safety_net_backend` | Selects the Pass-3 backend; wins over the legacy `--safety-net=<kind>` flag. Forwarded only while `gaze.safety_net` is enabled. The v0.8.1 `kiji-distilbert` value was removed upstream in gaze 0.15.0 (`nym` replaces it). |
+| `--kiji-distilbert-command` | — | — | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). |
+| `--kiji-distilbert-model-dir` | — | — | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). |
 | `--safety-net-mode` | `resolve` (v0.8.1; was `strict` ≤ v0.8.0) | `gaze.safety_net_mode` | Valid: `strict` \| `tolerant` \| `redact` \| `resolve`. `tolerant` emits a deprecation warning upstream. |
 | `--safety-net-fallback` | `redact` | `gaze.safety_net_fallback` | Engages when `safety_net_mode` is `redact` or `resolve` and the active backend cannot complete. |
 
-`php artisan gaze:doctor` adds a Kiji artifact pre-flight: when
-`gaze.safety_net_backend === 'kiji-distilbert'`, doctor asserts the
-model dir is set and carries `SHA256SUMS`, `labels.json`, `model.onnx`,
-and `tokenizer.json` before the binary fails the first `gaze clean`
-with a `SafetyNetArtifactMissing` envelope.
+`php artisan gaze:doctor` FAILs when an enabled safety net still selects
+`kiji-distilbert` (removed upstream in gaze 0.15.0) and warns about leftover
+Kiji config; the former Kiji artifact pre-flight is gone with the backend.
 
 ## Safety-net registry (v0.9.0)
 
@@ -226,7 +225,8 @@ of one global backend, `--safety-net-registry` enables registry dispatch,
 `--safety-net-add` registers one backend per use (repeatable), and
 `--opf-locales` / `--kiji-distilbert-locales` scope each registry entry to a
 locale list. All four flags are present on the pinned binary's
-`gaze clean --help`.
+`gaze clean --help` (`--kiji-distilbert-locales` was removed upstream in gaze
+0.15.0 with the Kiji backend).
 
 The adapter does **not** expose this family yet — honest status: **deferred**,
 not wrapped and not passthrough (no config key or argv reaches these flags).
@@ -236,7 +236,7 @@ not wrapped and not passthrough (no config key or argv reaches these flags).
 | `--safety-net-registry` | **defer** | Boolean registry-dispatch switch. Single-backend selection (`gaze.safety_net_backend`) covers current adopters. |
 | `--safety-net-add` | **defer** | Repeatable — needs a list-shaped config key (`gaze.safety_net_registry.backends`-style), which deserves design rather than an ad-hoc CSV env var. |
 | `--opf-locales` | **defer** | Per-entry locale scoping for the OPF backend. Only meaningful once the registry itself is exposed. |
-| `--kiji-distilbert-locales` | **defer** | Per-entry locale scoping for the Kiji DistilBERT backend. Same dependency. |
+| `--kiji-distilbert-locales` | **removed upstream** | Removed with the Kiji DistilBERT backend in gaze 0.15.0. |
 | `--opf-command` / `--opf-checkpoint` | no surface needed | Upstream aliases for the already-wrapped `--openai-filter-command` / `--openai-filter-checkpoint`. |
 
 Wrap trigger: an adopter running multi-locale traffic that needs different
@@ -292,15 +292,15 @@ overridden per-invocation on `gaze:daemon:serve`.
 | `--ner-model-dir=` | `gaze.daemon.ner_model_dir` / `GAZE_DAEMON_NER_MODEL_DIR` | config-only |
 | `--ner-locale=` | `gaze.daemon.ner_locale` / `GAZE_DAEMON_NER_LOCALE` | config-only |
 | `--safety-net=` | `gaze.safety_net` / `GAZE_SAFETY_NET` (truthy → `openai-filter`, mirroring one-shot) | config-only |
-| `--safety-net-backend=` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` | config-only |
+| `--safety-net-backend=` | `gaze.safety_net_backend` / `GAZE_SAFETY_NET_BACKEND` (only alongside `--safety-net=`; `kiji-distilbert` fails closed before spawning) | config-only |
 | `--openai-filter-device=` | `gaze.safety_net_device` / `GAZE_SAFETY_NET_DEVICE` | config-only |
 | `--openai-filter-command=` | `gaze.openai_filter_command` / `GAZE_OPENAI_FILTER_COMMAND` | config-only |
 | `--openai-filter-checkpoint=` | `gaze.openai_filter_checkpoint` / `GAZE_OPENAI_FILTER_CHECKPOINT` | config-only |
 | `--openai-filter-operating-point=` | `gaze.openai_filter_operating_point` / `GAZE_OPENAI_FILTER_OPERATING_POINT` | config-only |
-| `--kiji-backend=` | `gaze.kiji_backend` / `GAZE_KIJI_BACKEND` | config-only |
-| `--kiji-distilbert-command=` | `gaze.kiji_distilbert_command` / `GAZE_KIJI_DISTILBERT_COMMAND` | config-only |
-| `--kiji-distilbert-model-dir=` | `gaze.kiji_distilbert_model_dir` / `GAZE_KIJI_DISTILBERT_MODEL_DIR` | config-only |
-| `--kiji-distilbert-locales=` | `gaze.daemon.kiji_distilbert_locales` / `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` (no one-shot equivalent) | config-only |
+| `--kiji-backend=` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_backend` no longer forwarded. | — |
+| `--kiji-distilbert-command=` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_distilbert_command` no longer forwarded. | — |
+| `--kiji-distilbert-model-dir=` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.kiji_distilbert_model_dir` no longer forwarded. | — |
+| `--kiji-distilbert-locales=` | **Removed upstream in gaze 0.15.0** ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). `gaze.daemon.kiji_distilbert_locales` / `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` removed in adapter v0.14.0. | — |
 | `--safety-net-timeout-ms=` | `gaze.safety_net_timeout_ms` / `GAZE_SAFETY_NET_TIMEOUT_MS` | config-only |
 | `--safety-net-input-limit-bytes=` | `gaze.safety_net_input_limit_bytes` / `GAZE_SAFETY_NET_INPUT_LIMIT_BYTES` | config-only |
 | `--safety-net-mode=` | `gaze.safety_net_mode` / `GAZE_SAFETY_NET_MODE` | config-only |
@@ -309,8 +309,8 @@ overridden per-invocation on `gaze:daemon:serve`.
 | n/a (adapter spawn override) | `gaze.daemon.binary_path` / `GAZE_DAEMON_BINARY_PATH` | — |
 | n/a (adapter spawn stderr) | `gaze.daemon.stderr_path` / `GAZE_DAEMON_STDERR_PATH` | — |
 
-Note: `--kiji-distilbert-precision` exists on `gaze clean` but NOT on
-`gaze daemon` in v0.11.1, so neither daemon spawn path forwards it.
+Note: the whole `--kiji-*` family was removed upstream in gaze 0.15.0;
+neither daemon spawn path forwards any of it, whatever Kiji config is left.
 
 Intentionally NOT shipped: `gaze.daemon.events.enabled` (reserved
 P1-violation), `gaze.daemon.extra_flags` (P3 velocity signal),
@@ -479,4 +479,4 @@ flow through (enforced by a hostile-fixture test).
 | `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
 | `gaze proxy install-launchd` / `install-systemd-user` | Upstream stubs the launchd / systemd integrations in v0.8.0 (return `"reserved for v0.8.x"`). Adapter will ship `php artisan gaze:proxy:install` once upstream implements them. |
 | `gaze clean --ner-model-dir` / `--ner-locale` (runtime NER overrides) | Runtime overrides of policy `[ner].model_dir` / `[ner].locale` — distinct from the **install-time** variants the adapter already owns (`gaze:install:ner --dest --locale` writes them into `policy.toml`). Currently **not exposed**: no config key or per-call arg forwards them. Deferring keeps one source of truth for NER placement (the policy file `gaze:doctor` validates); a per-request model-dir swap has no adopter demand yet. Wrap-later candidate: `gaze.ner_model_dir` / `gaze.ner_locale` config passthrough (additive MINOR) once an adopter needs per-environment model dirs without policy edits. |
-| Safety-net registry family (`--safety-net-registry`, `--safety-net-add`, `--opf-locales`, `--kiji-distilbert-locales`, v0.9.0) | Locale-aware Pass-3 registry dispatch — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090) for per-flag verdicts. Not exposed; the single-backend `gaze.safety_net_backend` surface covers current adopters. Wrap once an adopter needs per-locale backend routing (list-shaped config, additive MINOR). |
+| Safety-net registry family (`--safety-net-registry`, `--safety-net-add`, `--opf-locales`, v0.9.0; `--kiji-distilbert-locales` removed upstream in 0.15.0) | Locale-aware Pass-3 registry dispatch — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090) for per-flag verdicts. Not exposed; the single-backend `gaze.safety_net_backend` surface covers current adopters. Wrap once an adopter needs per-locale backend routing (list-shaped config, additive MINOR). |

@@ -274,6 +274,27 @@ GAZE_SAFETY_NET=true
 
 ---
 
+### `gaze.safety_net_backend`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_SAFETY_NET_BACKEND` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (binary default: `openai-filter`) |
+
+Optional safety-net backend selector, forwarded as `--safety-net-backend=<value>` **only while `gaze.safety_net` is true** (gaze >= 0.15.0 rejects a lone selector, so a disabled net with a leftover backend stays off). Valid upstream values are `openai-filter` (needs a gaze binary built with upstream's `safety-net-openai` feature) and `nym` (gaze >= 0.15.0, compiled into the release binary; the binary reads the bundle path from `GAZE_NYM_MODEL_DIR` in its inherited process environment — see [SafetyNet](../how-to/safety-net.md#kiji-was-removed-upstream-in-gaze-0150)).
+
+**Caveat:** `kiji-distilbert` was removed upstream in gaze 0.15.0. With the net enabled it fails closed before the binary is spawned (`GazeSafetyNetConfigException`) and `gaze:doctor` fails. The Kiji env vars — `GAZE_KIJI_BACKEND`, `GAZE_KIJI_DISTILBERT_PRECISION`, `GAZE_KIJI_DISTILBERT_COMMAND`, `GAZE_KIJI_DISTILBERT_MODEL_DIR`, `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` — were removed in v0.14.0; leftover values are ignored and `gaze:doctor` warns.
+
+**Example:**
+
+```dotenv
+GAZE_SAFETY_NET=true
+GAZE_SAFETY_NET_BACKEND=nym
+```
+
+---
+
 ### `gaze.safety_net_device`
 
 | | |
