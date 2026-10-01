@@ -32,6 +32,26 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   daemon is unaffected. `gaze:doctor` still warns, now with the new exception
   name.
 
+- **`CoverageState::Suspect` no longer fires for spans the safety net's
+  `resolve` / `redact` decision already protected** (#160). gaze's
+  `leak_report` records what the net found, not what is still raw: with Nym
+  on the 0.15.1 release binary it is byte-identical under `resolve`, `redact`
+  and `tolerant`, so every Nym hit read red although the default `resolve`
+  had tokenized it. `Suspect` now means a flagged span may still be raw: under
+  `tolerant` (or the `tolerant` fallback), when upstream reports an
+  `UnactionableSubword` it left in place, or when the default `resolve` mode's
+  `redact` fallback ran. After that fallback upstream scans once more and
+  ships what the scan flags raw, with nothing in the report to tell it apart;
+  its `[REDACTED:<class>]` marker in `cleanText` is the only trace, so such a
+  run reads red for any suspect that is not a class mismatch, also when every
+  span was protected (any `[REDACTED:` text counts). Protected suspects read
+  `Unverified` (amber), never `Verified`. A report with only `class_mismatch`
+  suspects (covered by a token of another class, which upstream's strict mode
+  ships) is amber too. Docs no longer claim the stock binary has no safety
+  net, and no longer say `resolve` + `strict` always returns: when the resolve
+  pass cannot protect a span it exits 3 with `Pipeline`
+  (`GazePipelineException`).
+
 ### Documentation
 
 - **MCP strict protection and the proxy dashboard re-adjudicated: both stay
@@ -79,6 +99,18 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   these lines replace the static preserve-default and missing-`core` checks,
   which stay as the fallback. See
   [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
+
+- **`LeakReport::hasResolvedSuspects()`** — `true` when the safety net flagged
+  spans and the safety-net decision protected all of them (tokenized under
+  `resolve`, `[REDACTED:<class>]` under `redact`), so callers can tell that
+  amber apart from a coverage gap. `LeakReport` also gains `actsOnSuspects`
+  (whether the report reads as protected: the decision `Gaze::clean()`
+  forwarded, false once the `redact` fallback ran) and
+  `unactionableSubwordCount` (upstream `UnactionableSubword` telemetry rows,
+  counted only — never their offsets); `LeakReport::fromArray()` takes the
+  decision as an optional second argument (#160). A `LeakReport` serialized by
+  v0.15.x (a queued `GazeSession`) unserializes with `actsOnSuspects` false and
+  reads red as before.
 
 ### Changed
 

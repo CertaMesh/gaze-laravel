@@ -167,6 +167,35 @@ Example matrix:
 | `resolve` | `tolerant` | Spans pseudonymized | Log, keep original manifest |
 | `resolve` | `strict` | Spans pseudonymized | Throw `GazeSafetyNetFailureException` |
 
+### Trust state per mode
+
+The session's `leak_report` lists what the net found, not what is still raw,
+so `$session->coverageState()` reads it together with the mode and fallback the
+adapter forwarded. Spans the net flagged read `Unverified` (amber) under
+`resolve` with the `redact` or `strict` fallback and under `redact`: they were
+tokenized or replaced with a marker, and
+`$session->leakReport->hasResolvedSuspects()` is `true`. They read `Suspect`
+(red) under `tolerant` and under `resolve` with the `tolerant` fallback, where
+they may have shipped raw. Under `strict` the clean throws instead.
+
+The fallback also engages without a backend failure, whenever the `resolve`
+pass cannot protect a flagged span:
+
+- `resolve` + `redact` (the default) replaces it with a `[REDACTED:<class>]`
+  marker, then scans the output once more and ships what that scan flags raw,
+  with nothing in the report to tell it apart. A `resolve` + `redact` session
+  whose `cleanText` carries a marker therefore reads `Suspect` whenever the net
+  flagged anything other than a class mismatch, even when every span was in
+  fact protected. Any `[REDACTED:` the input or a policy `redact` rule put
+  there counts the same.
+- `resolve` + `strict` refuses the document: exit 3 with a `Pipeline` envelope,
+  so `Gaze::clean()` throws `GazePipelineException` (not
+  `GazeSafetyNetFailureException`). It is `Retryable`, but the same input
+  refuses again.
+
+Per-mode probe output:
+[Clean leak report & trust state](../reference/upstream-coverage.md#clean-leak-report--trust-state-v011x).
+
 ## Doctor probe
 
 `php artisan gaze:doctor` checks the safety-net backend selector against the
