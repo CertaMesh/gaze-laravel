@@ -24,9 +24,13 @@ carries raw input text, a binary response holding `entries[].raw`, a plaintext
 session blob or an adopter session id is marked `#[\SensitiveParameter]`, so it
 is recorded as `SensitiveParameterValue` instead of its value (#195). Exception
 messages and `toLogContext()` never carry input text either; they log hashes.
-Your own code that passes raw text around before calling `Gaze::clean()` is not
-covered — mark it the same way, or run production with
-`zend.exception_ignore_args=On`.
+That includes the `Gaze` Facade's `__callStatic()` and the JSON paths (no
+`JsonException` chained from a built-in, whose arguments cannot be marked). Your
+own code is not covered: the attribute works on the *implementing* method only,
+not through an interface, so a decorator or custom implementation of
+`Contracts\Gaze` / `Contracts\DaemonManager` must mark its parameters too, and
+code that passes raw text around before calling `Gaze::clean()` likewise — or run
+production with `zend.exception_ignore_args=On`.
 
 ## Trust state: a count is not a verification
 

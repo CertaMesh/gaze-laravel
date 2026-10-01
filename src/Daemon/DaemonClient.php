@@ -9,6 +9,7 @@ use CertaMesh\Gaze\Exceptions\GazeDaemonException;
 use CertaMesh\Gaze\Exceptions\GazeDaemonFeatureUnsupportedException;
 use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
 use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidEncodingException;
 
 /**
  * Long-lived JSONL stdio client for `gaze daemon`.
@@ -148,10 +149,16 @@ final class DaemonClient implements DaemonClientContract
                 throw new GazeDaemonTransportException('daemon stdio not available', $sessionId);
             }
 
-            $payload = json_encode(
+            // No JSON_THROW_ON_ERROR: json_encode()'s own exception would record
+            // the session id and text as its argument (#195).
+            $encoded = json_encode(
                 ['session_id' => $sessionId, 'text' => $text],
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
-            )."\n";
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+            );
+            if ($encoded === false) {
+                throw new GazeInvalidEncodingException('gaze daemon input could not be encoded as JSON', 1, null);
+            }
+            $payload = $encoded."\n";
 
             $this->writeRequest($payload, $sessionId);
 

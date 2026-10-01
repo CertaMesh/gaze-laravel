@@ -250,10 +250,17 @@ class Gaze implements AuditRunner, GazeContract
             throw $exception;
         }
 
+        // No JSON_THROW_ON_ERROR: json_encode()'s own exception would record
+        // the raw text as its argument, and a built-in cannot be marked
+        // #[\SensitiveParameter] (#195).
         $payload = json_encode([
             'session_blob' => $sessionBlob,
             'text' => $text,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE);
+
+        if ($payload === false) {
+            throw new GazeInvalidEncodingException('gaze restore input could not be encoded as JSON', 1, null);
+        }
 
         $this->assertInputSize($payload);
 
@@ -369,15 +376,18 @@ class Gaze implements AuditRunner, GazeContract
      */
     private function decodeResponse(#[\SensitiveParameter] string $output, string $stage): array
     {
-        try {
-            /** @var array<string, mixed> $decoded */
-            $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        // No JSON_THROW_ON_ERROR: the JsonException's own trace would record
+        // the raw response (entries[].raw, restored text) as json_decode()'s
+        // argument, and a built-in cannot be marked #[\SensitiveParameter]
+        // (#195). The chained cause is built here instead, with no input.
+        /** @var mixed $decoded */
+        $decoded = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
             $exception = new GazeResponseDecodeException(
                 "gaze {$stage} response was not valid JSON (exit=-1, stderr_sha256=none)",
                 exitCode: -1,
                 stderrHash: null,
-                previous: $e,
+                previous: new \JsonException(json_last_error_msg(), json_last_error()),
             );
             Log::notice("gaze {$stage} failed", $exception->toLogContext());
 

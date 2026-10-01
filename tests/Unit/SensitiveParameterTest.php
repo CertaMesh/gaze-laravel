@@ -133,3 +133,62 @@ it('keeps the session id and text out of a daemon failure\'s stack trace', funct
         ini_set('zend.exception_ignore_args', (string) $previous);
     }
 });
+
+it('keeps raw input out of the trace when called through the Facade', function () {
+    $previous = ini_set('zend.exception_ignore_args', '0');
+
+    try {
+        $this->app->instance(GazeContract::class, $this->makeGaze());
+        Process::fake(['*' => Process::result(output: '', errorOutput: '{"error":"Pipeline","exit":3}', exitCode: 3)]);
+
+        try {
+            CertaMesh\Gaze\Facades\Gaze::clean('SECRET-PII via facade');
+        } catch (GazeException $e) {
+            expect(gl_traceArgStrings($e))->not->toContain('SECRET-PII');
+
+            return;
+        }
+
+        $this->fail('Expected a GazeException.');
+    } finally {
+        ini_set('zend.exception_ignore_args', (string) $previous);
+    }
+});
+
+it('keeps a malformed clean response (entries[].raw) out of the chained trace', function () {
+    $previous = ini_set('zend.exception_ignore_args', '0');
+
+    try {
+        // Truncated JSON that still carries a raw entry value.
+        Process::fake(['*' => Process::result(output: '{"clean_text":"x","entries":[{"raw":"SECRET-PII raw value"')]);
+
+        try {
+            $this->makeGaze()->clean('hello');
+        } catch (GazeException $e) {
+            expect(gl_traceArgStrings($e))->not->toContain('SECRET-PII')
+                ->and($e->getPrevious())->toBeInstanceOf(JsonException::class);
+
+            return;
+        }
+
+        $this->fail('Expected a GazeException.');
+    } finally {
+        ini_set('zend.exception_ignore_args', (string) $previous);
+    }
+});
+
+it('keeps a malformed daemon line out of the chained trace', function () {
+    $previous = ini_set('zend.exception_ignore_args', '0');
+
+    try {
+        $e = DaemonEnvelopeParser::parse('{"session_id":"tenant-anna.schmidt","clean_text":"SECRET-PII', 'tenant-anna.schmidt');
+
+        if (! $e instanceof GazeDaemonException) {
+            throw new RuntimeException('Expected a GazeDaemonException.');
+        }
+        $trace = gl_traceArgStrings($e);
+        expect($trace)->not->toContain('SECRET-PII')->and($trace)->not->toContain('anna.schmidt');
+    } finally {
+        ini_set('zend.exception_ignore_args', (string) $previous);
+    }
+});

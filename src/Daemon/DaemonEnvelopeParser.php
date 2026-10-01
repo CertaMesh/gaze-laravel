@@ -18,15 +18,17 @@ final class DaemonEnvelopeParser
 {
     public static function parse(#[\SensitiveParameter] string $line, #[\SensitiveParameter] ?string $expectedSessionId = null): CleanResponse|GazeDaemonException
     {
-        try {
-            $decoded = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        // No JSON_THROW_ON_ERROR: the JsonException's own trace would record
+        // the raw line (session id, clean text) as json_decode()'s argument,
+        // and a built-in cannot be marked #[\SensitiveParameter] (#195).
+        $decoded = json_decode($line, true, 512);
+        if (json_last_error() !== JSON_ERROR_NONE) {
             return new GazeDaemonException(
                 'daemon response was not valid JSON',
                 $expectedSessionId,
                 ['raw_line' => $line],
                 DaemonErrorVariant::JsonMalformed,
-                $e,
+                new \JsonException(json_last_error_msg(), json_last_error()),
             );
         }
 

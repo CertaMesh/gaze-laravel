@@ -13,9 +13,13 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `entries[].raw`, plaintext session blobs and adopter session ids — as call
   arguments, which `getTraceAsString()`, Laravel's log and error trackers
   print. Those parameters are now `#[\SensitiveParameter]` (PHP 8.2+), so PHP
-  records `SensitiveParameterValue` instead. A reflection test pins every
-  marked parameter; behaviour tests prove the trace of a failing clean and a
-  daemon failure carries neither the text nor the session id.
+  records `SensitiveParameterValue` instead. The `Gaze` Facade's
+  `__callStatic()` is overridden with a marked argument array, and the JSON
+  encode/decode paths no longer chain a `JsonException` from the built-in
+  (whose own trace would hold the raw response). A reflection test pins every
+  marked parameter; behaviour tests prove the trace of a failing clean, a
+  Facade call, a malformed clean response and a malformed daemon line carries
+  neither the text nor the session id.
 
 ## [0.15.0] - 2026-10-01
 
