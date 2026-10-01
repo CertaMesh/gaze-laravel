@@ -59,7 +59,7 @@ class Gaze implements AuditRunner, GazeContract
         $this->restoreTelemetry = $options->restoreTelemetry;
     }
 
-    public function clean(string $text, ?float $threshold = null): GazeSession
+    public function clean(#[\SensitiveParameter] string $text, ?float $threshold = null): GazeSession
     {
         $this->assertInput($text);
 
@@ -175,7 +175,7 @@ class Gaze implements AuditRunner, GazeContract
      *
      * @param  (callable(Entry): string)|null  $replace
      */
-    public function mask(string $text, ?callable $replace = null): string
+    public function mask(#[\SensitiveParameter] string $text, ?callable $replace = null): string
     {
         $session = $this->clean($text);
 
@@ -216,7 +216,7 @@ class Gaze implements AuditRunner, GazeContract
      *
      * @return list<Entry>
      */
-    private function mapEntries(mixed $raw): array
+    private function mapEntries(#[\SensitiveParameter] mixed $raw): array
     {
         if (! is_array($raw)) {
             return [];
@@ -232,7 +232,7 @@ class Gaze implements AuditRunner, GazeContract
         return $entries;
     }
 
-    public function restore(GazeSession $session, string $text): string
+    public function restore(GazeSession $session, #[\SensitiveParameter] string $text): string
     {
         $this->assertInput($text);
 
@@ -250,10 +250,17 @@ class Gaze implements AuditRunner, GazeContract
             throw $exception;
         }
 
+        // No JSON_THROW_ON_ERROR: json_encode()'s own exception would record
+        // the raw text as its argument, and a built-in cannot be marked
+        // #[\SensitiveParameter] (#195).
         $payload = json_encode([
             'session_blob' => $sessionBlob,
             'text' => $text,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE);
+
+        if ($payload === false) {
+            throw new GazeInvalidEncodingException('gaze restore input could not be encoded as JSON', 1, null);
+        }
 
         $this->assertInputSize($payload);
 
@@ -367,17 +374,20 @@ class Gaze implements AuditRunner, GazeContract
     /**
      * @return array<string, mixed>
      */
-    private function decodeResponse(string $output, string $stage): array
+    private function decodeResponse(#[\SensitiveParameter] string $output, string $stage): array
     {
-        try {
-            /** @var array<string, mixed> $decoded */
-            $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        // No JSON_THROW_ON_ERROR: the JsonException's own trace would record
+        // the raw response (entries[].raw, restored text) as json_decode()'s
+        // argument, and a built-in cannot be marked #[\SensitiveParameter]
+        // (#195). The chained cause is built here instead, with no input.
+        /** @var mixed $decoded */
+        $decoded = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
             $exception = new GazeResponseDecodeException(
                 "gaze {$stage} response was not valid JSON (exit=-1, stderr_sha256=none)",
                 exitCode: -1,
                 stderrHash: null,
-                previous: $e,
+                previous: new \JsonException(json_last_error_msg(), json_last_error()),
             );
             Log::notice("gaze {$stage} failed", $exception->toLogContext());
 
@@ -401,7 +411,7 @@ class Gaze implements AuditRunner, GazeContract
     /**
      * @param  list<string>  $command
      */
-    private function run(array $command, string $input, string $stage): ProcessResult
+    private function run(array $command, #[\SensitiveParameter] string $input, string $stage): ProcessResult
     {
         try {
             $result = $this->process
@@ -428,7 +438,7 @@ class Gaze implements AuditRunner, GazeContract
         throw $this->buildException($stage, $result);
     }
 
-    private function assertInput(string $text): void
+    private function assertInput(#[\SensitiveParameter] string $text): void
     {
         if (! mb_check_encoding($text, 'UTF-8')) {
             throw new GazeInvalidEncodingException('gaze input is not valid UTF-8', 1, null);
@@ -441,7 +451,7 @@ class Gaze implements AuditRunner, GazeContract
         }
     }
 
-    private function assertInputSize(string $input): void
+    private function assertInputSize(#[\SensitiveParameter] string $input): void
     {
         if (strlen($input) > ($this->maxBytes ?? self::DEFAULT_MAX_BYTES)) {
             throw new GazeInputTooLargeException('gaze input exceeds max_bytes pre-flight', 1, null);

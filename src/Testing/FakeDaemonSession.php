@@ -30,7 +30,7 @@ final class FakeDaemonSession implements DaemonSessionContract
         return $this->sessionId;
     }
 
-    public function clean(string $text): CleanResponse
+    public function clean(#[\SensitiveParameter] string $text): CleanResponse
     {
         return $this->manager->clean($this->sessionId, $text);
     }

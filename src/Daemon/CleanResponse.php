@@ -36,7 +36,7 @@ final readonly class CleanResponse
      *
      * @param  array<string, mixed>  $decoded
      */
-    public static function fromArray(array $decoded): self
+    public static function fromArray(#[\SensitiveParameter] array $decoded): self
     {
         $sessionId = $decoded['session_id'] ?? '';
         $cleanText = $decoded['clean_text'] ?? '';

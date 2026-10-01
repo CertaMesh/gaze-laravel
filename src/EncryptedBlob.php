@@ -28,7 +28,7 @@ final readonly class EncryptedBlob
      * construction (fakes, fixtures) working without wiring.
      */
     public static function wrap(
-        string $plaintextBlob,
+        #[\SensitiveParameter] string $plaintextBlob,
         (EncrypterContract&StringEncrypter)|null $encrypter = null,
     ): self {
         $encrypter ??= self::resolveEncrypter();

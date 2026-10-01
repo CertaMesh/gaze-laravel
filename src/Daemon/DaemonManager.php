@@ -38,7 +38,7 @@ class DaemonManager implements DaemonManagerContract
         return $this->sessions[$id];
     }
 
-    public function clean(string $sessionId, string $text): CleanResponse
+    public function clean(#[\SensitiveParameter] string $sessionId, #[\SensitiveParameter] string $text): CleanResponse
     {
         return $this->client->request($sessionId, $text);
     }

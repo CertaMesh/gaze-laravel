@@ -28,7 +28,7 @@ class DaemonSession implements DaemonSessionContract
         return $this->sessionId;
     }
 
-    public function clean(string $text): CleanResponse
+    public function clean(#[\SensitiveParameter] string $text): CleanResponse
     {
         return $this->client->request($this->sessionId, $text);
     }

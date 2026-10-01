@@ -71,7 +71,7 @@ final class FakeDaemonManager implements DaemonManagerContract
         return $this->sessionDoubles[$id];
     }
 
-    public function clean(string $sessionId, string $text): CleanResponse
+    public function clean(#[\SensitiveParameter] string $sessionId, #[\SensitiveParameter] string $text): CleanResponse
     {
         $this->calls[] = ['session_id' => $sessionId, 'text' => $text];
 
