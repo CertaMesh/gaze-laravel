@@ -54,7 +54,10 @@ jobs:
         # Composer now refuses to load due to security advisories. These are the
         # framework-under-test, not gaze-laravel's shipped runtime deps, so we
         # disable advisory blocking for dependency resolution in CI ONLY — never
-        # committed to composer.json.
+        # committed to composer.json. Scoped to the Laravel 11 legs: an advisory
+        # covers every Laravel 11 release (GHSA-jh5r-qr3c-85q8), while the 12/13
+        # legs resolve patched releases with advisory blocking left on.
+        if: matrix.laravel == '^11.0'
         run: composer config policy.advisories.block false
 
       - name: Pin Laravel ${{ matrix.laravel }}
