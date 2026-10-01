@@ -136,11 +136,12 @@ it('forwards the safety-net flag family from top-level gaze config, mirroring th
     $config = configRepoForServe(
         daemon: [
             'policy_path' => '/etc/gaze/policy.toml',
+            // Leftover Kiji keys (removed upstream in gaze 0.15.0): ignored.
             'kiji_distilbert_locales' => 'de,fr',
         ],
         topLevel: [
             'safety_net' => true,
-            'safety_net_backend' => 'kiji-distilbert',
+            'safety_net_backend' => 'nym',
             'safety_net_device' => 'cpu',
             'openai_filter_command' => '/usr/local/bin/opf',
             'openai_filter_checkpoint' => '/opt/opf/checkpoint',
@@ -165,15 +166,11 @@ it('forwards the safety-net flag family from top-level gaze config, mirroring th
         'daemon',
         '--policy=/etc/gaze/policy.toml',
         '--safety-net=openai-filter',
-        '--safety-net-backend=kiji-distilbert',
+        '--safety-net-backend=nym',
         '--openai-filter-device=cpu',
         '--openai-filter-command=/usr/local/bin/opf',
         '--openai-filter-checkpoint=/opt/opf/checkpoint',
         '--openai-filter-operating-point=high-recall',
-        '--kiji-backend=ort',
-        '--kiji-distilbert-command=/usr/local/bin/kiji',
-        '--kiji-distilbert-model-dir=/opt/kiji/model',
-        '--kiji-distilbert-locales=de,fr',
         '--safety-net-timeout-ms=7500',
         '--safety-net-input-limit-bytes=2097152',
         '--safety-net-mode=strict',
@@ -181,10 +178,10 @@ it('forwards the safety-net flag family from top-level gaze config, mirroring th
     ]);
 });
 
-it('omits --safety-net when gaze.safety_net is false', function () {
+it('omits --safety-net and --safety-net-backend when gaze.safety_net is false', function () {
     $config = configRepoForServe(
         daemon: ['policy_path' => '/etc/gaze/policy.toml'],
-        topLevel: ['safety_net' => false],
+        topLevel: ['safety_net' => false, 'safety_net_backend' => 'openai-filter'],
     );
 
     $resolver = new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none');

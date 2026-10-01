@@ -64,7 +64,7 @@ end-to-end and finishes on a `gaze:doctor` green-check:
 - publishes the **config** and writes a sane default **`policy.toml`** (never
   clobbering one you've already edited),
 - optionally installs the **NER model** (~184 MB, ONNX-backed),
-- optionally wires a **safety-net backend** (OPF or Kiji).
+- optionally wires a **safety-net backend** (OPF).
 
 It is idempotent — safe to re-run. A failed run rolls `.env` back to its
 pre-install state.
@@ -84,7 +84,7 @@ Common flags (`php artisan gaze:install --help` lists them all):
 | --- | --- |
 | `--skip-binary` | Don't download the gaze binary |
 | `--skip-ner` | Don't download the NER model |
-| `--safety-net=opf\|kiji\|none` | Pick the safety-net backend non-interactively |
+| `--safety-net=opf\|none` | Pick the safety-net backend non-interactively |
 | `--force` | Re-run already-done steps (re-download binary, re-fetch NER) |
 | `--force-policy` | Also overwrite an existing `policy.toml` (destructive — off by default) |
 | `--no-doctor` | Skip the final `gaze:doctor` gate |
@@ -97,7 +97,8 @@ finer control:
 - `gaze:install:binary` — install the pinned gaze binary into `vendor/bin/`.
 - `gaze:install:ner` — download the pinned ONNX NER model and wire `policy.toml`
   (legacy alias: `gaze:install-ner`).
-- `gaze:install:safety-net` — wire an `opf` or `kiji` backend into `.env`.
+- `gaze:install:safety-net` — wire the `opf` backend into `.env` (the Kiji
+  backend was removed upstream in gaze 0.15.0).
 
 ### Automating the binary install (optional)
 
@@ -176,8 +177,9 @@ Opt-in surfaces — reach for them once the basic clean / restore round-trip is 
   bound for OpenAI / Anthropic / Gemini and restores their replies.
 - **[JSONL stdio daemon](./docs/how-to/daemon.md)** — low-latency `Gaze::daemon()`
   runtime for agent loops and worker queues, with no per-turn binary startup.
-- **[Kiji safety-net backend](./docs/how-to/safety-net.md)** — Tier 2.5 DistilBERT
-  NER subprocess for higher-recall Pass-3 leak detection.
+- **[SafetyNet](./docs/how-to/safety-net.md)** — Pass-3 second-opinion leak
+  detection via OPF or Nym (Nym replaces the Kiji backend removed upstream in
+  gaze 0.15.0).
 
 ## Documentation
 
@@ -199,7 +201,7 @@ Opt-in surfaces — reach for them once the basic clean / restore round-trip is 
 - [Audit query / export](./docs/how-to/audit-query-export.md)
 - [Proxy daemon](./docs/how-to/proxy-daemon.md)
 - [Daemon (JSONL stdio)](./docs/how-to/daemon.md)
-- [SafetyNet (OPF + Kiji)](./docs/how-to/safety-net.md)
+- [SafetyNet (OPF + Nym)](./docs/how-to/safety-net.md)
 - [Upgrading & migrations](./UPGRADING.md)
 - [Upstream coverage](./docs/reference/upstream-coverage.md)
 

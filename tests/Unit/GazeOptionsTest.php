@@ -67,7 +67,7 @@ it('drops non-string rulepack entries and nulls empty lists', function () {
 it('reads the deprecated flat safety-net keys (pre-v0.13 published configs)', function () {
     $options = GazeOptions::fromConfig([
         'safety_net' => true,
-        'safety_net_backend' => 'kiji-distilbert',
+        'safety_net_backend' => 'nym',
         'safety_net_device' => 'cuda:0',
         'safety_net_timeout_ms' => 7500,
         'safety_net_input_limit_bytes' => 123456,
@@ -76,14 +76,10 @@ it('reads the deprecated flat safety-net keys (pre-v0.13 published configs)', fu
         'openai_filter_command' => '/usr/local/bin/opf',
         'openai_filter_checkpoint' => '/models/opf',
         'openai_filter_operating_point' => 'high-recall',
-        'kiji_backend' => 'ort',
-        'kiji_distilbert_precision' => 'int8',
-        'kiji_distilbert_command' => '/usr/local/bin/kiji',
-        'kiji_distilbert_model_dir' => '/var/lib/gaze/models/kiji',
     ]);
 
     expect($options->safetyNet)->toBeTrue()
-        ->and($options->safetyNetBackend)->toBe('kiji-distilbert')
+        ->and($options->safetyNetBackend)->toBe('nym')
         ->and($options->safetyNetDevice)->toBe('cuda:0')
         ->and($options->safetyNetTimeoutMs)->toBe(7500)
         ->and($options->safetyNetInputLimitBytes)->toBe(123456)
@@ -91,18 +87,14 @@ it('reads the deprecated flat safety-net keys (pre-v0.13 published configs)', fu
         ->and($options->safetyNetFallback)->toBe('redact')
         ->and($options->openaiFilterCommand)->toBe('/usr/local/bin/opf')
         ->and($options->openaiFilterCheckpoint)->toBe('/models/opf')
-        ->and($options->openaiFilterOperatingPoint)->toBe('high-recall')
-        ->and($options->kijiBackend)->toBe('ort')
-        ->and($options->kijiDistilbertPrecision)->toBe('int8')
-        ->and($options->kijiDistilbertCommand)->toBe('/usr/local/bin/kiji')
-        ->and($options->kijiDistilbertModelDir)->toBe('/var/lib/gaze/models/kiji');
+        ->and($options->openaiFilterOperatingPoint)->toBe('high-recall');
 });
 
 it('reads the nested safety_net group shipped since v0.13', function () {
     $options = GazeOptions::fromConfig([
         'safety_net' => [
             'enabled' => true,
-            'backend' => 'kiji-distilbert',
+            'backend' => 'nym',
             'device' => 'cuda:0',
             'timeout_ms' => '7500',
             'input_limit_bytes' => '123456',
@@ -113,17 +105,11 @@ it('reads the nested safety_net group shipped since v0.13', function () {
                 'checkpoint' => '/models/opf',
                 'operating_point' => 'high-recall',
             ],
-            'kiji' => [
-                'backend' => 'ort',
-                'distilbert_precision' => 'int8',
-                'distilbert_command' => '/usr/local/bin/kiji',
-                'distilbert_model_dir' => '/var/lib/gaze/models/kiji',
-            ],
         ],
     ]);
 
     expect($options->safetyNet)->toBeTrue()
-        ->and($options->safetyNetBackend)->toBe('kiji-distilbert')
+        ->and($options->safetyNetBackend)->toBe('nym')
         ->and($options->safetyNetDevice)->toBe('cuda:0')
         ->and($options->safetyNetTimeoutMs)->toBe(7500)
         ->and($options->safetyNetInputLimitBytes)->toBe(123456)
@@ -131,11 +117,33 @@ it('reads the nested safety_net group shipped since v0.13', function () {
         ->and($options->safetyNetFallback)->toBe('redact')
         ->and($options->openaiFilterCommand)->toBe('/usr/local/bin/opf')
         ->and($options->openaiFilterCheckpoint)->toBe('/models/opf')
-        ->and($options->openaiFilterOperatingPoint)->toBe('high-recall')
-        ->and($options->kijiBackend)->toBe('ort')
-        ->and($options->kijiDistilbertPrecision)->toBe('int8')
-        ->and($options->kijiDistilbertCommand)->toBe('/usr/local/bin/kiji')
-        ->and($options->kijiDistilbertModelDir)->toBe('/var/lib/gaze/models/kiji');
+        ->and($options->openaiFilterOperatingPoint)->toBe('high-recall');
+});
+
+it('ignores leftover Kiji keys in both config shapes (removed upstream in gaze 0.15.0)', function () {
+    $kiji = [
+        'backend' => 'ort',
+        'distilbert_precision' => 'int8',
+        'distilbert_command' => '/usr/local/bin/kiji',
+        'distilbert_model_dir' => '/var/lib/gaze/models/kiji',
+    ];
+
+    $nested = GazeOptions::fromConfig(['safety_net' => ['enabled' => true, 'kiji' => $kiji]]);
+    $flat = GazeOptions::fromConfig([
+        'safety_net' => true,
+        'kiji_backend' => 'ort',
+        'kiji_distilbert_precision' => 'int8',
+        'kiji_distilbert_command' => '/usr/local/bin/kiji',
+        'kiji_distilbert_model_dir' => '/var/lib/gaze/models/kiji',
+    ]);
+
+    // Same options as a config without them — nothing Kiji-shaped survives.
+    expect($nested)->toEqual(GazeOptions::fromConfig(['safety_net' => ['enabled' => true]]))
+        ->and($flat)->toEqual(GazeOptions::fromConfig(['safety_net' => true]))
+        ->and(array_filter(
+            array_keys(get_object_vars($nested)),
+            fn (string $property): bool => str_starts_with($property, 'kiji'),
+        ))->toBe([]);
 });
 
 it('lets a nested key win over its deprecated flat counterpart', function () {

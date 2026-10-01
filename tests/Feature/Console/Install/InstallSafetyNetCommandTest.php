@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use CertaMesh\Gaze\Console\Install\InstallSafetyNetCommand;
-use CertaMesh\Gaze\Install\KijiArtifacts;
 use CertaMesh\Gaze\Install\SafetyNetConfigurator;
+use Symfony\Component\Console\Exception\RuntimeException;
 use Symfony\Component\Console\Tester\CommandTester;
 
 function isn_bindEnv(string $contents = "APP_ENV=testing\n"): string
@@ -16,29 +16,10 @@ function isn_bindEnv(string $contents = "APP_ENV=testing\n"): string
     return $env;
 }
 
-function isn_validKijiDir(): string
-{
-    $dir = sys_get_temp_dir().'/gaze-kiji-'.bin2hex(random_bytes(6));
-    mkdir($dir, 0700, true);
-    foreach (KijiArtifacts::REQUIRED as $name) {
-        file_put_contents($dir.'/'.$name, $name);
-    }
-
-    return $dir;
-}
-
 function isn_rmEnv(string $env): void
 {
     @unlink($env);
     @unlink($env.'.backup');
-}
-
-function isn_rmDir(string $dir): void
-{
-    foreach (KijiArtifacts::REQUIRED as $name) {
-        @unlink($dir.'/'.$name);
-    }
-    @rmdir($dir);
 }
 
 it('errors when non-interactive without --safety-net', function () {
@@ -82,46 +63,25 @@ it('wires the opf local subprocess command + checkpoint when provided (spec-fix)
     }
 });
 
-it('wires kiji env keys when the model dir holds the pinned artifacts (CB4 happy path)', function () {
+it('rejects the kiji backend removed upstream in gaze 0.15.0 without touching .env', function () {
     $env = isn_bindEnv();
-    $dir = isn_validKijiDir();
     try {
-        $this->artisan("gaze:install:safety-net --safety-net=kiji --kiji-model-dir={$dir} --no-interaction")
-            ->assertExitCode(0);
-        expect(file_get_contents($env))
-            ->toContain('GAZE_SAFETY_NET_BACKEND=kiji-distilbert')
-            ->toContain('GAZE_KIJI_BACKEND=ort')
-            ->toContain("GAZE_KIJI_DISTILBERT_MODEL_DIR={$dir}");
-    } finally {
-        isn_rmEnv($env);
-        isn_rmDir($dir);
-    }
-});
-
-it('refuses to write .env when the kiji model dir is missing artifacts (CB4 — no poisoned .env)', function () {
-    $env = isn_bindEnv();
-    $dir = sys_get_temp_dir().'/gaze-kiji-bad-'.bin2hex(random_bytes(6));
-    mkdir($dir, 0700, true); // empty — no artifacts
-    try {
-        $this->artisan("gaze:install:safety-net --safety-net=kiji --kiji-model-dir={$dir} --no-interaction")
-            ->assertFailed();
+        $this->artisan('gaze:install:safety-net --safety-net=kiji --no-interaction')
+            ->expectsOutputToContain(InstallSafetyNetCommand::KIJI_REMOVED)
+            ->assertExitCode(2);
+        expect(InstallSafetyNetCommand::KIJI_REMOVED)
+            ->toContain('removed upstream in gaze 0.15.0')
+            ->toContain('CertaMesh/gaze-laravel#157');
         expect(file_get_contents($env))->toBe("APP_ENV=testing\n"); // untouched
         expect(is_file($env.'.backup'))->toBeFalse();
     } finally {
         isn_rmEnv($env);
-        @rmdir($dir);
     }
 });
 
-it('refuses kiji when no model dir is given at all (CB4)', function () {
-    $env = isn_bindEnv();
-    try {
-        $this->artisan('gaze:install:safety-net --safety-net=kiji --no-interaction')->assertFailed();
-        expect(file_get_contents($env))->toBe("APP_ENV=testing\n");
-    } finally {
-        isn_rmEnv($env);
-    }
-});
+it('rejects the removed --kiji-model-dir option', function () {
+    $this->artisan('gaze:install:safety-net --safety-net=opf --kiji-model-dir=/models/kiji --no-interaction');
+})->throws(RuntimeException::class, 'The "--kiji-model-dir" option does not exist.');
 
 it('--print does not mutate .env', function () {
     $env = isn_bindEnv();
@@ -152,19 +112,16 @@ it('wires safety-net with no progress escape sequences when non-interactive', fu
     }
 });
 
-it('interactive choice picks kiji and wires the model dir', function () {
+it('interactive choice offers only opf and wires it', function () {
     $env = isn_bindEnv();
-    $dir = isn_validKijiDir();
     try {
-        $this->artisan("gaze:install:safety-net --kiji-model-dir={$dir}")
-            ->expectsChoice('Which safety-net backend?', 'kiji', [
+        $this->artisan('gaze:install:safety-net')
+            ->expectsChoice('Which safety-net backend?', 'opf', [
                 'opf' => 'OpenAI privacy-filter (Tier 2)',
-                'kiji' => 'Kiji DistilBERT NER (Tier 2.5)',
             ])
             ->assertExitCode(0);
-        expect(file_get_contents($env))->toContain("GAZE_KIJI_DISTILBERT_MODEL_DIR={$dir}");
+        expect(file_get_contents($env))->toContain('GAZE_SAFETY_NET_BACKEND=openai-filter');
     } finally {
         isn_rmEnv($env);
-        isn_rmDir($dir);
     }
 });

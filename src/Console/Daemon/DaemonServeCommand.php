@@ -7,6 +7,7 @@ namespace CertaMesh\Gaze\Console\Daemon;
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Daemon\DaemonArgv;
 use CertaMesh\Gaze\Exceptions\GazeBinaryMissingException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Process\InvokedProcess;
 use Illuminate\Process\Factory as ProcessFactory;
@@ -34,7 +35,9 @@ final class DaemonServeCommand extends DaemonCommand
     {
         try {
             $argv = $this->buildArgv($resolver, $config);
-        } catch (GazeBinaryMissingException $e) {
+        } catch (GazeBinaryMissingException|GazeSafetyNetConfigException $e) {
+            // The latter is DaemonArgv's pre-flight for a removed safety-net
+            // backend — report it like a missing binary, never spawn.
             $this->error($e->getMessage());
 
             return self::FAILURE;

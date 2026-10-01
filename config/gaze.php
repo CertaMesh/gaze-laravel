@@ -114,12 +114,16 @@ return [
     | unchanged from the pre-v0.13 flat keys.
     |
     | The pre-v0.13 flat root keys (`safety_net_mode`,
-    | `openai_filter_command`, `kiji_backend`, …) are DEPRECATED but still
-    | read as a fallback, so previously published configs keep working. At
+    | `openai_filter_command`, …) are DEPRECATED but still read as a
+    | fallback, so previously published configs keep working. At
     | registration the provider also back-fills the flat keys from this group
     | (and collapses `gaze.safety_net` to the bool enable switch) so legacy
     | `config('gaze.safety_net_*')` readers observe the same values. See
     | UPGRADING.md for the key map.
+    |
+    | The Kiji DistilBERT group (`kiji.*`, `GAZE_KIJI_*`) is gone: upstream
+    | removed that backend in gaze 0.15.0. Leftover values are ignored and
+    | `gaze:doctor` warns about them.
     */
     'safety_net' => [
         /*
@@ -129,13 +133,22 @@ return [
         'enabled' => env('GAZE_SAFETY_NET', false),
 
         /*
-         * Optional explicit safety-net backend selector. Valid values are
-         * `openai-filter` (Tier 2 OpenAI privacy-filter subprocess) and
-         * `kiji-distilbert` (Tier 2.5 DistilBERT NER backend). Forwarded
-         * as `--safety-net-backend=<value>` which wins over the legacy
-         * `--safety-net=<kind>` flag when both are set. Null omits the flag and
-         * lets upstream keep the v0.6/v0.7 single-backend default of
-         * `openai-filter`.
+         * Optional explicit safety-net backend selector, forwarded as
+         * `--safety-net-backend=<value>` — ONLY while `enabled` is true, so a
+         * disabled net with a leftover backend stays off. It wins over the
+         * legacy `--safety-net=<kind>` flag. Valid values:
+         *
+         *   - `openai-filter` — Tier 2 OpenAI privacy-filter subprocess; needs
+         *     a gaze binary built with upstream's `safety-net-openai` feature
+         *     (the release binaries are not).
+         *   - `nym` — compiled into the release binary. Fetch the bundle with
+         *     `gaze setup --safety-net nym` and name its directory in the
+         *     policy's `[safety_net.nym] model_dir` (or in `GAZE_NYM_MODEL_DIR`
+         *     in the worker's real process environment).
+         *
+         * `kiji-distilbert` was removed upstream in gaze 0.15.0; the adapter
+         * refuses it before spawning. Null omits the flag and lets upstream
+         * keep its single-backend default of `openai-filter`.
          */
         'backend' => env('GAZE_SAFETY_NET_BACKEND'),
 
@@ -207,46 +220,6 @@ return [
             'operating_point' => env('GAZE_OPENAI_FILTER_OPERATING_POINT'),
         ],
 
-        /*
-         * Tier 2.5 Kiji DistilBERT NER backend.
-         */
-        'kiji' => [
-            /*
-             * Optional Kiji DistilBERT runtime backend. Valid values in the
-             * upstream GitHub-release binary are `subprocess` and `ort`;
-             * feature builds may add `tract` or `candle`. Forwarded as
-             * `--kiji-backend=<value>`. For v0.9 int8 inference, set
-             * `GAZE_KIJI_BACKEND=ort`.
-             */
-            'backend' => env('GAZE_KIJI_BACKEND'),
-
-            /*
-             * Optional Kiji DistilBERT ONNX precision. Valid values are
-             * `fp32` and `int8`. Forwarded as
-             * `--kiji-distilbert-precision=<value>`. Upstream requires
-             * `--kiji-backend=ort` when this is `int8`.
-             */
-            'distilbert_precision' => env('GAZE_KIJI_DISTILBERT_PRECISION'),
-
-            /*
-             * Optional path to the local Kiji DistilBERT subprocess binary
-             * used when `backend=kiji-distilbert`. Forwarded as
-             * `--kiji-distilbert-command=<value>`. Null lets the binary use
-             * its PATH lookup.
-             */
-            'distilbert_command' => env('GAZE_KIJI_DISTILBERT_COMMAND'),
-
-            /*
-             * Optional pinned-artifact directory for the Kiji DistilBERT
-             * backend. The directory must carry `SHA256SUMS`, `labels.json`,
-             * `model.onnx`, and `tokenizer.json` (0o700 dir + 0o600 files for
-             * the fail-closed Axis-1 guard). Forwarded as
-             * `--kiji-distilbert-model-dir=<value>`. Null omits the flag and
-             * lets upstream surface its own typed `SafetyNetArtifactMissing`
-             * envelope on first invocation.
-             */
-            'distilbert_model_dir' => env('GAZE_KIJI_DISTILBERT_MODEL_DIR'),
-        ],
     ],
 
     /*
@@ -339,8 +312,8 @@ return [
     | defaults; populating a key forwards the value as the matching flag.
     |
     | `gaze:daemon:serve` also forwards the shared pipeline flags —
-    | `--locale`, `--ner-threshold`, and the full safety-net / OPF / Kiji
-    | family — sourced from the SAME top-level `gaze.*` keys the one-shot
+    | `--locale`, `--ner-threshold`, and the full safety-net / OPF family —
+    | sourced from the SAME top-level `gaze.*` keys the one-shot
     | `Gaze::clean()` path uses, so a configured pipeline behaves
     | identically in both runtimes. Only daemon-specific knobs live here.
     |
@@ -375,7 +348,8 @@ return [
         /*
          * Per-request timeout the adapter applies to each JSONL round-trip.
          * Integer milliseconds. Default 5000ms. Cold first request may want
-         * a higher value when the upstream pipeline includes Kiji ORT init.
+         * a higher value when the upstream pipeline loads a safety-net model
+         * (e.g. Nym's ONNX Runtime init).
          *
          * NOTE: this is an adapter-side ceiling, not an upstream flag.
          */
@@ -415,14 +389,6 @@ return [
          * own NER locale.
          */
         'ner_locale' => env('GAZE_DAEMON_NER_LOCALE'),
-
-        /*
-         * Optional comma-separated locale list for the Kiji DistilBERT
-         * safety-net backend, forwarded as `--kiji-distilbert-locales=`.
-         * Daemon-scoped because the one-shot path exposes no top-level
-         * equivalent. Null omits the flag.
-         */
-        'kiji_distilbert_locales' => env('GAZE_DAEMON_KIJI_DISTILBERT_LOCALES'),
 
         /*
          * Override path for the `gaze` binary used by `gaze:daemon:serve`.
