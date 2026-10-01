@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Daemon;
 
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
@@ -54,8 +55,16 @@ final class DaemonArgv
         // when both are present. The selector is forwarded ONLY with the
         // enable switch — gaze >= 0.15 rejects a lone backend selector with
         // SafetyNetUsage, where 0.12 silently ignored it (net off).
-        $safetyNet = (bool) $config->get('gaze.safety_net', false);
-        $backend = self::string($config, 'gaze.safety_net_backend');
+        // Read through GazeOptions — the same coercion Gaze::clean() uses — so
+        // the enable switch and selector resolve identically from the flat
+        // keys and from a nested `safety_net` group set after the provider
+        // normalized config (a raw `(bool)` cast would read a nested
+        // `['enabled' => false, …]` array as enabled).
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        $safetyNet = $options->safetyNet;
+        $backend = $options->safetyNetBackend;
 
         // Same fail-closed pre-flight as Gaze::clean(), so BOTH daemon spawn
         // paths refuse the backend upstream removed in gaze 0.15.0.
@@ -78,6 +87,18 @@ final class DaemonArgv
         // per-invocation operational knobs.
         self::append($argv, 'ner-model-dir', self::string($config, 'gaze.daemon.ner_model_dir'));
         self::append($argv, 'ner-locale', self::string($config, 'gaze.daemon.ner_locale'));
+
+        // Rulepack overrides (gaze >= 0.13 accepts them on the daemon, #446) —
+        // the same shared `gaze.rulepacks` / `gaze.rulepack_paths` lists the
+        // one-shot path forwards, one flag per element. Without them a
+        // configured `GAZE_RULEPACKS=core,secrets` protected one-shot cleans
+        // but not daemon cleans.
+        foreach ($options->rulepacks ?? [] as $pack) {
+            $argv[] = '--rulepack-bundled='.$pack;
+        }
+        foreach ($options->rulepackPaths ?? [] as $path) {
+            $argv[] = '--rulepack-path='.$path;
+        }
 
         // OpenAI Privacy Filter (Tier 2) backend knobs — top-level `gaze.*`
         // keys shared with the one-shot path. Config-only.

@@ -46,6 +46,8 @@ final class DoctorCommand extends Command
         }
 
         $this->warnIfDeprecatedRulepack($config, $policy);
+        $this->warnIfPolicyPreservesByDefault($policy);
+        $this->warnIfRulepacksDropCore($config);
         $this->probeProxyFeature($binary, $config, $process);
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
@@ -72,7 +74,10 @@ final class DoctorCommand extends Command
             $session = $gaze->clean('doctor@example.com');
             $restored = $gaze->restore($session, $session->cleanText);
 
-            if (! str_contains($restored, 'doctor@example.com')) {
+            // Both directions: the probe value must leave clean() masked AND
+            // come back from restore(). A round-trip alone passes vacuously when
+            // nothing is detected (e.g. GAZE_RULEPACKS=none).
+            if (str_contains($session->cleanText, 'doctor@example.com') || ! str_contains($restored, 'doctor@example.com')) {
                 $this->components->twoColumnDetail('deep', '<fg=red>FAIL</>');
                 $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
@@ -186,6 +191,73 @@ final class DoctorCommand extends Command
     }
 
     /**
+     * WARN (never fail) when the configured policy's fall-through rule sends
+     * detected classes to the model raw: a `kind = "default"` rule with
+     * `action = "preserve"`, or no default rule at all (upstream then
+     * preserves). gaze >= 0.15 prints the same finding on stderr — but only
+     * on a successful clean, whose stderr the adapter discards, so without
+     * this probe an app's own policy.toml copy keeps leaking silently after
+     * the shipped policy switched to `tokenize` (v0.14.0). An unparseable
+     * policy is skipped here; warnIfDeprecatedRulepack() already reports it.
+     */
+    private function warnIfPolicyPreservesByDefault(string $policyPath): void
+    {
+        $body = @file_get_contents($policyPath);
+        if ($body === false) {
+            return;
+        }
+
+        try {
+            /** @var array<string, mixed> $parsed */
+            $parsed = Toml::decode($body, asArray: true);
+        } catch (\Throwable) {
+            return;
+        }
+
+        $rules = is_array($parsed['rule'] ?? null) ? $parsed['rule'] : [];
+        $defaultAction = null;
+        foreach ($rules as $rule) {
+            if (is_array($rule) && ($rule['kind'] ?? null) === 'default') {
+                $defaultAction = is_string($rule['action'] ?? null) ? $rule['action'] : null;
+            }
+        }
+
+        if ($defaultAction !== null && $defaultAction !== 'preserve') {
+            return;
+        }
+
+        $this->components->twoColumnDetail('policy default', '<fg=yellow>'.($defaultAction ?? 'missing (preserve)').'</>');
+        $this->warn(
+            'The policy\'s fall-through rule preserves: every detected class without its own [[rule]] '
+            .'(national IDs, dates of birth, URLs, ...) reaches the model raw.'
+        );
+        // Own short line so the fix survives console width-wrapping.
+        $this->warn('Set the default rule to action = "tokenize" (UPGRADING.md, v0.14.0).');
+    }
+
+    /**
+     * WARN (never fail) when `gaze.rulepacks` overrides the policy's bundled
+     * list without `core`. The override REPLACES the list, so e.g.
+     * `GAZE_RULEPACKS=secrets` drops emails, phones, IBANs and cards, and
+     * since gaze 0.15 `GAZE_RULEPACKS=none` is accepted and runs no bundled
+     * pack at all (0.12 rejected it) — every clean succeeds with no detection.
+     */
+    private function warnIfRulepacksDropCore(ConfigRepository $config): void
+    {
+        $rulepacks = $config->get('gaze.rulepacks');
+        if (! is_array($rulepacks) || $rulepacks === [] || in_array('core', $rulepacks, true) || in_array('core-extended', $rulepacks, true)) {
+            return;
+        }
+
+        $this->components->twoColumnDetail('rulepacks', '<fg=yellow>'.implode(',', array_filter($rulepacks, is_string(...))).' (no core)</>');
+        $this->warn(
+            'GAZE_RULEPACKS replaces the policy\'s bundled rulepacks and does not include core: '
+            .'emails, phones, IBANs, cards and IPs reach the model raw.'
+        );
+        $this->warn('Keep core in the list, e.g. GAZE_RULEPACKS=core,secrets.');
+    }
+
+    /**
      * Best-effort probe for the upstream `proxy` feature build flag.
      *
      * Skipped when the adopter has not deviated from the package's default
@@ -292,7 +364,7 @@ final class DoctorCommand extends Command
         /** @var array<string, mixed> $gazeConfig */
         $gazeConfig = (array) $config->get('gaze', []);
         $options = GazeOptions::fromConfig($gazeConfig);
-        $kijiSelected = $options->safetyNetBackend === SafetyNetBackendGuard::KIJI_DISTILBERT;
+        $kijiSelected = SafetyNetBackendGuard::isRemoved($options->safetyNetBackend);
 
         if ($kijiSelected && $options->safetyNet) {
             $this->components->twoColumnDetail('safety_net_backend', '<fg=red>kiji-distilbert removed in gaze 0.15.0</>');

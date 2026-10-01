@@ -45,8 +45,18 @@ final class SafetyNetBackendGuard
      */
     public static function assertSupported(bool $enabled, ?string $backend): void
     {
-        if ($enabled && $backend === self::KIJI_DISTILBERT) {
+        if ($enabled && self::isRemoved($backend)) {
             throw new GazeSafetyNetConfigException(self::KIJI_DISTILBERT_REMOVED, 2, null);
         }
+    }
+
+    /**
+     * Case- and whitespace-insensitive, so `Kiji-Distilbert` or a quoted
+     * `" kiji-distilbert"` from an env file cannot slip past the pre-flight
+     * into the binary's detail-less PolicyConfig error.
+     */
+    public static function isRemoved(?string $backend): bool
+    {
+        return $backend !== null && strtolower(trim($backend)) === self::KIJI_DISTILBERT;
     }
 }

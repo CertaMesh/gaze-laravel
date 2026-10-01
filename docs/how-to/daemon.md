@@ -101,6 +101,9 @@ copies to keep in sync:
 - `gaze.safety_net_device` → `--openai-filter-device=`
 - `gaze.openai_filter_command` / `_checkpoint` / `_operating_point` → `--openai-filter-*=`
 - `gaze.safety_net_timeout_ms` / `_input_limit_bytes` / `_mode` / `_fallback` → `--safety-net-*=`
+- `gaze.rulepacks` → `--rulepack-bundled=` (one per entry) and
+  `gaze.rulepack_paths` → `--rulepack-path=` (one per entry) — since adapter
+  v0.14.0 (gaze >= 0.13 accepts them on the daemon)
 
 The Kiji DistilBERT safety net was removed upstream in gaze 0.15.0: no
 `--kiji-*` flag is forwarded any more (`gaze.kiji_*`,
@@ -136,14 +139,17 @@ TWO commands. Supervision is OS-owned (systemd / Horizon / supervisord)
 
 ```bash
 # Config-driven (recommended under a supervisor): the pipeline keys are
+# read through config(), so under `php artisan config:cache` inline env vars
+# like these are ignored — put them in the environment the cache is built
+# from (or clear the cache). The pipeline keys are
 # the same top-level gaze.* env vars the one-shot path reads.
 GAZE_DAEMON_POLICY_PATH=/etc/gaze/policy.toml \
 GAZE_DAEMON_SESSION_CAP=500 \
 GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S=900 \
 GAZE_SAFETY_NET=true \
 GAZE_SAFETY_NET_BACKEND=nym \
-GAZE_NYM_MODEL_DIR=/var/lib/gaze/nym \
 php artisan gaze:daemon:serve
+# The Nym bundle directory lives in the policy: [safety_net.nym] model_dir.
 
 # Ad-hoc override of the operational knobs (timeouts, caps, locale,
 # NER threshold). CLI options win over config.

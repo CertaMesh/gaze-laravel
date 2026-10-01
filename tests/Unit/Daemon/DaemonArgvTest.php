@@ -134,6 +134,37 @@ it('refuses an enabled kiji-distilbert backend before any argv is built', functi
     $this->fail('Expected GazeSafetyNetConfigException to be thrown.');
 });
 
+it('refuses kiji-distilbert regardless of case and surrounding whitespace', function (string $backend) {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => true, 'safety_net_backend' => $backend],
+    );
+
+    expect(fn () => DaemonArgv::flags($config))->toThrow(GazeSafetyNetConfigException::class);
+})->with(['mixed case' => ['Kiji-Distilbert'], 'padded' => [' kiji-distilbert ']]);
+
+it('reads the safety-net switch through GazeOptions so a nested group set at runtime is honoured', function (array $safetyNet, ?string $throws, array $expected) {
+    // A nested `safety_net` group set after the provider normalized config
+    // (runtime config()->set): a raw (bool) cast would read any non-empty
+    // array as "enabled" and miss the backend selector entirely.
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => $safetyNet],
+    );
+
+    if ($throws !== null) {
+        expect(fn () => DaemonArgv::flags($config))->toThrow($throws);
+
+        return;
+    }
+
+    expect(DaemonArgv::flags($config))->toBe($expected);
+})->with([
+    'enabled kiji fails closed' => [['enabled' => true, 'backend' => 'kiji-distilbert'], GazeSafetyNetConfigException::class, []],
+    'disabled stays off' => [['enabled' => false, 'backend' => 'nym'], null, ['--policy=/etc/gaze/policy.toml']],
+    'enabled nym forwards both' => [['enabled' => true, 'backend' => 'nym'], null, ['--policy=/etc/gaze/policy.toml', '--safety-net=openai-filter', '--safety-net-backend=nym']],
+]);
+
 it('ignores a leftover kiji-distilbert selector while the net is disabled', function () {
     $config = configRepoForArgv(
         daemon: ['policy_path' => '/etc/gaze/policy.toml'],
@@ -141,6 +172,21 @@ it('ignores a leftover kiji-distilbert selector while the net is disabled', func
     );
 
     expect(DaemonArgv::flags($config))->toBe(['--policy=/etc/gaze/policy.toml']);
+});
+
+it('forwards the shared rulepack lists after the NER overrides, one flag per element', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml', 'ner_locale' => 'de'],
+        topLevel: ['rulepacks' => ['core', 'secrets'], 'rulepack_paths' => ['/etc/gaze/tenant.toml']],
+    );
+
+    expect(DaemonArgv::flags($config))->toBe([
+        '--policy=/etc/gaze/policy.toml',
+        '--ner-locale=de',
+        '--rulepack-bundled=core',
+        '--rulepack-bundled=secrets',
+        '--rulepack-path=/etc/gaze/tenant.toml',
+    ]);
 });
 
 it('lets caller overrides win over config for the operational knobs', function () {

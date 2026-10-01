@@ -10,8 +10,10 @@ use CertaMesh\Gaze\Variant;
 /**
  * Pinned-artifact contract violation: a safety-net backend was requested but
  * its required artifact (e.g. the Nym bundle fetched with
- * `gaze setup --safety-net nym` and located by `GAZE_NYM_MODEL_DIR`) is
- * missing on disk.
+ * `gaze setup --safety-net nym` and located by the policy's
+ * `[safety_net.nym] model_dir` or `GAZE_NYM_MODEL_DIR`) is missing on disk.
+ * `path()` carries upstream's placeholder (`<missing:SHA256SUMS> (install via
+ * …)`), not the configured directory.
  *
  * Maps to upstream `CliError::SafetyNetArtifactMissing { backend, path }`
  * (exit 2). Axis-1 fail-closed: the binary never silently disables a backend
