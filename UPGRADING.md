@@ -6,6 +6,19 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.15.0 → v0.16.0 (Unreleased)
+
+### TL;DR
+
+1. **`gaze:doctor` now shows gaze's own policy warnings** (#159). gaze prints
+   them only when a clean succeeds, and the adapter discards that output, so
+   a published `policy.toml` that preserves IDs, URLs or dates of birth leaked
+   them without a trace. Run `php artisan gaze:doctor` and fix every
+   `warning:` line, usually by setting the default rule to
+   `action = "tokenize"`. Doctor runs one `gaze clean` on a fixed input, writes
+   no audit row, and keeps its exit code. See
+   [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
+
 ## v0.14.0 → v0.15.0
 
 > Bug-fix wave on the same gaze 0.15.1 pin. No re-install and no policy edit.

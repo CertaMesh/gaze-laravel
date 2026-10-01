@@ -4,6 +4,20 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Added
+
+- **`gaze:doctor` shows gaze's own policy warnings** (#159). gaze 0.15 and
+  later print them on stderr only when a clean succeeds, and `Gaze::clean()`
+  discards that stderr. Doctor now runs one `gaze clean` on a fixed, PII-free
+  input, with the configured binary, policy and pipeline flags but without
+  `--audit-db`. It prints every `warning:` / `notice:` line as a WARN: the
+  preserve fall-through with the classes that leak, one-way `generalize`, the
+  core floor being off, and uncovered collision families. The exit code is
+  unchanged; a failed or timed-out probe is a WARN row. On gaze 0.15 or later
+  these lines replace the static preserve-default and missing-`core` checks,
+  which stay as the fallback. See
+  [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
