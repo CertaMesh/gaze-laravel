@@ -4,72 +4,15 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
-### Fixed
+## [0.16.0] - 2026-10-01
 
-- **Tests: the legacy `gaze:install-ner` alias test no longer hits GitHub**
-  (#186). It resolved the provider's default `NerManifest`, which downloads
-  `SHA256SUMS.ner` from the release on every run, so it failed during a GitHub
-  outage. It now binds the manifest fixture and a spy `NerFetcher` and still
-  proves the alias dispatches into the installer. A full run with outbound
-  network blocked passes; the live download stays behind
-  `GAZE_LIVE_NER_SMOKE=1`.
-
-- **A policy-level `[session] scope = "ephemeral"` no longer retries forever**
-  ([#182](https://github.com/CertaMesh/gaze-laravel/issues/182)). v0.15.0
-  refused only the `GAZE_SESSION_SCOPE=ephemeral` override; with no override,
-  an ephemeral policy scope still reached the binary, which answers every clean
-  with the *retryable* `GazePipelineException`. `Gaze::clean()` / `mask()` now
-  read the policy's `[session] scope` and throw the non-retryable
-  `GazePolicyConfigDetailException` (exit 2, `stderrHash` null) before
-  spawning. The read is cached per process by policy path and file fingerprint
-  (mtime, ctime, size, inode, device): one `stat()` per clean in long-lived
-  workers, which pick up an edit without a restart. Under PHP-FPM the first
-  clean of a request reads the file and parses it only if it contains
-  `ephemeral`. Read or parse failures are never cached. A
-  `conversation` / `persistent` override still wins over the policy, as
-  `--session-scope` does upstream. An unreadable or unparseable policy is left
-  to the binary, which reports `PolicyOpen` / `PolicyConfig` as before. The
-  daemon is unaffected. `gaze:doctor` still warns, now with the new exception
-  name.
-
-- **`CoverageState::Suspect` no longer fires for spans the safety net's
-  `resolve` / `redact` decision already protected** (#160). gaze's
-  `leak_report` records what the net found, not what is still raw: with Nym
-  on the 0.15.1 release binary it is byte-identical under `resolve`, `redact`
-  and `tolerant`, so every Nym hit read red although the default `resolve`
-  had tokenized it. `Suspect` now means a flagged span may still be raw: under
-  `tolerant` (or the `tolerant` fallback), when upstream reports an
-  `UnactionableSubword` it left in place, or when the default `resolve` mode's
-  `redact` fallback ran. After that fallback upstream scans once more and
-  ships what the scan flags raw, with nothing in the report to tell it apart;
-  its `[REDACTED:<class>]` marker in `cleanText` is the only trace, so such a
-  run reads red for any suspect that is not a class mismatch, also when every
-  span was protected (any `[REDACTED:` text counts). Protected suspects read
-  `Unverified` (amber), never `Verified`. A report with only `class_mismatch`
-  suspects (covered by a token of another class, which upstream's strict mode
-  ships) is amber too. Docs no longer claim the stock binary has no safety
-  net, and no longer say `resolve` + `strict` always returns: when the resolve
-  pass cannot protect a span it exits 3 with `Pipeline`
-  (`GazePipelineException`).
-
-### Documentation
-
-- **MCP strict protection and the proxy dashboard re-adjudicated: both stay
-  deferred** (#165, #166). Neither the `mcp` nor the `dashboard` cargo feature
-  is in the release binaries the adapter installs, MCP server lifecycle is a
-  NORTH_STAR non-goal, and strict protection is a Rust embedding API rather than
-  a CLI contract. `docs/reference/upstream-coverage.md` records the reasoning and
-  the concrete promotion triggers.
-
-- **Proxy safety nets and the `422` refusal contract** (#167). New section in
-  `docs/how-to/proxy-daemon.md`: nets come from the proxy's policy (there is no
-  `--safety-net` flag), the three request steps (primary, Resolve, admission;
-  upstream #585, #593, #660), the `422 Refused` / `ProtectionRefused` bodies and
-  how to handle them (content refusal, do not retry unchanged; `SafetyNet` =
-  operations problem). Refusal lines go to the proxy's stderr
-  (`proxy-stderr.log`), which `gaze:proxy:logs` does not read. Also corrects
-  the pidfile and log paths, which pointed at a `gaze-proxy/` directory that
-  upstream never used.
+Wave 2 on the same gaze 0.15.1 pin: first-class Nym support, safety-net
+retry lanes for every upstream variant, privacy fixes for logs and stack
+traces, and `gaze:doctor` surfacing gaze's own policy warnings. It ships as a
+MINOR release (new config keys, an installer option, doctor probes and
+`LeakReport::hasResolvedSuspects()`; NORTH_STAR SemVer policy); the binary
+pin is unchanged. See [UPGRADING.md](UPGRADING.md) for the behaviour changes
+queue jobs, log queries and doctor-gated deploys may notice.
 
 ### Added
 
@@ -197,6 +140,54 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `session_id` from daemon log context switch to `session_id_sha256`; see
   [UPGRADING.md](UPGRADING.md).
 
+### Fixed
+
+- **Tests: the legacy `gaze:install-ner` alias test no longer hits GitHub**
+  (#186). It resolved the provider's default `NerManifest`, which downloads
+  `SHA256SUMS.ner` from the release on every run, so it failed during a GitHub
+  outage. It now binds the manifest fixture and a spy `NerFetcher` and still
+  proves the alias dispatches into the installer. A full run with outbound
+  network blocked passes; the live download stays behind
+  `GAZE_LIVE_NER_SMOKE=1`.
+
+- **A policy-level `[session] scope = "ephemeral"` no longer retries forever**
+  ([#182](https://github.com/CertaMesh/gaze-laravel/issues/182)). v0.15.0
+  refused only the `GAZE_SESSION_SCOPE=ephemeral` override; with no override,
+  an ephemeral policy scope still reached the binary, which answers every clean
+  with the *retryable* `GazePipelineException`. `Gaze::clean()` / `mask()` now
+  read the policy's `[session] scope` and throw the non-retryable
+  `GazePolicyConfigDetailException` (exit 2, `stderrHash` null) before
+  spawning. The read is cached per process by policy path and file fingerprint
+  (mtime, ctime, size, inode, device): one `stat()` per clean in long-lived
+  workers, which pick up an edit without a restart. Under PHP-FPM the first
+  clean of a request reads the file and parses it only if it contains
+  `ephemeral`. Read or parse failures are never cached. A
+  `conversation` / `persistent` override still wins over the policy, as
+  `--session-scope` does upstream. An unreadable or unparseable policy is left
+  to the binary, which reports `PolicyOpen` / `PolicyConfig` as before. The
+  daemon is unaffected. `gaze:doctor` still warns, now with the new exception
+  name.
+
+- **`CoverageState::Suspect` no longer fires for spans the safety net's
+  `resolve` / `redact` decision already protected** (#160). gaze's
+  `leak_report` records what the net found, not what is still raw: with Nym
+  on the 0.15.1 release binary it is byte-identical under `resolve`, `redact`
+  and `tolerant`, so every Nym hit read red although the default `resolve`
+  had tokenized it. `Suspect` now means a flagged span may still be raw: under
+  `tolerant` (or the `tolerant` fallback), when upstream reports an
+  `UnactionableSubword` it left in place, or when the default `resolve` mode's
+  `redact` fallback ran. After that fallback upstream scans once more and
+  ships what the scan flags raw, with nothing in the report to tell it apart;
+  its `[REDACTED:<class>]` marker in `cleanText` is the only trace, so such a
+  run reads red for any suspect that is not a class mismatch, also when every
+  span was protected (any `[REDACTED:` text counts). Protected suspects read
+  `Unverified` (amber), never `Verified`. A report with only `class_mismatch`
+  suspects (covered by a token of another class, which upstream's strict mode
+  ships) is amber too. Docs no longer claim the stock binary has no safety
+  net, and no longer say `resolve` + `strict` always returns: when the resolve
+  pass cannot protect a span it exits 3 with `Pipeline`
+  (`GazePipelineException`).
+
 ### Security
 
 - **Raw input no longer leaks into exception stack traces** (#195). With
@@ -213,6 +204,25 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   marked parameter; behaviour tests prove the trace of a failing clean, a
   Facade call, a malformed clean response and a malformed daemon line carries
   neither the text nor the session id.
+
+### Documentation
+
+- **MCP strict protection and the proxy dashboard re-adjudicated: both stay
+  deferred** (#165, #166). Neither the `mcp` nor the `dashboard` cargo feature
+  is in the release binaries the adapter installs, MCP server lifecycle is a
+  NORTH_STAR non-goal, and strict protection is a Rust embedding API rather than
+  a CLI contract. `docs/reference/upstream-coverage.md` records the reasoning and
+  the concrete promotion triggers.
+
+- **Proxy safety nets and the `422` refusal contract** (#167). New section in
+  `docs/how-to/proxy-daemon.md`: nets come from the proxy's policy (there is no
+  `--safety-net` flag), the three request steps (primary, Resolve, admission;
+  upstream #585, #593, #660), the `422 Refused` / `ProtectionRefused` bodies and
+  how to handle them (content refusal, do not retry unchanged; `SafetyNet` =
+  operations problem). Refusal lines go to the proxy's stderr
+  (`proxy-stderr.log`), which `gaze:proxy:logs` does not read. Also corrects
+  the pidfile and log paths, which pointed at a `gaze-proxy/` directory that
+  upstream never used.
 
 ## [0.15.0] - 2026-10-01
 
