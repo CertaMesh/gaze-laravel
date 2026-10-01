@@ -32,6 +32,15 @@ upcoming release in full; per-minor guides for earlier versions live in
    context, switch it to `session_id_sha256`, and look an id up with
    `substr(hash('sha256', $id), 0, 12)`. `$e->sessionId()` and `$e->raw()`
    still return the raw values for code.
+3. **`gaze:doctor` now shows gaze's own policy warnings** (#159). gaze prints
+   them only when a clean succeeds, and the adapter discards that output, so
+   a published `policy.toml` that preserves IDs, URLs or dates of birth leaked
+   them without a trace. Run `php artisan gaze:doctor` and fix every
+   `warning:` line, usually by setting the default rule to
+   `action = "tokenize"`. Doctor runs one `gaze clean` on a fixed input, writes
+   no audit row, and the warnings keep its exit code. It exits 1 when that
+   clean fails NonRetryable, because then every `Gaze::clean()` fails too. See
+   [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
 
 ## v0.14.0 → v0.15.0
 

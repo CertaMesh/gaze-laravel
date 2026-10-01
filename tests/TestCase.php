@@ -121,6 +121,12 @@ abstract class TestCase extends OrchestraTestCase
                 return $this->restore ?? $text;
             }
 
+            /** gaze:doctor's upstream-warning probe: a policy without warnings. */
+            public function probeCleanWarnings(string $text): array
+            {
+                return [];
+            }
+
             public function audit(?string $auditDbPath = null): AuditService
             {
                 throw new \LogicException(
