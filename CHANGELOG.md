@@ -4,6 +4,15 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Fixed
+
+- **`gaze:proxy:serve --foreground-daemon` now starts the proxy** (#161). It
+  forwarded `--foreground-daemon`, but upstream only accepts its hidden
+  `--_foreground-daemon` re-exec flag (since 0.8.0), so every release binary
+  exited 2 with `PolicyConfig` and the systemd/launchd foreground contract
+  never ran. Verified against the 0.15.1 release binary: the underscore
+  spelling starts the proxy and writes its pidfile.
+
 ## [0.14.0] - 2026-10-01
 
 ### Removed (BREAKING)

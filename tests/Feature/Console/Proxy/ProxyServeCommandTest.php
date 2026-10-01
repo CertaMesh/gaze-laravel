@@ -34,13 +34,16 @@ it('forwards config-driven flags to gaze proxy serve', function () {
     });
 });
 
-it('appends --foreground-daemon when the artisan flag is set', function () {
+it('forwards upstream\'s --_foreground-daemon spelling when the artisan flag is set', function () {
     Process::fake(['*' => Process::result(output: '')]);
 
     $this->artisan('gaze:proxy:serve', ['--foreground-daemon' => true])->assertExitCode(0);
 
     Process::assertRan(function ($process): bool {
-        expect($process->command)->toContain('--foreground-daemon');
+        // Upstream declares the hidden clap arg `_foreground-daemon`; the
+        // underscore-less spelling is rejected (exit 2) by every release binary.
+        expect($process->command)->toContain('--_foreground-daemon')
+            ->not->toContain('--foreground-daemon');
 
         return true;
     });
