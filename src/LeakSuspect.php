@@ -7,6 +7,10 @@ namespace CertaMesh\Gaze;
 /**
  * One suspected leak reported by the upstream observer-only safety net.
  *
+ * A suspect records what the net found before the pipeline acted, not whether
+ * the span is still raw: under the default `resolve` decision it is usually
+ * tokenized by the time clean() returns. See {@see LeakReport::hasSuspectedLeak()}.
+ *
  * Mirrors the upstream `LeakSuspectResponse` shape (gaze v0.15.1,
  * crates/gaze-cli/src/pipeline/run.rs). Every field here is METADATA — by
  * upstream design the leak report never serialises source text or byte offsets:

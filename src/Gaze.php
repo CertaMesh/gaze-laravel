@@ -153,7 +153,33 @@ class Gaze implements AuditRunner, GazeContract
      */
     private function mapLeakReport(mixed $raw): ?LeakReport
     {
-        return is_array($raw) ? LeakReport::fromArray($raw) : null;
+        return is_array($raw)
+            ? LeakReport::fromArray($raw, $this->safetyNetActsOnSuspects())
+            : null;
+    }
+
+    /**
+     * Whether the safety-net decision this clean() forwarded acts on suspects.
+     *
+     * The leak_report is identical whether the suspects were tokenized,
+     * marker-replaced or shipped raw, so the decision has to come from the
+     * flags. Mode and fallback reach gaze only as `--safety-net-mode` /
+     * `--safety-net-fallback` (no env var, no policy key in gaze 0.15.1), so
+     * the forwarded values — or upstream's `resolve` + `redact` defaults when
+     * null — are the decision. Mirrors upstream `SafetyNetPolicy::decision()`:
+     * `redact` and `resolve` with a `redact` or `strict` fallback act;
+     * `strict`, `tolerant` and `resolve` with the `tolerant` fallback observe.
+     */
+    private function safetyNetActsOnSuspects(): bool
+    {
+        $mode = $this->options->safetyNetMode ?? 'resolve';
+        $fallback = $this->options->safetyNetFallback ?? 'redact';
+
+        return match ($mode) {
+            'redact' => true,
+            'resolve' => in_array($fallback, ['redact', 'strict'], true),
+            default => false,
+        };
     }
 
     /**
