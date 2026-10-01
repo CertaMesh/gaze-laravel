@@ -53,6 +53,26 @@ it('runs the deep round-trip check when requested', function () {
         ->expectsOutputToContain('OK');
 });
 
+it('reports a failing deep round-trip as FAIL instead of crashing', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    // `--version` succeeds; the deep probe's clean answers like upstream does
+    // for a policy-level ephemeral scope.
+    Process::fake([
+        '*--version*' => Process::result(output: "gaze 0.15.1\n"),
+        '*' => Process::result(output: '', errorOutput: '{"error":"Pipeline","exit":3}', exitCode: 3),
+    ]);
+
+    $this->artisan('gaze:doctor', ['--deep' => true])
+        ->assertExitCode(1)
+        ->expectsOutputToContain('pipeline failed')
+        ->expectsOutputToContain('FAIL');
+});
+
 it('fails the deep check when clean() leaves the probe value unmasked', function () {
     $this->app->instance(
         BinaryResolver::class,
@@ -259,6 +279,75 @@ it('warns when the policy falls through to preserve, and stays silent on the shi
     'explicit preserve default' => ["\n[[rule]]\nkind = \"default\"\naction = \"preserve\"\n", true],
     'no default rule' => ['', true],
 ]);
+
+it('fails when GAZE_SESSION_SCOPE is ephemeral, regardless of case and whitespace', function (string $scope) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.session_scope', $scope);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(1)
+        ->expectsOutputToContain('ephemeral (unsupported by clean)')
+        ->expectsOutputToContain('gaze.session_scope=ephemeral is not supported by Gaze::clean()')
+        ->expectsOutputToContain('FAIL');
+})->with(['ephemeral', ' EPHEMERAL ']);
+
+it('warns but passes when the policy session scope is ephemeral and nothing overrides it', function (?string $override, bool $warns) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+
+    $policy = tempnam(sys_get_temp_dir(), 'gaze-policy-').'.toml';
+    file_put_contents($policy, "[session]\nscope = \"ephemeral\"\n\n[[rule]]\nkind = \"default\"\naction = \"tokenize\"\n");
+    $this->app['config']->set('gaze.policy_path', $policy);
+    $this->app['config']->set('gaze.session_scope', $override);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    try {
+        $command = $this->artisan('gaze:doctor')->assertExitCode(0);
+
+        if ($warns) {
+            $command->expectsOutputToContain('policy session scope')
+                ->expectsOutputToContain('fails every Gaze::clean() with GazePipelineException')
+                ->expectsOutputToContain('GAZE_SESSION_SCOPE');
+        } else {
+            $command->doesntExpectOutputToContain('policy session scope');
+        }
+
+        // Run now: a held PendingCommand only runs on destruct, after the
+        // finally block has already deleted the policy.
+        $command->run();
+    } finally {
+        @unlink($policy);
+    }
+})->with([
+    'no override' => [null, true],
+    'empty override (unset env var)' => ['', true],
+    'conversation override' => ['conversation', false],
+    'persistent override' => ['persistent', false],
+]);
+
+it('does not flag the shipped policy session scope', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->doesntExpectOutputToContain('session scope')
+        ->doesntExpectOutputToContain('session_scope');
+});
 
 it('shows no Kiji row when no Kiji config is present', function () {
     $this->app->instance(

@@ -26,6 +26,29 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   since gaze 0.9.0, so doctor and `GazeDaemonFeatureUnsupportedException` now
   point to installing the pinned binary.
 
+- **`GAZE_SESSION_SCOPE=ephemeral` no longer retries forever**
+  ([#163](https://github.com/CertaMesh/gaze-laravel/issues/163)). It was
+  documented as valid, but `gaze clean` must return the session blob that
+  `restore()` needs, and gaze never exports an ephemeral session by design
+  (`Session::export()` → `ExportForbidden`). The binary reports that as the
+  generic `{"error":"Pipeline","exit":3}`, so every `Gaze::clean()` / `mask()`
+  threw the *retryable* `GazePipelineException`. Same on gaze 0.12.0 and
+  0.15.1. The adapter now rejects `ephemeral` (any case, whitespace trimmed)
+  before spawning the binary, with a non-retryable
+  `GazePolicyConfigDetailException` (exit 2, `stderrHash` null). That is the
+  class an unknown scope value already raises. The guard lives in the new
+  internal `CertaMesh\Gaze\SessionScopeGuard`. The daemon path is unchanged: it
+  takes no `--session-scope` and never exports a blob.
+- **`gaze:doctor`** fails when `gaze.session_scope` is `ephemeral`. It warns,
+  without changing the exit code, when no override is set and the policy's
+  `[session] scope` is `"ephemeral"`: that fails every clean with the same
+  retryable Pipeline error, and the adapter cannot catch it before spawning.
+  `config/gaze.php` and the configuration reference no longer list `ephemeral`
+  as a valid value.
+- **`gaze:doctor --deep` reports a failing round-trip as `FAIL`** instead of
+  crashing with an uncaught exception (e.g. on a policy-level `ephemeral`
+  scope). The row prints the exception message, which carries no input text.
+
 
 ## [0.14.0] - 2026-10-01
 
