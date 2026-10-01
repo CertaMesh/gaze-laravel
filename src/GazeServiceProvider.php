@@ -252,6 +252,17 @@ class GazeServiceProvider extends ServiceProvider
             return;
         }
 
+        // mergeConfigFrom() merges top-level keys only, so a config/gaze.php
+        // published by an older release keeps its old safety_net group: one
+        // from before v0.16.0 has no `nym` entry, and GAZE_NYM_* would never
+        // reach the runtime config (under config:cache gaze then fails every
+        // Nym clean). Fill entries the published group lacks from the package
+        // default; this runs while config:cache builds, so they are cached.
+        $defaults = require __DIR__.'/../config/gaze.php';
+        if (is_array($defaults) && is_array($defaults['safety_net'] ?? null)) {
+            $group += $defaults['safety_net'];
+        }
+
         $flatFromNested = [
             'safety_net_backend' => $group['backend'] ?? null,
             'safety_net_device' => $group['device'] ?? null,

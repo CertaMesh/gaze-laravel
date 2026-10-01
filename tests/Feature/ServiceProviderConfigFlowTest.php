@@ -191,6 +191,30 @@ it('back-fills the nym knobs so they survive the boot-time collapse of the neste
         ->and(config('gaze.nym_intra_threads'))->toBe('2');
 });
 
+it('fills the nym entry a pre-v0.16 published config lacks, so GAZE_NYM_* still reach the runtime config', function () {
+    $previous = gl_stashNymEnv();
+    $threads = getenv('GAZE_NYM_INTRA_THREADS');
+    putenv('GAZE_NYM_MODEL_DIR=/from/env');
+    putenv('GAZE_NYM_INTRA_THREADS=2');
+
+    try {
+        config()->set('gaze.nym_model_dir', null);
+        config()->set('gaze.nym_intra_threads', null);
+        // The safety_net group as v0.15.0 published it: no `nym` entry.
+        config()->set('gaze.safety_net', ['enabled' => true, 'backend' => 'nym', 'mode' => 'redact']);
+
+        (new GazeServiceProvider($this->app))->register();
+
+        expect(config('gaze.safety_net'))->toBeTrue()
+            ->and(config('gaze.safety_net_mode'))->toBe('redact')
+            ->and(config('gaze.nym_model_dir'))->toBe('/from/env')
+            ->and((string) config('gaze.nym_intra_threads'))->toBe('2');
+    } finally {
+        gl_restoreNymEnv($previous);
+        putenv($threads === false ? 'GAZE_NYM_INTRA_THREADS' : 'GAZE_NYM_INTRA_THREADS='.$threads);
+    }
+});
+
 it('container-resolved Gaze forwards the nested nym group on clean argv', function () {
     config([
         'gaze.binary' => '/fake/gaze',
