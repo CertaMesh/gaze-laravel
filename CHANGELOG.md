@@ -4,6 +4,24 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Fixed
+
+- **A policy-level `[session] scope = "ephemeral"` no longer retries forever**
+  ([#182](https://github.com/CertaMesh/gaze-laravel/issues/182)). v0.15.0
+  refused only the `GAZE_SESSION_SCOPE=ephemeral` override; with no override,
+  an ephemeral policy scope still reached the binary, which answers every clean
+  with the *retryable* `GazePipelineException`. `Gaze::clean()` / `mask()` now
+  read the policy's `[session] scope` and throw the non-retryable
+  `GazePolicyConfigDetailException` (exit 2, `stderrHash` null) before
+  spawning. The read is cached per process by policy path and file fingerprint
+  (mtime, size, inode): one `stat()` per clean, one TOML parse per policy
+  change, picked up by long-lived workers without a restart. A
+  `conversation` / `persistent` override still wins over the policy, as
+  `--session-scope` does upstream. An unreadable or unparseable policy is left
+  to the binary, which reports `PolicyOpen` / `PolicyConfig` as before. The
+  daemon is unaffected. `gaze:doctor` still warns, now with the new exception
+  name.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
