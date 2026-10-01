@@ -4,6 +4,16 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tests: the legacy `gaze:install-ner` alias test no longer hits GitHub**
+  (#186). It resolved the provider's default `NerManifest`, which downloads
+  `SHA256SUMS.ner` from the release on every run, so it failed during a GitHub
+  outage. It now binds the manifest fixture and a spy `NerFetcher` and still
+  proves the alias dispatches into the installer. A full run with outbound
+  network blocked passes; the live download stays behind
+  `GAZE_LIVE_NER_SMOKE=1`.
+
 ### Documentation
 
 - **MCP strict protection and the proxy dashboard re-adjudicated: both stay
@@ -12,6 +22,7 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   NORTH_STAR non-goal, and strict protection is a Rust embedding API rather than
   a CLI contract. `docs/reference/upstream-coverage.md` records the reasoning and
   the concrete promotion triggers.
+
 
 ## [0.15.0] - 2026-10-01
 
