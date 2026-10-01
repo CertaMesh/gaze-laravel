@@ -16,13 +16,23 @@ upcoming release in full; per-minor guides for earlier versions live in
    flagged, even after the default `resolve` mode tokenized it. They now
    return `Unverified` / `false`; `$session->leakReport->hasResolvedSuspects()`
    is `true`. `Suspect` stays for spans that may still be raw (`tolerant`, the
-   `tolerant` fallback, an upstream `UnactionableSubword`). If you alerted or
-   blocked on `Suspect` with `resolve` / `redact`, expect those alerts to stop;
-   if you counted `leakReport->suspectCount` as leaks, switch to
-   `hasSuspectedLeak()`. A `LeakReport::fromArray()` you build yourself (fakes,
-   replays) reads every suspect except a `class_mismatch` as red unless you
-   pass the decision (`actsOnSuspects: true`); a `class_mismatch`-only report
-   is now amber everywhere.
+   `tolerant` fallback, an upstream `UnactionableSubword`) and for a `resolve`
+   run whose `redact` fallback ran: upstream's final scan after the fallback
+   ships what it flags raw and the report cannot say which suspect that was,
+   so a `[REDACTED:<class>]` marker in `cleanText` keeps the run red, false
+   reds included. If you alerted or blocked on `Suspect` with `resolve` /
+   `redact`, expect most of those alerts to stop; if you counted
+   `leakReport->suspectCount` as leaks, switch to `hasSuspectedLeak()`. A
+   `LeakReport::fromArray()` you build yourself (fakes, replays) reads every
+   suspect except a `class_mismatch` as red unless you pass the decision
+   (`actsOnSuspects: true`); a `class_mismatch`-only report is now amber
+   everywhere.
+2. **Queued `GazeSession`s cross the deploy one way.** A session a v0.15.x
+   process serialized unserializes on v0.16 (no decision recorded, so it reads
+   red as before). The reverse fails: v0.15.x cannot unserialize the new
+   `LeakReport` fields (`Cannot create dynamic property`). Deploy workers no
+   later than the code that dispatches, and drain such jobs before rolling
+   back.
 
 ## v0.14.0 → v0.15.0
 

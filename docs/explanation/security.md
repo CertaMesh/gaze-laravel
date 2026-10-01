@@ -45,7 +45,10 @@ The resolution is deliberately conservative:
   `[REDACTED:<class>]` marker) are amber too: the primary pass missed them, and
   `$session->leakReport->hasResolvedSuspects()` says the net covered them.
 - **`Suspect`** wins over everything when a flagged span may have stayed raw:
-  under `tolerant`, or when upstream reports a suspect no stage acted on.
+  under `tolerant`, when upstream reports a suspect no stage acted on, or when
+  the `resolve` mode's `redact` fallback ran — upstream then scans once more and
+  ships what that scan flags raw, and the report cannot say which suspect that
+  was, so the adapter reads the whole run red.
 
 The safety-net report lists what the net *found*, not what is still raw; the
 adapter reads it together with the `safety_net_mode` / `safety_net_fallback` it
