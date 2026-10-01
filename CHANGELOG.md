@@ -4,6 +4,93 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-01
+
+### Removed (BREAKING)
+
+- **Laravel 11 support dropped.** Laravel 11 reached end of life on 2026-03-12
+  (security fixes ended), and every Laravel 11 release is now flagged by a
+  Composer security advisory (GHSA-jh5r-qr3c-85q8), so CI could only install it
+  with advisory blocking switched off. `illuminate/*` now require
+  `^12.0|^13.0` and `orchestra/testbench` `^10.0|^11.0`. The CI matrix drops the
+  `^11.0` legs and, with them, the advisory override the compat matrix needed;
+  only the prefer-lowest job keeps it, to validate the declared Laravel 12.0
+  floor. Composer will not install this release into a Laravel 11 app; stay on
+  gaze-laravel 0.13.x until you upgrade Laravel. Pre-1.0, so this lands on a
+  MINOR bump.
+
+- **Kiji DistilBERT safety net.** Upstream gaze 0.15.0 deleted the backend and
+  every `--kiji-*` flag from `gaze clean` and `gaze daemon`
+  ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). A 0.15
+  binary answers `--safety-net-backend=kiji-distilbert` or any `--kiji-*` flag
+  with a detail-less `{"error":"PolicyConfig","exit":2}`, which the adapter
+  surfaced as a misleading `GazePolicyConfigException`. Removed:
+  - argv forwarding of `--kiji-backend`, `--kiji-distilbert-precision`,
+    `--kiji-distilbert-command` and `--kiji-distilbert-model-dir` from
+    `Gaze::clean()`, and of `--kiji-backend`, `--kiji-distilbert-command`,
+    `--kiji-distilbert-model-dir` and `--kiji-distilbert-locales` from
+    `DaemonArgv` (the `Gaze::daemon()` binding and `gaze:daemon:serve`);
+  - config: the `gaze.safety_net.kiji.*` group and
+    `gaze.daemon.kiji_distilbert_locales`, with their env vars
+    `GAZE_KIJI_BACKEND`, `GAZE_KIJI_DISTILBERT_PRECISION`,
+    `GAZE_KIJI_DISTILBERT_COMMAND`, `GAZE_KIJI_DISTILBERT_MODEL_DIR` and
+    `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES`. The provider no longer back-fills the
+    deprecated flat `gaze.kiji_*` keys, and `GazeOptions::fromConfig()` ignores
+    both spellings;
+  - `GazeOptions` constructor parameters / properties `kijiBackend`,
+    `kijiDistilbertPrecision`, `kijiDistilbertCommand` and
+    `kijiDistilbertModelDir`;
+  - the installer's `kiji` backend and `--kiji-model-dir` option on
+    `gaze:install:safety-net` and `gaze:install`. `--safety-net=kiji` now fails
+    with a clear message (exit 2 on the sub-command; the umbrella exits 1 before
+    any step runs) and never writes `.env`; the interactive choosers offer
+    `opf` (and `none` on the umbrella) only. First-class Nym support is tracked
+    in [#157](https://github.com/CertaMesh/gaze-laravel/issues/157);
+  - the `$kijiModelDir` parameter of `SafetyNetConfigurator::pairsFor()` —
+    positional callers change `pairsFor('opf', null, $command, $checkpoint)` to
+    `pairsFor('opf', $command, $checkpoint)`;
+  - `CertaMesh\Gaze\Install\KijiArtifacts`, the artifact list behind the old
+    doctor probe and installer gate.
+- **Fail-closed guard instead of a misleading error.** An enabled safety net
+  that still selects `kiji-distilbert` now throws
+  `GazeSafetyNetConfigException` before the binary is spawned — from
+  `Gaze::clean()` / `mask()`, the `Gaze::daemon()` binding and
+  `gaze:daemon:serve` (which prints it and exits 1). The exception is
+  adapter-synthesized (exit 2, `stderrHash` null) and its message names the
+  removal and the `nym` replacement. Guard and message live in one place, the
+  new `CertaMesh\Gaze\SafetyNetBackendGuard`. `Gaze::restore()` is not
+  guarded: sessions cleaned under Kiji stay restorable.
+- **`gaze:doctor`** replaces the Kiji artifact probe: it FAILs (non-zero exit)
+  when an enabled safety net selects `kiji-distilbert`, and warns without
+  changing the exit code on leftover Kiji config the adapter now ignores — a
+  `kiji-distilbert` selector on a disabled net, `safety_net.kiji.*` or flat
+  `kiji_*` keys, `daemon.kiji_distilbert_locales`, or the Kiji env vars.
+- **Migration:** turn the safety net off, or move to Nym (compiled into the
+  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`,
+  `GAZE_NYM_MODEL_DIR` set in the PHP worker's real process environment (not
+  only `.env` — `php artisan config:cache` stops `.env` from loading), bundle
+  fetched with `gaze setup --safety-net nym`. See
+  [UPGRADING.md](UPGRADING.md#kiji-safety-net-removed-breaking).
+
+### Security
+
+- **Shipped policy: the default rule now tokenizes instead of preserving
+  (leak fix).** `resources/policy.toml` ended in `kind = "default"` /
+  `action = "preserve"`, so every class the bundled `core` pack detects but no
+  class rule names reached the model raw with a success exit. Verified on the
+  real binaries: at the 0.12.0 pin that already covered US SSNs, German
+  Steuer-IDs, EU VAT IDs and Ethereum addresses; gaze 0.13–0.15 add passports,
+  driver licences, national IDs and the `custom:family:government-id`
+  collision family, NHS/BSN/CPF/CNPJ numbers, dates of birth and URLs — 19
+  preserved classes in total, which gaze 0.15 names in a new stderr warning
+  (upstream #641) that the adapter never surfaces, because it discards stderr
+  on success. Upstream classifies a `preserve` default as a leak and switched
+  its own `gaze setup` policy to `tokenize` (upstream #635). The explicit class
+  rules stay. Expect more tokens — notably whole URLs now come back as
+  `Custom:url` tokens and restore exactly. New integration tests pin both the
+  tokenize default and the absence of the upstream warning. **Published
+  policies do not update themselves — see UPGRADING.md.**
+
 ### Changed
 
 - **Binary pin bumped `0.12.0` → `0.15.1`** (upstream released 2026-09-26; the
@@ -76,38 +163,6 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   shape upstream now emits for Nym bundle/policy setup errors and
   `PolicySchemaUnsupported.supported = "0.1."`.
 
-### Security
-
-- **Shipped policy: the default rule now tokenizes instead of preserving
-  (leak fix).** `resources/policy.toml` ended in `kind = "default"` /
-  `action = "preserve"`, so every class the bundled `core` pack detects but no
-  class rule names reached the model raw with a success exit. Verified on the
-  real binaries: at the 0.12.0 pin that already covered US SSNs, German
-  Steuer-IDs, EU VAT IDs and Ethereum addresses; gaze 0.13–0.15 add passports,
-  driver licences, national IDs and the `custom:family:government-id`
-  collision family, NHS/BSN/CPF/CNPJ numbers, dates of birth and URLs — 19
-  preserved classes in total, which gaze 0.15 names in a new stderr warning
-  (upstream #641) that the adapter never surfaces, because it discards stderr
-  on success. Upstream classifies a `preserve` default as a leak and switched
-  its own `gaze setup` policy to `tokenize` (upstream #635). The explicit class
-  rules stay. Expect more tokens — notably whole URLs now come back as
-  `Custom:url` tokens and restore exactly. New integration tests pin both the
-  tokenize default and the absence of the upstream warning. **Published
-  policies do not update themselves — see UPGRADING.md.**
-
-### Removed (BREAKING)
-
-- **Laravel 11 support dropped.** Laravel 11 reached end of life on 2026-03-12
-  (security fixes ended), and every Laravel 11 release is now flagged by a
-  Composer security advisory (GHSA-jh5r-qr3c-85q8), so CI could only install it
-  with advisory blocking switched off. `illuminate/*` now require
-  `^12.0|^13.0` and `orchestra/testbench` `^10.0|^11.0`. The CI matrix drops the
-  `^11.0` legs and, with them, the advisory override the compat matrix needed;
-  only the prefer-lowest job keeps it, to validate the declared Laravel 12.0
-  floor. Composer will not install this release into a Laravel 11 app; stay on
-  gaze-laravel 0.13.x until you upgrade Laravel. Pre-1.0, so this lands on a
-  MINOR bump.
-
 ### Deprecated
 
 - **PHP 8.2 support ends with the first gaze-laravel release after
@@ -123,61 +178,6 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   on every binary since the 0.12.0 pin — the configuration reference wrongly
   promised the session-scope exception and is corrected. The case and class stay
   until 1.0 so referencing code keeps compiling.
-
-### Removed (BREAKING)
-
-- **Kiji DistilBERT safety net.** Upstream gaze 0.15.0 deleted the backend and
-  every `--kiji-*` flag from `gaze clean` and `gaze daemon`
-  ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). A 0.15
-  binary answers `--safety-net-backend=kiji-distilbert` or any `--kiji-*` flag
-  with a detail-less `{"error":"PolicyConfig","exit":2}`, which the adapter
-  surfaced as a misleading `GazePolicyConfigException`. Removed:
-  - argv forwarding of `--kiji-backend`, `--kiji-distilbert-precision`,
-    `--kiji-distilbert-command` and `--kiji-distilbert-model-dir` from
-    `Gaze::clean()`, and of `--kiji-backend`, `--kiji-distilbert-command`,
-    `--kiji-distilbert-model-dir` and `--kiji-distilbert-locales` from
-    `DaemonArgv` (the `Gaze::daemon()` binding and `gaze:daemon:serve`);
-  - config: the `gaze.safety_net.kiji.*` group and
-    `gaze.daemon.kiji_distilbert_locales`, with their env vars
-    `GAZE_KIJI_BACKEND`, `GAZE_KIJI_DISTILBERT_PRECISION`,
-    `GAZE_KIJI_DISTILBERT_COMMAND`, `GAZE_KIJI_DISTILBERT_MODEL_DIR` and
-    `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES`. The provider no longer back-fills the
-    deprecated flat `gaze.kiji_*` keys, and `GazeOptions::fromConfig()` ignores
-    both spellings;
-  - `GazeOptions` constructor parameters / properties `kijiBackend`,
-    `kijiDistilbertPrecision`, `kijiDistilbertCommand` and
-    `kijiDistilbertModelDir`;
-  - the installer's `kiji` backend and `--kiji-model-dir` option on
-    `gaze:install:safety-net` and `gaze:install`. `--safety-net=kiji` now fails
-    with a clear message (exit 2 on the sub-command; the umbrella exits 1 before
-    any step runs) and never writes `.env`; the interactive choosers offer
-    `opf` (and `none` on the umbrella) only. First-class Nym support is tracked
-    in [#157](https://github.com/CertaMesh/gaze-laravel/issues/157);
-  - the `$kijiModelDir` parameter of `SafetyNetConfigurator::pairsFor()` —
-    positional callers change `pairsFor('opf', null, $command, $checkpoint)` to
-    `pairsFor('opf', $command, $checkpoint)`;
-  - `CertaMesh\Gaze\Install\KijiArtifacts`, the artifact list behind the old
-    doctor probe and installer gate.
-- **Fail-closed guard instead of a misleading error.** An enabled safety net
-  that still selects `kiji-distilbert` now throws
-  `GazeSafetyNetConfigException` before the binary is spawned — from
-  `Gaze::clean()` / `mask()`, the `Gaze::daemon()` binding and
-  `gaze:daemon:serve` (which prints it and exits 1). The exception is
-  adapter-synthesized (exit 2, `stderrHash` null) and its message names the
-  removal and the `nym` replacement. Guard and message live in one place, the
-  new `CertaMesh\Gaze\SafetyNetBackendGuard`. `Gaze::restore()` is not
-  guarded: sessions cleaned under Kiji stay restorable.
-- **`gaze:doctor`** replaces the Kiji artifact probe: it FAILs (non-zero exit)
-  when an enabled safety net selects `kiji-distilbert`, and warns without
-  changing the exit code on leftover Kiji config the adapter now ignores — a
-  `kiji-distilbert` selector on a disabled net, `safety_net.kiji.*` or flat
-  `kiji_*` keys, `daemon.kiji_distilbert_locales`, or the Kiji env vars.
-- **Migration:** turn the safety net off, or move to Nym (compiled into the
-  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`,
-  `GAZE_NYM_MODEL_DIR` set in the PHP worker's real process environment (not
-  only `.env` — `php artisan config:cache` stops `.env` from loading), bundle
-  fetched with `gaze setup --safety-net nym`. See
-  [UPGRADING.md](UPGRADING.md#kiji-safety-net-removed-breaking).
 
 ### Fixed
 

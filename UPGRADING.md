@@ -6,7 +6,7 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
-## v0.13.0 → v0.14.0 (Unreleased)
+## v0.13.0 → v0.14.0
 
 > Pre-1.0 SemVer: breaking changes land on a MINOR bump. v0.14.0 moves the
 > pinned binary from gaze 0.12.0 to 0.15.x and tracks the upstream contract
