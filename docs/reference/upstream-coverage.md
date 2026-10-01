@@ -173,8 +173,8 @@ filtering). `--class` is a PHP reserved word as a method name, hence the
 
 ## Proxy (v0.8.1)
 
-The upstream `gaze proxy` daemon (v0.8.0, opt-in `--features proxy` build)
-is wrapped by six Artisan commands. See [`docs/proxy.md`](../how-to/proxy-daemon.md) for
+The upstream `gaze proxy` daemon (v0.8.0; `proxy` is a default cargo feature since v0.8.1, so the release binaries include it)
+is wrapped by six Artisan commands. See [`docs/how-to/proxy-daemon.md`](../how-to/proxy-daemon.md) for
 the adopter quickstart, security notes, and the doctor probe.
 
 | Upstream subcommand | Artisan surface |
@@ -200,14 +200,14 @@ the adopter quickstart, security notes, and the doctor probe.
 | `--timeout` (stop / restart) | `gaze.proxy.stop_timeout` / `GAZE_PROXY_STOP_TIMEOUT` (default `10s`) |
 | `--force` (stop / restart) | `--force` artisan flag |
 | `--follow` (logs) | `--follow` artisan flag |
-| `--foreground-daemon` (serve) | `--foreground-daemon` artisan flag |
+| `--_foreground-daemon` (serve; hidden upstream arg) | `--foreground-daemon` artisan flag (forwarded with upstream's underscore spelling since adapter v0.15.0, #161) |
 
 Since upstream v0.13.0 the detached child started by `gaze:proxy:start` /
 `gaze:proxy:restart` actually applies `--policy`, `--rulepack` and the
 `--upstream-*` URLs; before that it ran without a policy and with default
-upstreams even though `status` showed the configured values. The
-`--foreground-daemon` row is broken on every pin (upstream spells it
-`--_foreground-daemon`) — #161.
+upstreams even though `status` showed the configured values. Before adapter
+v0.15.0 the `--foreground-daemon` artisan flag forwarded the underscore-less
+spelling, which every release binary rejects (#161).
 
 ## SafetyNet backend & mode reshape (v0.8.1)
 
