@@ -4,6 +4,49 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tests: the legacy `gaze:install-ner` alias test no longer hits GitHub**
+  (#186). It resolved the provider's default `NerManifest`, which downloads
+  `SHA256SUMS.ner` from the release on every run, so it failed during a GitHub
+  outage. It now binds the manifest fixture and a spy `NerFetcher` and still
+  proves the alias dispatches into the installer. A full run with outbound
+  network blocked passes; the live download stays behind
+  `GAZE_LIVE_NER_SMOKE=1`.
+
+### Documentation
+
+- **MCP strict protection and the proxy dashboard re-adjudicated: both stay
+  deferred** (#165, #166). Neither the `mcp` nor the `dashboard` cargo feature
+  is in the release binaries the adapter installs, MCP server lifecycle is a
+  NORTH_STAR non-goal, and strict protection is a Rust embedding API rather than
+  a CLI contract. `docs/reference/upstream-coverage.md` records the reasoning and
+  the concrete promotion triggers.
+
+- **Proxy safety nets and the `422` refusal contract** (#167). New section in
+  `docs/how-to/proxy-daemon.md`: nets come from the proxy's policy (there is no
+  `--safety-net` flag), the three request steps (primary, Resolve, admission;
+  upstream #585, #593, #660), the `422 Refused` / `ProtectionRefused` bodies and
+  how to handle them (content refusal, do not retry unchanged; `SafetyNet` =
+  operations problem). Refusal lines go to the proxy's stderr
+  (`proxy-stderr.log`), which `gaze:proxy:logs` does not read. Also corrects
+  the pidfile and log paths, which pointed at a `gaze-proxy/` directory that
+  upstream never used.
+
+### Added
+
+- **Tests: opt-in upstream error-name drift check** (#184). With
+  `GAZE_UPSTREAM_SRC` set to a gaze checkout, `UpstreamErrorDriftTest` reads
+  `error.rs`, `commands/daemon.rs` and `pipeline/run.rs` at the pinned tag and
+  fails on any error name that is neither mapped by `Variant` /
+  `DaemonErrorVariant` nor listed as deliberately unmapped. Before, a new
+  upstream name silently became `Unknown` until someone updated the hand-copied
+  lists. It also fails when a mapped case's name is no longer found, so a
+  refactor that shrinks the extraction cannot hide one. The unmapped, retired
+  and adapter-made lists (`SigPipe` is the adapter's, not upstream's) move to
+  `tests/Fixtures/UpstreamErrorNames.php`, shared with the contract tests. The check is skipped when the variable is
+  unset and runs during the pin-bump audit, not in regular CI.
+
 ### Changed
 
 - **Safety-net retry lanes follow the real upstream variants, on clean and on
