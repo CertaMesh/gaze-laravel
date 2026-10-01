@@ -228,3 +228,19 @@ The log level for each exception family:
 ```
 
 `stderrHash` is the SHA-256 of the raw stderr string when a subprocess stderr stream existed — including the hash of the empty string when the process ran but emitted nothing (a forensic fact worth recording). It is `null` when no stderr stream ever existed: pre-flight validation failures, timeouts, stdout decode failures, daemon envelope errors, and the `Install\Ner*` family. Exception messages render the null case as `stderr_sha256=none`. Either way it never contains PII — the raw stderr itself is never logged.
+
+The daemon family (`GazeDaemonException` and its subclasses) overrides `toLogContext()` with a different shape. Daemon errors are stdout envelopes, and the session id is adopter-chosen, so it appears only as a digest:
+
+```php
+[
+    'daemon_variant'    => $e->daemonVariant()->value, // e.g. "Pipeline", "Transport"
+    'session_id_sha256' => '3f2a9c0d41b7',             // first 12 hex of sha256($e->sessionId()), or null
+    'raw'               => [                           // the envelope, digested:
+        'session_id_sha256' => '3f2a9c0d41b7',         //   session_id        → 12-hex digest
+        'error'             => 'Pipeline',             //   clean_text        → clean_text_sha256 (full SHA-256)
+        'detail'            => 'gaze daemon request failed closed', // raw_line → raw_line_sha256 (full SHA-256)
+    ],
+]
+```
+
+Before v0.16.0 the keys were `session_id` (raw) and the unmodified `raw` envelope (#181). `$e->sessionId()` and `$e->raw()` still return the raw values; the adapter never logs them. See [daemon logging](../how-to/daemon.md#logging-and-session-ids).
