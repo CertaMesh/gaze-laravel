@@ -19,7 +19,9 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
     now by decision, so `isNonRetryable()` turns `true` for them. `Timeout`
     (`ReleaseWithBackoff`), `SuspectedLeak` (`ReleaseWithAlert`),
     `WeightsMissing` and `InputTooLarge` (`Fail`) are unchanged; so are the
-    legacy `Other` and `Unsupported`. Unknown variants still fail closed.
+    legacy `Other` and `Unsupported`. Unknown variants still fail closed, and
+    so does a `SafetyNet` envelope missing its `variant` sidecar (labelled
+    `Unknown` now; it was `Other`, which retried).
   - `GazeDaemonException` now implements `HasRetryDisposition`:
     `SafetyNetTimeout` and `SafetyNetRuntime` `Throw` → `ReleaseWithBackoff`;
     `SafetyNetSuspectedLeak` `Throw` → `ReleaseWithAlert`;
