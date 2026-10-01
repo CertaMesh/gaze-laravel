@@ -10,6 +10,7 @@ use CertaMesh\Gaze\Exceptions\GazeException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
+use CertaMesh\Gaze\PolicyFile;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
 use CertaMesh\Gaze\SessionScopeGuard;
 use Devium\Toml\Toml;
@@ -220,7 +221,7 @@ final class DoctorCommand extends Command
      */
     private function warnIfPolicyPreservesByDefault(string $policyPath): void
     {
-        $parsed = $this->decodePolicy($policyPath);
+        $parsed = PolicyFile::decode($policyPath);
         if ($parsed === null) {
             return;
         }
@@ -256,10 +257,11 @@ final class DoctorCommand extends Command
      * doctor's exit.
      *
      * WARNS, never fails, when no override is set and the policy's
-     * `[session] scope` is ephemeral: the binary then fails every clean with
-     * the Retryable Pipeline error, which the adapter cannot pre-flight at
-     * runtime. A conversation / persistent override wins over the policy, so
-     * it silences the warning. The daemon never exports and is unaffected.
+     * `[session] scope` is ephemeral: `Gaze::clean()` then refuses every call
+     * with the same non-retryable pre-flight, but `Gaze::daemon()` never
+     * exports and runs fine on that policy, so a daemon-only app is healthy.
+     * A conversation / persistent override wins over the policy, so it
+     * silences the warning.
      */
     private function probeSessionScope(ConfigRepository $config, string $policyPath): bool
     {
@@ -275,44 +277,19 @@ final class DoctorCommand extends Command
             return false;
         }
 
-        $scope = ($this->decodePolicy($policyPath) ?? [])['session']['scope'] ?? null;
-        if ($scope !== SessionScopeGuard::EPHEMERAL) {
+        if (PolicyFile::sessionScope($policyPath) !== SessionScopeGuard::EPHEMERAL) {
             return true;
         }
 
-        $this->components->twoColumnDetail('policy session scope', '<fg=yellow>ephemeral</>');
+        $this->components->twoColumnDetail('policy session scope', '<fg=yellow>ephemeral (unsupported by clean)</>');
         $this->warn(
-            'The policy\'s [session] scope = "ephemeral" fails every Gaze::clean() with GazePipelineException, '
-            .'which queue jobs retry: gaze clean cannot export an ephemeral session blob.'
+            'The policy\'s [session] scope = "ephemeral" makes every Gaze::clean() throw a non-retryable '
+            .'GazePolicyConfigDetailException: gaze clean cannot export an ephemeral session blob. Gaze::daemon() is unaffected.'
         );
         // Own short line so the fix survives console width-wrapping.
         $this->warn('Set scope = "conversation" or "persistent", or override it with GAZE_SESSION_SCOPE.');
 
         return true;
-    }
-
-    /**
-     * Best-effort TOML decode of the policy for the probes above. Null when
-     * the file cannot be read or parsed; warnIfDeprecatedRulepack() already
-     * reports an unparseable policy.
-     *
-     * @return array<string, mixed>|null
-     */
-    private function decodePolicy(string $policyPath): ?array
-    {
-        $body = @file_get_contents($policyPath);
-        if ($body === false) {
-            return null;
-        }
-
-        try {
-            /** @var array<string, mixed> $parsed */
-            $parsed = Toml::decode($body, asArray: true);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        return $parsed;
     }
 
     /**

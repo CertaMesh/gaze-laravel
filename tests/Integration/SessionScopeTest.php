@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
-use CertaMesh\Gaze\Exceptions\GazePipelineException;
 use CertaMesh\Gaze\Exceptions\GazePolicyConfigDetailException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\SessionScopeGuard;
 use Symfony\Component\Process\Process;
 
 /*
- * Pins why `gaze.session_scope=ephemeral` is refused pre-flight (#163): gaze
+ * Pins why an ephemeral session scope is refused pre-flight, both as the
+ * `gaze.session_scope` override (#163) and as the policy's `[session] scope`
+ * (#182): gaze
  * clean must export the session blob, and upstream forbids exporting an
  * ephemeral session (`Session::export()` → `ExportForbidden`), reported as the
  * generic, Retryable `Pipeline` error. If upstream ever starts exporting
@@ -64,13 +65,28 @@ it('Gaze::clean() refuses GAZE_SESSION_SCOPE=ephemeral without spawning the bina
         ->toThrow(GazePolicyConfigDetailException::class, SessionScopeGuard::EPHEMERAL_UNSUPPORTED);
 });
 
-it('an ephemeral policy scope fails clean() with the Pipeline error unless GAZE_SESSION_SCOPE overrides it', function () {
+it('the binary answers an ephemeral policy scope with the Pipeline error', function () {
+    $policy = sst_ephemeralPolicyPath();
+
+    try {
+        $process = new Process([$this->binary, 'clean', '--policy='.$policy, '--format=json']);
+        $process->setInput('hi a@b.co');
+        $process->run();
+
+        expect($process->getExitCode())->toBe(3)
+            ->and(json_decode(trim($process->getErrorOutput()), true))->toBe(['error' => 'Pipeline', 'exit' => 3]);
+    } finally {
+        @unlink($policy);
+    }
+});
+
+it('Gaze::clean() refuses an ephemeral policy scope pre-flight unless GAZE_SESSION_SCOPE overrides it (#182)', function () {
     $policy = sst_ephemeralPolicyPath();
     $this->app['config']->set('gaze.policy_path', $policy);
 
     try {
         expect(fn () => $this->app->make(Gaze::class)->clean('hi a@b.co'))
-            ->toThrow(GazePipelineException::class);
+            ->toThrow(GazePolicyConfigDetailException::class, SessionScopeGuard::POLICY_EPHEMERAL_UNSUPPORTED);
 
         $this->app['config']->set('gaze.session_scope', 'conversation');
         // Gaze::class is an alias; the singleton is held under the contract.
