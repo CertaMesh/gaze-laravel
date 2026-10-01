@@ -104,12 +104,14 @@ it('back-fills deprecated flat keys from the nested safety_net group for legacy 
 
     (new GazeServiceProvider($this->app))->register();
 
-    // The removed Kiji group is no longer back-filled (gaze 0.15.0 dropped it).
+    // The removed Kiji group is still back-filled, solely so gaze:doctor can
+    // warn about the leftover after the collapse; no argv path forwards it
+    // (pinned by the negative --kiji-* assertions in the argv tests).
     expect(config('gaze.safety_net'))->toBeTrue()
         ->and(config('gaze.safety_net_mode'))->toBe('strict')
         ->and(config('gaze.safety_net_timeout_ms'))->toBe('2500')
         ->and(config('gaze.openai_filter_command'))->toBe('/usr/local/bin/opf')
-        ->and(config('gaze.kiji_backend'))->toBeNull();
+        ->and(config('gaze.kiji_backend'))->toBe('ort');
 });
 
 it('does not let nested back-fill clobber an explicitly set flat key', function () {

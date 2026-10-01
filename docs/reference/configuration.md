@@ -201,7 +201,7 @@ GAZE_SESSION_SCOPE=conversation
 | **PHP type** | `list<string>` |
 | **Default** | `[]` (the policy's `[policy.rulepacks] bundled` list applies) |
 
-Bundled rulepack names forwarded to `gaze clean` as one `--rulepack-bundled=<name>` flag each. Upstream ships `core`, `locale-de`, `locale-en`, `locale-br`, `locale-fr`, `locale-in`, `locale-nl`, `locale-uk` and `secrets`; `none` disables every bundled pack.
+Bundled rulepack names forwarded to `gaze clean` and `gaze daemon` as one `--rulepack-bundled=<name>` flag each. Upstream ships `core`, `locale-de`, `locale-en`, `locale-br`, `locale-fr`, `locale-in`, `locale-nl`, `locale-uk` and `secrets`. **Do not use `none`:** since gaze 0.15 it is accepted and disables every bundled pack, so cleans succeed with no detection (gaze 0.12 rejected it).
 
 **When to set:** To opt into the credential recognizers (API keys, security tokens) that gaze 0.15.0 moved out of `core` into the opt-in `secrets` pack (upstream #607).
 
@@ -211,7 +211,7 @@ Bundled rulepack names forwarded to `gaze clean` as one `--rulepack-bundled=<nam
 GAZE_RULEPACKS=core,secrets
 ```
 
-**Caveat:** The list **replaces** the policy's `bundled` list instead of extending it. `GAZE_RULEPACKS=secrets` alone drops `core`, and IBANs, cards, emails and phone numbers reach the model raw. Always keep `core` in the list. The one-shot `Gaze::clean()` path forwards this key; `gaze daemon` does not yet (#158).
+**Caveat:** The list **replaces** the policy's `bundled` list instead of extending it. `GAZE_RULEPACKS=secrets` alone drops `core`, and IBANs, cards, emails and phone numbers reach the model raw. Always keep `core` in the list — `gaze:doctor` warns when it is missing. Both `Gaze::clean()` and the daemon (`Gaze::daemon()`, `gaze:daemon:serve`) forward this key. Known gap in the upstream `secrets` pack: after a cue word (`Bearer eyJ…`) only the JWT header is tokenized; payload and signature stay raw (#175).
 
 ---
 
@@ -223,7 +223,7 @@ GAZE_RULEPACKS=core,secrets
 | **PHP type** | `list<string>` |
 | **Default** | `[]` |
 
-Filesystem paths to custom rulepack TOML files, forwarded as one `--rulepack-path=<path>` flag each. Since gaze 0.15.0 (#632) custom paths keep the `core` floor unless the policy sets `bundled = []` or you pass `GAZE_RULEPACKS=none`.
+Filesystem paths to custom rulepack TOML files, forwarded (one-shot and daemon) as one `--rulepack-path=<path>` flag each. Since gaze 0.15.0 (#632) custom paths keep the `core` floor unless the policy sets `bundled = []` or you pass `GAZE_RULEPACKS=none`.
 
 **Example:**
 
@@ -324,7 +324,7 @@ GAZE_SAFETY_NET=true
 | **PHP type** | `string\|null` |
 | **Default** | `null` (binary default: `openai-filter`) |
 
-Optional safety-net backend selector, forwarded as `--safety-net-backend=<value>` **only while `gaze.safety_net` is true** (gaze >= 0.15.0 rejects a lone selector, so a disabled net with a leftover backend stays off). Valid upstream values are `openai-filter` (needs a gaze binary built with upstream's `safety-net-openai` feature) and `nym` (gaze >= 0.15.0, compiled into the release binary; the binary reads the bundle path from `GAZE_NYM_MODEL_DIR` in its inherited process environment — see [SafetyNet](../how-to/safety-net.md#kiji-was-removed-upstream-in-gaze-0150)).
+Optional safety-net backend selector, forwarded as `--safety-net-backend=<value>` **only while `gaze.safety_net` is true** (gaze >= 0.15.0 rejects a lone selector, so a disabled net with a leftover backend stays off). Valid upstream values are `openai-filter` (needs a gaze binary built with upstream's `safety-net-openai` feature) and `nym` (gaze >= 0.15.0, compiled into the release binary; name the bundle directory in the policy's `[safety_net.nym] model_dir`, or in `GAZE_NYM_MODEL_DIR` in the worker's real process environment — see [SafetyNet](../how-to/safety-net.md#kiji-was-removed-upstream-in-gaze-0150)).
 
 **Caveat:** `kiji-distilbert` was removed upstream in gaze 0.15.0. With the net enabled it fails closed before the binary is spawned (`GazeSafetyNetConfigException`) and `gaze:doctor` fails. The Kiji env vars — `GAZE_KIJI_BACKEND`, `GAZE_KIJI_DISTILBERT_PRECISION`, `GAZE_KIJI_DISTILBERT_COMMAND`, `GAZE_KIJI_DISTILBERT_MODEL_DIR`, `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` — were removed in v0.14.0; leftover values are ignored and `gaze:doctor` warns.
 

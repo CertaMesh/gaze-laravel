@@ -30,9 +30,10 @@ upcoming release in full; per-minor guides for earlier versions live in
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
    gaze >= 0.15.0.
-5. **Published-policy leak fix — action required if you published the
-   policy.** The shipped policy's default rule now tokenizes instead of
-   preserving. Change the last rule of your copy; see
+5. **Policy leak fix — action required on every existing install.** The
+   shipped policy's default rule now tokenizes instead of preserving, but your
+   app runs its own copy of `policy.toml`, which the upgrade does not touch.
+   Change its last rule (`gaze:doctor` warns until you do); see
    [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
 
 ### Binary pin 0.12.0 → 0.15.1: what changes for you
@@ -50,14 +51,25 @@ upcoming release in full; per-minor guides for earlier versions live in
    behind (upstream #584) — fixed. The upstream `--rulepack-path` no-policy leak
    (#545) and the prefix-cache leak (#579) are fixed in the binary too; the
    adapter never reached them (it always passes `--policy`).
-3. **Model ownership.** gaze checks that safety-net model files belong to the
-   **effective user that runs `gaze`**: Nym bundles must be owned by that user
-   and sit in a `0700` directory, and OPF checkpoints are owner-checked against
-   the effective uid since 0.13. Under PHP-FPM that user is the **pool user**
-   (often `www-data`), not the deploy user who ran `artisan`; queue workers
-   and `gaze:daemon:serve` run as their own users. Install or `chown -R` the
-   model directory as the user that runs gaze, e.g.
-   `sudo -u www-data gaze setup --safety-net nym --model-dir <private-dir>`.
+3. **Model ownership.** gaze checks safety-net model bundles against the
+   **effective user that runs `gaze`**. For Nym and OPF bundles alike, every file
+   and directory must be owned by that user, directories must be mode `0700`,
+   files must not be group- or world-writable, and symlinks are refused (OPF
+   since 0.13, upstream #422; Nym since 0.15). Under PHP-FPM that user is the
+   **pool user** (often `www-data`), not the deploy user who ran `artisan`;
+   queue workers and `gaze:daemon:serve` run as their own users. Install the
+   bundle as the user that runs gaze. `gaze setup` puts Nym in
+   `$XDG_DATA_HOME/gaze/models/nym-small-int8` (its `--model-dir` flag is the
+   NER directory, not Nym's) and writes a starter policy whose
+   `[safety_net.nym]` table names that directory:
+
+   ```bash
+   sudo -u www-data env XDG_DATA_HOME=/srv/gaze vendor/bin/gaze setup \
+       --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml
+   # bundle: /srv/gaze/gaze/models/nym-small-int8 — copy the [safety_net.nym]
+   # table from /tmp/gaze-setup.toml into your policy
+   ```
+
    `gaze setup` refuses a foreign-owned bundle and only repairs modes on
    bundles the current user owns. The NER model `gaze:install:ner` writes is
    not owner-checked by `gaze clean` at this pin, but run the installer as the
@@ -69,8 +81,10 @@ upcoming release in full; per-minor guides for earlier versions live in
    - A corrupt or truncated NER model now fails `clean()` with
      `GazePipelineException` instead of silently skipping names (#474).
    - `GAZE_LOCALE` no longer hides format-based identifiers: a US-format phone
-     number is tokenized under `de-DE` too (#423/#424). To exclude a
-     recognizer, disable it in an adopter rulepack.
+     number is tokenized under `de-DE` too (#423). To exclude a
+     recognizer, disable it in an adopter rulepack. `GAZE_LOCALE` still
+     *replaces* the policy's locale chain, so use full tags (`de-DE,en-US`) —
+     a bare `de` leaves German national phone numbers raw.
    - Token streams change: one token per entity (e.g. one IBAN token where
      there were two), and `entries` / `detections` count replacements (#628).
      Session blobs created by 0.12.0 still restore on 0.15.1.
@@ -85,8 +99,17 @@ upcoming release in full; per-minor guides for earlier versions live in
      or omit the key.
    - Credentials (API keys, tokens) moved to the opt-in `secrets` rulepack
      (#607). The shipped policy never protected them. To opt in, set
-     `GAZE_RULEPACKS=core,secrets`. Never set `secrets` alone: the variable
-     replaces the policy's packs and would drop `core`.
+     `GAZE_RULEPACKS=core,secrets` — the daemon now honours it too. Never set
+     `secrets` alone, and never `none` (gaze ≥ 0.15 accepts it and detects
+     nothing): the variable replaces the policy's packs, and `gaze:doctor`
+     warns whenever `core` is missing.
+5. **Known gaps at the 0.15.1 pin** (upstream known limitations; these reach
+   the model raw under every setup): UK national-format phone numbers with a
+   leading `0` (e.g. `020 7946 0958`; `+44` numbers are covered); dates of birth
+   without a birth-date cue or in `DD.MM.YYYY` after `Geburtsdatum`, and a
+   `"dob"` JSON field; repeats of an already tokenized name where no recognizer
+   fires; the JWT payload after a `Bearer` cue under `secrets` (#175). Upstream
+   tracks them; the adapter adds no PHP-side detection by design.
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
 
@@ -105,6 +128,10 @@ catch the deprecated class, catch `GazePolicyConfigDetailException` instead.
 Both stay until 1.0.
 
 ### Kiji safety net removed (BREAKING)
+
+> If you construct `GazeOptions` yourself: four parameters were removed from
+> the middle of its constructor. Pass arguments **by name** — positional
+> arguments after `safetyNetBackend` would shift silently.
 
 Upstream gaze 0.15.0 deleted the Kiji DistilBERT safety net and every
 `--kiji-*` flag ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)).
@@ -139,12 +166,22 @@ Migration:
      1. As the user that runs gaze (PHP-FPM / queue worker), fetch the bundle
         with the adapter's binary: `vendor/bin/gaze setup --safety-net nym`.
      2. Set `GAZE_SAFETY_NET=true` and `GAZE_SAFETY_NET_BACKEND=nym`.
-     3. Set `GAZE_NYM_MODEL_DIR` to the bundle directory in the **real process
-        environment** of the PHP worker — systemd `Environment=`, supervisord
-        `environment=`, the container's `ENV`, or PHP-FPM `env[...]`. The gaze
-        subprocess inherits it; the adapter has no config key for it. A `.env`
-        entry alone is not enough: `php artisan config:cache` stops `.env`
-        from being loaded, so the inherited variable would vanish.
+     3. Name the bundle directory in your published policy — the
+        `[safety_net.nym]` table `gaze setup` writes into its starter
+        `gaze.toml`:
+
+        ```toml
+        [safety_net.nym]
+        model_dir = "/srv/gaze/gaze/models/nym-small-int8"
+        ```
+
+        The adapter always passes `--policy`, so this survives
+        `php artisan config:cache`. Alternatively set `GAZE_NYM_MODEL_DIR` in
+        the worker's **real process environment** (systemd `Environment=`,
+        supervisord `environment=`, container `ENV`, PHP-FPM `env[...]`); a
+        `.env` entry alone vanishes under `config:cache`. A policy
+        `[safety_net] backend = "nym"` table would turn Nym on even with
+        `GAZE_SAFETY_NET=false` — keep the switch in one place.
 
      First-class Nym config and installer support is tracked in
      [#157](https://github.com/CertaMesh/gaze-laravel/issues/157).
@@ -176,8 +213,12 @@ kind = "default"
 action = "tokenize"
 ```
 
-If you published the policy into your app (`vendor:publish` or
-`gaze:install`), make the same change in your copy:
+**Every existing install needs this change.** `gaze:install` and
+`vendor:publish` copy the policy into your app (`base_path('policy.toml')` by
+default, or wherever `GAZE_POLICY_PATH` points), and that copy is what runs —
+upgrading the package does not touch it, and `gaze:install --force` keeps it.
+`php artisan gaze:doctor` now warns (`policy default … preserve`) while your
+copy still falls through to `preserve`. Make the same change in your copy:
 
 ```diff
  [[rule]]
@@ -187,15 +228,38 @@ If you published the policy into your app (`vendor:publish` or
 ```
 
 To keep a class readable on purpose, add an explicit class rule with
-`action = "preserve"` **above** the default. Check your copy directly against
-the pinned binary — no output means nothing is left raw:
+`action = "preserve"` **above** the default. Check your copy against the
+binary you run. It must be gaze ≥ 0.15.0 — older binaries never print the
+warning, so silence would prove nothing:
 
 ```bash
-echo probe | vendor/bin/gaze clean --policy=policy.toml --format=json 2>&1 >/dev/null | grep 'policy preserves'
+vendor/bin/gaze --version   # must report 0.15.0 or newer
+echo probe | vendor/bin/gaze clean --policy=/absolute/path/from/GAZE_POLICY_PATH --format=json 2>&1 >/dev/null
 ```
 
-Expect more tokens after the change: whole URLs become `Custom:url` tokens
-(they restore exactly), and the ID/date-of-birth classes above are tokenized.
+A `warning: policy preserves …` line means classes still leave raw. An
+`{"error":…}` line (e.g. `PolicyOpen` for a wrong path) means the probe did not
+run. No output means the policy sends no detected class through raw.
+
+Expect more tokens after the change: URLs become `Custom:url` tokens, and the
+ID/date-of-birth classes above are tokenized. Everything restores exactly. One
+side effect of upstream's URL recognizer: a URL token runs to the next
+whitespace, so in **minified JSON** (`json_encode()` without
+`JSON_PRETTY_PRINT`) it also swallows the JSON syntax and the fields after the
+URL up to the next space — the model no longer sees them, though restore is
+still exact. Pretty-print JSON the model has to read. If you would rather keep
+URLs readable, add an explicit rule above the default:
+
+```toml
+[[rule]]
+kind = "class"
+class = "custom:url"
+action = "preserve"
+```
+
+PII that other recognizers find inside a preserved URL (emails, IPs, …) is
+still tokenized on gaze ≥ 0.15, but anything only the URL recognizer would have
+covered (e.g. a name in a URL path) then reaches the model raw.
 
 ## v0.12.0 → v0.13.0
 

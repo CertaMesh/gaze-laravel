@@ -75,9 +75,11 @@ return [
     /*
      * Locale hint forwarded to `gaze clean` as `--locale=<value>`. The value
      * is passed verbatim, and upstream parses it as a comma-separated,
-     * priority-ordered BCP47 fallback chain — so both a single locale
-     * (`GAZE_LOCALE=de`) and a chain (`GAZE_LOCALE=de-DE,en`) work; earlier
-     * entries win. Null passes no flag.
+     * priority-ordered BCP47 fallback chain (e.g. `GAZE_LOCALE=de-DE,en-US`);
+     * earlier entries win. It REPLACES the policy's `[locale] active` chain, so
+     * use full BCP47 tags: a bare `de` does not activate the `de-DE`-bound
+     * recognizers (German national phone numbers, postal codes). Null passes
+     * no flag and keeps the policy's chain.
      */
     'locale' => env('GAZE_LOCALE'),
 
@@ -94,8 +96,11 @@ return [
      * Comma-separated list of bundled rulepack names forwarded as `--rulepack-bundled=`
      * flags. Replaces the policy's `[policy.rulepacks] bundled` list, so keep
      * `core` in it (e.g. `GAZE_RULEPACKS=core,secrets` opts into the credential
-     * recognizers upstream moved out of `core` in gaze 0.15.0). `none` disables
-     * every bundled pack.
+     * recognizers upstream moved out of `core` in gaze 0.15.0). Forwarded on
+     * both the one-shot and the daemon path. DANGER: `none` (accepted since
+     * gaze 0.15) disables every bundled pack — cleans then succeed without
+     * detecting emails, phones, IBANs or cards. `gaze:doctor` warns whenever
+     * the list lacks `core`.
      */
     'rulepacks' => array_filter(explode(',', env('GAZE_RULEPACKS', ''))),
 
@@ -145,8 +150,9 @@ return [
          *     a gaze binary built with upstream's `safety-net-openai` feature
          *     (the release binaries are not).
          *   - `nym` — compiled into the release binary. Fetch the bundle with
-         *     `gaze setup --safety-net nym`; the binary locates it through
-         *     `GAZE_NYM_MODEL_DIR` in its own process environment.
+         *     `gaze setup --safety-net nym` and name its directory in the
+         *     policy's `[safety_net.nym] model_dir` (or in `GAZE_NYM_MODEL_DIR`
+         *     in the worker's real process environment).
          *
          * `kiji-distilbert` was removed upstream in gaze 0.15.0; the adapter
          * refuses it before spawning. Null omits the flag and lets upstream
@@ -237,11 +243,12 @@ return [
      * false = upstream default (telemetry off); this surface adds no detection
      * logic — it only forwards the upstream flag.
      *
-     * CAVEAT: two of the upstream audit columns — restore_fresh_pii_count and
-     * restore_manifest_bypass_count — are ALWAYS 0 through the stock gaze CLI,
-     * because gaze-cli's run_restore never enables the Phase-B DLP builder. This
-     * surface ships for restore-decision and unknown-token audit trails, NOT for
-     * outbound-DLP fresh-PII detection. Do not rely on it for DLP.
+     * CAVEAT: restore_fresh_pii_count is ALWAYS 0 through the stock gaze CLI,
+     * because gaze-cli's run_restore never enables the Phase-B DLP builder, and
+     * restore_manifest_bypass_count only counts identifier-shaped literals
+     * restore passed through. This surface ships for restore-decision and
+     * unknown-token audit trails, NOT for outbound-DLP fresh-PII detection. Do
+     * not rely on it for DLP.
      */
     'restore_telemetry' => env('GAZE_RESTORE_TELEMETRY'),
 

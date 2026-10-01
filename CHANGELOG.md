@@ -23,20 +23,21 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   shipped in the binary but were not reachable through the adapter, because it
   always passes `--policy` and never enables the prefix cache: the
   `--rulepack-path` no-policy leak (#545) and the stale prefix-cache leak
-  (#579). **Model ownership:** gaze verifies that safety-net model bundles
-  (Nym, OPF checkpoints) are owned by the effective user running `gaze`, and
-  Nym bundles must sit in a `0700` directory. `gaze setup` refuses foreign-owned
-  bundles. Under PHP-FPM that user is the pool user, not the deploy user who ran
+  (#579). **Model ownership:** gaze verifies safety-net model bundles (Nym, OPF
+  checkpoints) recursively against the effective user running `gaze`: every
+  file and directory owned by that user, directories `0700`, no group- or
+  world-writable files, no symlinks (OPF since 0.13 #422, Nym since 0.15).
+  `gaze setup` refuses foreign-owned bundles. Under PHP-FPM that user is the pool user, not the deploy user who ran
   `artisan`. The `[ner]` model directory installed by `gaze:install:ner` is not
   owner-checked by `gaze clean` at this pin.
   Behaviour changes adopters can observe without touching config:
   strict restore no longer throws `GazeUnknownTokenException` on
   identifier-shaped literals (#473); a corrupt NER model now fails `clean` with
   `GazePipelineException` instead of silently skipping names (#474);
-  `GAZE_LOCALE` no longer suppresses format-based identifiers (#423/#424);
+  `GAZE_LOCALE` no longer suppresses format-based identifiers (#423);
   token streams change (one token per entity, #628); `gaze:proxy:start`
   now actually applies `gaze.proxy.policy_path` / `rulepack` / `upstream.*`
-  (#437/#441); audit DBs gain a nullable `restore_trap_shape_count` column on
+  (#441); audit DBs gain a nullable `restore_trap_shape_count` column on
   the first 0.15 write (even `audit purge --dry-run` migrates them — rolling
   back to 0.12.0 stays safe) and `export()` rows now carry the `restore_*`
   fields (#555); a policy with `schema_version = "0.1"` no longer loads — use
@@ -61,6 +62,13 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ### Added
 
+- **`gaze daemon` now honours `GAZE_RULEPACKS` / `GAZE_RULEPACK_PATHS`**
+  (`--rulepack-bundled` / `--rulepack-path`, accepted on the daemon since gaze
+  0.13, #446). Before, a configured override — e.g. `core,secrets` — protected
+  one-shot cleans but not daemon cleans. Closes #158.
+- **`gaze:doctor` warns when `gaze.rulepacks` lacks `core`.** The override
+  replaces the policy's bundled list, and since gaze 0.15 `none` is accepted
+  and detects nothing, so such a config fails open on every clean.
 - **`GazeSafetyNetUsageException` for upstream's new `SafetyNetUsage` error
   variant** (gaze >= 0.15.0, exit 2). The binary now rejects contradictory
   safety-net flag combinations — `--safety-net-backend` without exactly one
@@ -90,10 +98,14 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   (upstream #641) that the adapter never surfaces, because it discards stderr
   on success. Upstream classifies a `preserve` default as a leak and switched
   its own `gaze setup` policy to `tokenize` (upstream #635). The explicit class
-  rules stay. Expect more tokens — notably whole URLs now come back as
-  `Custom:url` tokens and restore exactly. New integration tests pin both the
-  tokenize default and the absence of the upstream warning. **Published
-  policies do not update themselves — see UPGRADING.md.**
+  rules stay. Expect more tokens — notably URLs now come back as `Custom:url`
+  tokens and restore exactly. Upstream's URL token runs to the next whitespace,
+  so in minified JSON it also covers the fields after a URL (restore stays
+  exact; UPGRADING.md shows the explicit-preserve opt-out and its trade-off).
+  New integration tests pin both the tokenize default and the absence of the
+  upstream warning. **Every existing install runs its own `policy.toml` copy,
+  which does not update itself — see UPGRADING.md.** `gaze:doctor` now warns
+  while the configured policy's fall-through rule is `preserve` (or missing).
 
 ### Deprecated
 
@@ -156,14 +168,19 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `kiji-distilbert` selector on a disabled net, `safety_net.kiji.*` or flat
   `kiji_*` keys, `daemon.kiji_distilbert_locales`, or the Kiji env vars.
 - **Migration:** turn the safety net off, or move to Nym (compiled into the
-  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`,
-  `GAZE_NYM_MODEL_DIR` set in the PHP worker's real process environment (not
-  only `.env` — `php artisan config:cache` stops `.env` from loading), bundle
-  fetched with `gaze setup --safety-net nym`. See
+  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`, the
+  bundle fetched with `gaze setup --safety-net nym` as the user that runs gaze,
+  and its directory named in the policy's `[safety_net.nym] model_dir` (or in
+  `GAZE_NYM_MODEL_DIR` in the worker's real process environment — `.env` alone
+  vanishes under `config:cache`). Code that constructs `GazeOptions`
+  positionally must switch to named arguments. See
   [UPGRADING.md](UPGRADING.md#kiji-safety-net-removed-breaking).
 
 ### Fixed
 
+- **`gaze:doctor --deep` no longer passes vacuously.** It only checked that
+  restore returned the probe email; it now also requires `clean()` to have
+  masked it, so a pipeline that detects nothing fails the deep check.
 - **`--safety-net-backend` is forwarded only when the safety net is enabled**,
   on both `Gaze::clean()` and the daemon spawn paths (`DaemonArgv`: the
   `Gaze::daemon()` binding and `gaze:daemon:serve`). With
