@@ -173,3 +173,25 @@ it('loads without the upstream preserve fall-through warning', function () {
 
     expect($process->getErrorOutput())->not->toContain('policy preserves');
 });
+
+it('closes the leaks the 0.12.0 pin shipped raw through the published policy', function (string $text, array $raw) {
+    // Each fixture reached the model raw at the 0.12.0 pin and is tokenized at
+    // the 0.15.1 pin: payment cards with touching digits (upstream #658 — still
+    // raw on 0.15.0, hence the .1 pin), IBANs followed by a BIC label or glued
+    // to one (#622, #626), NBSP-grouped IBANs (#647), and national IDs under
+    // JSON keys (#647 + the tokenize default).
+    $gaze = $this->app->make(Gaze::class);
+    $session = $gaze->clean($text);
+
+    foreach ($raw as $value) {
+        expect($session->cleanText)->not->toContain($value);
+    }
+
+    expect($gaze->restore($session, $session->cleanText))->toBe($text);
+})->with([
+    'card followed by a CVV' => ['Karte 4111 1111 1111 1111 123 gültig 12/28.', ['4111 1111 1111 1111']],
+    'IBAN followed by a BIC label' => ['IBAN AT611904300234573201 BIC: OPSKATWW.', ['AT611904300234573201', 'AT61']],
+    'IBAN glued to a BIC label' => ['Konto DE89370400440532013000BIC COBADEFFXXX.', ['DE89370400440532013000']],
+    'NBSP-grouped IBAN' => ["IBAN DE89\u{00A0}3704\u{00A0}0044\u{00A0}0532\u{00A0}0130\u{00A0}00 bitte.", ["DE89\u{00A0}3704", "0532\u{00A0}0130"]],
+    'national IDs under JSON keys' => ['{"bsn":"111222333","nhs":"9434765919"}', ['111222333', '9434765919']],
+]);
