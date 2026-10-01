@@ -3,7 +3,7 @@
 [![Latest Stable Version](https://img.shields.io/packagist/v/certamesh/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/certamesh/gaze-laravel)
 [![Total Downloads](https://img.shields.io/packagist/dt/certamesh/gaze-laravel.svg?style=flat-square)](https://packagist.org/packages/certamesh/gaze-laravel)
 ![PHP Version](https://img.shields.io/badge/PHP-%5E8.2-777BB4?style=flat-square&logo=php&logoColor=white)
-![Laravel Version](https://img.shields.io/badge/Laravel-11%20%7C%7C%2012%20%7C%7C%2013-FF2D20?style=flat-square&logo=laravel&logoColor=white)
+![Laravel Version](https://img.shields.io/badge/Laravel-12%20%7C%7C%2013-FF2D20?style=flat-square&logo=laravel&logoColor=white)
 [![Tests](https://img.shields.io/github/actions/workflow/status/CertaMesh/gaze-laravel/test.yml?branch=main&label=tests&style=flat-square)](https://github.com/CertaMesh/gaze-laravel/actions/workflows/test.yml)
 [![License](https://img.shields.io/github/license/CertaMesh/gaze-laravel?style=flat-square)](https://github.com/CertaMesh/gaze-laravel/blob/main/LICENSE)
 
@@ -44,7 +44,7 @@ re-implements pseudonymization in PHP.
 ## Requirements
 
 - PHP `^8.2`
-- Laravel `^11.0 || ^12.0 || ^13.0`
+- Laravel `^12.0 || ^13.0`
 - The `gaze` binary — `gaze:install` fetches the pinned build for you (see below),
   or supply your own on `PATH`, in `vendor/bin/gaze`, or via `GAZE_BINARY`.
 
