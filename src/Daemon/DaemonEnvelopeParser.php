@@ -5,19 +5,14 @@ declare(strict_types=1);
 namespace CertaMesh\Gaze\Daemon;
 
 use CertaMesh\Gaze\Exceptions\GazeDaemonException;
-use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
-use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
 
 /**
  * Maps one JSONL response line to either a `CleanResponse` (success) or
- * the appropriate `GazeDaemonException` subclass (error).
+ * a `GazeDaemonException` carrying the variant enum (error).
  *
- * Surface-distinct variants get dedicated exception subclasses so adopter
- * catch ladders can react differently:
- *
- *  - `Transport` → `GazeDaemonTransportException`  (broken pipe / EOF)
- *  - `Timeout`   → `GazeDaemonTimeoutException`    (per-request deadline)
- *  - others      → `GazeDaemonException` carrying the variant enum
+ * Every wire error is the base class. The `Transport` / `Timeout`
+ * subclasses belong to faults `DaemonClient` detects itself; upstream's
+ * safety-net `Timeout` is `SafetyNetTimeout`, not the request deadline.
  */
 final class DaemonEnvelopeParser
 {
@@ -65,10 +60,6 @@ final class DaemonEnvelopeParser
             ? $decoded['session_id']
             : null;
 
-        return match ($variant) {
-            DaemonErrorVariant::Transport => new GazeDaemonTransportException($detail, $sessionId, $decoded),
-            DaemonErrorVariant::Timeout => new GazeDaemonTimeoutException($detail, $sessionId, $decoded),
-            default => new GazeDaemonException($detail, $sessionId, $decoded, $variant),
-        };
+        return new GazeDaemonException($detail, $sessionId, $decoded, $variant);
     }
 }

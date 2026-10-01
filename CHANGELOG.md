@@ -49,6 +49,40 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   crashing with an uncaught exception (e.g. on a policy-level `ephemeral`
   scope). The row prints the exception message, which carries no input text.
 
+- **Daemon error envelopes keep their upstream meaning** (#162).
+  `DaemonErrorVariant` knew only `JsonMalformed` and `Pipeline`, so every other
+  `error` name `gaze daemon` writes became `Unknown`. Two names were worse than
+  `Unknown`. The safety net's `Timeout` was thrown as
+  `GazeDaemonTimeoutException`, as if `gaze.daemon.request_timeout_ms` had run
+  out. Its `Unavailable` read as a binary built without the `daemon` subverb.
+  New cases cover every name the v0.15.1 daemon can write: `ProtocolInvalid`
+  (blank session id), `PipelineInvariant`, and the safety-net failures
+  `SafetyNetSuspectedLeak`, `SafetyNetTimeout`, `SafetyNetUnavailable`,
+  `SafetyNetWeightsMissing`, `SafetyNetModelUnavailable`,
+  `SafetyNetModelIntegrityMismatch`, `SafetyNetInputTooLarge`,
+  `SafetyNetRuntime` and `SafetyNetInvalidOutput`. Each takes the wire name
+  plus a `SafetyNet` prefix, and `raw()['error']` keeps the wire name. All
+  are thrown as `GazeDaemonException`. A contract test pins the set against
+  upstream `commands/daemon.rs`. `PolicyConfig`, `SafetyNetConfig` and
+  `PolicyOpen` stay unmapped. The daemon raises them only at startup, on
+  stderr, before it reads stdin, so the client sees EOF
+  (`GazeDaemonTransportException`).
+
+  BC: no case is removed or renamed, and `Transport` / `Timeout` /
+  `Unavailable` keep their values. They now mean only the adapter's own
+  faults. If you caught `GazeDaemonTimeoutException`, or matched
+  `DaemonErrorVariant::Timeout` / `Unavailable`, to handle the daemon's
+  safety-net errors, match `SafetyNetTimeout` / `SafetyNetUnavailable` on
+  `GazeDaemonException` instead. `DaemonErrorVariant::fromWire('Transport')`
+  now returns `Unknown`, because upstream never writes that name. A `match()`
+  on the variant without a `default` arm, which the docs have always required,
+  must handle the new cases.
+- **Session-id mismatches and concurrent daemon requests now throw
+  `GazeDaemonTransportException`**, as the docs always said. They threw the base
+  `GazeDaemonException` with the `Transport` variant, so a
+  `catch (GazeDaemonTransportException)` missed them. The subclass extends the
+  base class, so existing `catch (GazeDaemonException)` blocks still match.
+
 
 ## [0.14.0] - 2026-10-01
 

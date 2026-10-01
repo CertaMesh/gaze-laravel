@@ -259,11 +259,21 @@ in `DaemonErrorVariant::Unknown` and would otherwise raise an unhandled
 | Variant | Origin | Exception subclass | Hint |
 |---|---|---|---|
 | `JsonMalformed` | upstream | `GazeDaemonException` | Adapter framing bug. Open an issue. |
+| `ProtocolInvalid` | upstream | `GazeDaemonException` | Blank session id. Caller bug — pass a non-empty id. |
 | `Pipeline` | upstream | `GazeDaemonException` | Upstream pipeline failed closed. Same fail-closed posture as one-shot. |
+| `PipelineInvariant` | upstream | `GazeDaemonException` | Upstream internal invariant broke. Report upstream. |
+| `SafetyNetSuspectedLeak` | upstream (`SuspectedLeak`) | `GazeDaemonException` | Safety net flagged a leak under `safety_net_mode=strict`. |
+| `SafetyNetTimeout` | upstream (`Timeout`) | `GazeDaemonException` | Safety-net backend exceeded `gaze.safety_net_timeout_ms`. Not the request ceiling. |
+| `SafetyNetInputTooLarge` | upstream (`InputTooLarge`) | `GazeDaemonException` | Input exceeds `gaze.safety_net_input_limit_bytes`. |
+| `SafetyNetUnavailable`, `SafetyNetWeightsMissing`, `SafetyNetModelUnavailable`, `SafetyNetModelIntegrityMismatch`, `SafetyNetRuntime`, `SafetyNetInvalidOutput` | upstream (name without the prefix) | `GazeDaemonException` | Safety-net backend or model failed. Fix the install, or check stderr. |
 | `Transport` | adapter | `GazeDaemonTransportException` | Broken pipe / EOF / mismatched session id. Doctor probe is the only place reconnect logic lives — hot path is fail-closed. |
 | `Timeout` | adapter | `GazeDaemonTimeoutException` | Per-request `gaze.daemon.request_timeout_ms` exceeded. Raise for cold first requests. |
 | `Unavailable` | adapter | `GazeDaemonFeatureUnsupportedException` | Binary missing the `daemon` subverb, i.e. older than gaze 0.9.0. Install the pinned binary (`php artisan gaze:install:binary --force`). |
-| `Unknown` | forward-compat | `GazeDaemonException` | New upstream variant; doctor logs an adopter warning when it appears on `gaze daemon --help`. |
+| `Unknown` | forward-compat | `GazeDaemonException` | Wire variant this adapter does not map yet; `raw()` keeps the envelope. |
+
+The daemon writes a safety-net failure's own variant as `error`, so those
+cases carry a `SafetyNet` prefix that keeps them apart from the adapter's
+`Timeout` / `Unavailable`. `raw()['error']` keeps the wire name.
 
 ```php
 use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
@@ -362,9 +372,6 @@ probe:
    than gaze 0.9.0) warns with the hint to install the pinned binary.
 2. Checks readability of `gaze.daemon.policy_path` and parent-dir
    writability of `gaze.daemon.audit_db_path` / `stderr_path` when set.
-3. (`--deep`) Diffs the upstream variant list against
-   `DaemonErrorVariant` cases. New variants surface as adopter warnings
-   so you can upgrade typed-handling proactively.
 
 ## Test Helpers
 
