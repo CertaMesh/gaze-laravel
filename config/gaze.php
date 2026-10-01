@@ -92,7 +92,10 @@ return [
 
     /*
      * Comma-separated list of bundled rulepack names forwarded as `--rulepack-bundled=`
-     * flags (e.g. `GAZE_RULEPACKS=names,emails`).
+     * flags. Replaces the policy's `[policy.rulepacks] bundled` list, so keep
+     * `core` in it (e.g. `GAZE_RULEPACKS=core,secrets` opts into the credential
+     * recognizers upstream moved out of `core` in gaze 0.15.0). `none` disables
+     * every bundled pack.
      */
     'rulepacks' => array_filter(explode(',', env('GAZE_RULEPACKS', ''))),
 

@@ -193,6 +193,48 @@ GAZE_SESSION_SCOPE=conversation
 
 ---
 
+### `gaze.rulepacks`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_RULEPACKS` (comma-separated) |
+| **PHP type** | `list<string>` |
+| **Default** | `[]` (the policy's `[policy.rulepacks] bundled` list applies) |
+
+Bundled rulepack names forwarded to `gaze clean` as one `--rulepack-bundled=<name>` flag each. Upstream ships `core`, `locale-de`, `locale-en`, `locale-br`, `locale-fr`, `locale-in`, `locale-nl`, `locale-uk` and `secrets`; `none` disables every bundled pack.
+
+**When to set:** To opt into the credential recognizers (API keys, security tokens) that gaze 0.15.0 moved out of `core` into the opt-in `secrets` pack (upstream #607).
+
+**Example:**
+
+```dotenv
+GAZE_RULEPACKS=core,secrets
+```
+
+**Caveat:** The list **replaces** the policy's `bundled` list instead of extending it. `GAZE_RULEPACKS=secrets` alone drops `core`, and IBANs, cards, emails and phone numbers reach the model raw. Always keep `core` in the list. The one-shot `Gaze::clean()` path forwards this key; `gaze daemon` does not yet (#158).
+
+---
+
+### `gaze.rulepack_paths`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_RULEPACK_PATHS` (comma-separated) |
+| **PHP type** | `list<string>` |
+| **Default** | `[]` |
+
+Filesystem paths to custom rulepack TOML files, forwarded as one `--rulepack-path=<path>` flag each. Since gaze 0.15.0 (#632) custom paths keep the `core` floor unless the policy sets `bundled = []` or you pass `GAZE_RULEPACKS=none`.
+
+**Example:**
+
+```dotenv
+GAZE_RULEPACK_PATHS=/etc/gaze/tenant.toml
+```
+
+**Caveat:** The classes a custom pack emits follow the policy's rules. The shipped policy tokenizes every class it does not name, so you only need explicit `[[rule]]` entries for classes you want to `preserve`.
+
+---
+
 ### `gaze.blob_encryption_key`
 
 | | |

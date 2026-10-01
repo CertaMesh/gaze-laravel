@@ -147,7 +147,9 @@ try {
 Soft-default behaviour: existing 0.6.x / 0.7.x policies that omit
 `schema_version` keep loading because upstream stamps the missing field with
 `DEFAULT_POLICY_SCHEMA_VERSION` (`"0.1.0"`). Adopters can opt into explicit
-pinning by adding `schema_version = "0.1"` to the top of `policy.toml`.
+pinning by adding `schema_version = "0.1.0"` to the top of `policy.toml`. Use
+the full `major.minor.patch` form: since gaze 0.15.0 (#576) a two-part
+`"0.1"` is refused with `PolicySchemaUnsupported` (`supported: "0.1."`).
 
 ### Safety-net and session-scope exceptions
 

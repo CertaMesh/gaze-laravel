@@ -373,7 +373,8 @@ on `composer update`.
 - **Existing `policy.toml` files keep loading.** Upstream v0.7.2
   introduces a top-level `schema_version` field but soft-defaults
   missing values to `0.1.0`, so 0.6.x policies stay drop-in. Pin
-  explicitly with `schema_version = "0.1"` at the top of `policy.toml`
+  explicitly with `schema_version = "0.1.0"` (not `"0.1"`, which gaze ≥ 0.15
+  refuses) at the top of `policy.toml`
   once you want the schema-drift gate to fail closed on future contract
   breaks.
 - **New typed exception `GazePolicySchemaUnsupportedException`** fires

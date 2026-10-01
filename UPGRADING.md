@@ -14,21 +14,79 @@ upcoming release in full; per-minor guides for earlier versions live in
 
 ### TL;DR
 
-1. **New `GazeSafetyNetUsageException`; `GazeUnsupportedSessionScopeException`
+1. **Binary pin `0.12.0` → `0.15.1` — run `php artisan gaze:install --force`.**
+   The new binary closes payment-card, IBAN and national-ID leaks that the
+   0.12.0 pin shipped raw. If you run a safety-net model, its files must be owned
+   by the user that executes gaze. See
+   [Binary pin 0.15.1](#binary-pin-0120--0151-what-changes-for-you).
+2. **New `GazeSafetyNetUsageException`; `GazeUnsupportedSessionScopeException`
    deprecated.** See [Error variants](#error-variants-safetynetusage-added-unsupportedsessionscope-deprecated).
-2. **Kiji safety net removed (BREAKING).** Upstream gaze 0.15.0 deleted the
+3. **Kiji safety net removed (BREAKING).** Upstream gaze 0.15.0 deleted the
    Kiji DistilBERT backend; an enabled `kiji-distilbert` backend now fails
    closed before spawning, and every Kiji config key, env var and installer
    option is gone. See [Kiji safety net removed](#kiji-safety-net-removed-breaking).
-3. **`--safety-net-backend` is forwarded only when the safety net is enabled.**
+4. **`--safety-net-backend` is forwarded only when the safety net is enabled.**
    No action needed: `GAZE_SAFETY_NET=false` with a leftover
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
    gaze >= 0.15.0.
-4. **Published-policy leak fix — action required if you published the
+5. **Published-policy leak fix — action required if you published the
    policy.** The shipped policy's default rule now tokenizes instead of
    preserving. Change the last rule of your copy; see
    [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
+
+### Binary pin 0.12.0 → 0.15.1: what changes for you
+
+1. **Re-install the binary.** `php artisan gaze:install --force` (or
+   `gaze:install:binary --force`). Until you do, `gaze:doctor` warns
+   `gaze binary reports v0.12.0 but this package pins v0.15.1`. If you
+   provision the binary yourself (`GAZE_BINARY`), take upstream v0.15.1 —
+   **not 0.15.0**, which still sends a payment card raw when a CVV, an expiry or
+   an order number touches it (upstream #658).
+2. **Why it matters.** Through the published policy, 0.12.0 sent these to the
+   model raw; 0.15.1 tokenizes them: cards with touching digits, IBANs followed
+   by or glued to a `BIC` label, NBSP-grouped IBANs, national IDs under JSON
+   keys. With a safety net on, a Resolve+Redact fallback could leave raw text
+   behind (upstream #584) — fixed. The upstream `--rulepack-path` no-policy leak
+   (#545) and the prefix-cache leak (#579) are fixed in the binary too; the
+   adapter never reached them (it always passes `--policy`).
+3. **Model ownership.** gaze checks that safety-net model files belong to the
+   **effective user that runs `gaze`**: Nym bundles must be owned by that user
+   and sit in a `0700` directory, and OPF checkpoints are owner-checked against
+   the effective uid since 0.13. Under PHP-FPM that user is the **pool user**
+   (often `www-data`), not the deploy user who ran `artisan`; queue workers
+   and `gaze:daemon:serve` run as their own users. Install or `chown -R` the
+   model directory as the user that runs gaze, e.g.
+   `sudo -u www-data gaze setup --safety-net nym --model-dir <private-dir>`.
+   `gaze setup` refuses a foreign-owned bundle and only repairs modes on
+   bundles the current user owns. The NER model `gaze:install:ner` writes is
+   not owner-checked by `gaze clean` at this pin, but run the installer as the
+   runtime user anyway so a future check doesn't break you.
+4. **Behaviour you may notice** (no config change needed):
+   - Strict `restore()` no longer throws `GazeUnknownTokenException` on
+     identifier-shaped literals such as `Kunde_7` (upstream #473). Placeholders
+     from your own or another session still fail closed.
+   - A corrupt or truncated NER model now fails `clean()` with
+     `GazePipelineException` instead of silently skipping names (#474).
+   - `GAZE_LOCALE` no longer hides format-based identifiers: a US-format phone
+     number is tokenized under `de-DE` too (#423/#424). To exclude a
+     recognizer, disable it in an adopter rulepack.
+   - Token streams change: one token per entity (e.g. one IBAN token where
+     there were two), and `entries` / `detections` count replacements (#628).
+     Session blobs created by 0.12.0 still restore on 0.15.1.
+   - `gaze:proxy:start` / `:restart` now apply `GAZE_PROXY_POLICY_PATH`,
+     `GAZE_PROXY_RULEPACK` and the upstream URLs to the background proxy; 0.12.0
+     silently ran it without your policy.
+   - Audit DB: the first 0.15 write adds a nullable `restore_trap_shape_count`
+     column, and so does `gaze:audit:purge --dry-run`. Rolling back to the
+     0.12.0 binary is safe. `export()` rows now carry the `restore_*` fields
+     (#555); positional `query()` consumers see one extra column.
+   - `schema_version = "0.1"` in a policy is refused (#576). Write `"0.1.0"`,
+     or omit the key.
+   - Credentials (API keys, tokens) moved to the opt-in `secrets` rulepack
+     (#607). The shipped policy never protected them. To opt in, set
+     `GAZE_RULEPACKS=core,secrets`. Never set `secrets` alone: the variable
+     replaces the policy's packs and would drop `core`.
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
 
