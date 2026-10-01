@@ -54,11 +54,11 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   composer/composer 2.10.2 → 2.10.3) and moves phpstan to 2.2.16, pint to 1.32.1,
   testbench to 11.3.0 and symfony/process / http-client to 8.1.7 / 8.1.8.
   `pestphp/pest` and `pestphp/pest-plugin-laravel` now accept `^3.0|^4.0|^5.0`.
-  Composer picks Pest 3 on PHP 8.2, Pest 4 on PHP 8.3 and on Laravel 11/12, and
+  Composer picks Pest 3 on PHP 8.2, Pest 4 on PHP 8.3 and on Laravel 12, and
   Pest 5 (PHPUnit 13) on PHP 8.4+ with Laravel 13. The suite runs unchanged on
-  all three. CI: the advisory-blocking override is now scoped to the Laravel 11
-  matrix legs (and the prefer-lowest job), so the 12/13 legs resolve with
-  advisory blocking on. GitHub Actions were already on their latest majors.
+  all three. CI: the Laravel 12/13 matrix legs resolve with advisory blocking
+  on; only the prefer-lowest job keeps the advisory override, to validate the
+  declared floors. GitHub Actions were already on their latest majors.
 
 ### Added
 
@@ -107,8 +107,25 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   which does not update itself — see UPGRADING.md.** `gaze:doctor` now warns
   while the configured policy's fall-through rule is `preserve` (or missing).
 
+### Removed (BREAKING)
+
+- **Laravel 11 support dropped.** Laravel 11 reached end of life on 2026-03-12
+  (security fixes ended), and every Laravel 11 release is now flagged by a
+  Composer security advisory (GHSA-jh5r-qr3c-85q8), so CI could only install it
+  with advisory blocking switched off. `illuminate/*` now require
+  `^12.0|^13.0` and `orchestra/testbench` `^10.0|^11.0`. The CI matrix drops the
+  `^11.0` legs and, with them, the advisory override the compat matrix needed;
+  only the prefer-lowest job keeps it, to validate the declared Laravel 12.0
+  floor. Composer will not install this release into a Laravel 11 app; stay on
+  gaze-laravel 0.13.x until you upgrade Laravel. Pre-1.0, so this lands on a
+  MINOR bump.
+
 ### Deprecated
 
+- **PHP 8.2 support ends with the first gaze-laravel release after
+  2026-12-31**, when PHP 8.2 leaves upstream security support. This release
+  and any further release in 2026 still install on PHP 8.2 (CI keeps the 8.2
+  legs and the prefer-lowest job). Plan the move to PHP 8.3+.
 - **`Variant::UnsupportedSessionScope` / `GazeUnsupportedSessionScopeException`.**
   Upstream deleted the variant in gaze 0.15.0 (#618). The adapter never reached
   it before that either: upstream only emitted it on the no-policy `gaze clean`
