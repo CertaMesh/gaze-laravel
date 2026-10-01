@@ -134,11 +134,9 @@ final class DaemonClient implements DaemonClientContract
     public function request(string $sessionId, string $text): CleanResponse
     {
         if ($this->busy) {
-            throw new GazeDaemonException(
+            throw new GazeDaemonTransportException(
                 'concurrent daemon request rejected; use scoped binding or a pool',
                 $sessionId,
-                [],
-                DaemonErrorVariant::Transport,
             );
         }
 
@@ -168,11 +166,10 @@ final class DaemonClient implements DaemonClientContract
             $response = $parsed;
 
             if ($response->sessionId !== $sessionId) {
-                throw new GazeDaemonException(
+                throw new GazeDaemonTransportException(
                     "daemon echoed mismatched session_id (sent={$sessionId}, got={$response->sessionId})",
                     $sessionId,
                     $response->raw,
-                    DaemonErrorVariant::Transport,
                 );
             }
 

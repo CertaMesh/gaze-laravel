@@ -34,6 +34,11 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   now returns `Unknown`, because upstream never writes that name. A `match()`
   on the variant without a `default` arm, which the docs have always required,
   must handle the new cases.
+- **Session-id mismatches and concurrent daemon requests now throw
+  `GazeDaemonTransportException`**, as the docs always said. They threw the base
+  `GazeDaemonException` with the `Transport` variant, so a
+  `catch (GazeDaemonTransportException)` missed them. The subclass extends the
+  base class, so existing `catch (GazeDaemonException)` blocks still match.
 
 ## [0.14.0] - 2026-10-01
 
