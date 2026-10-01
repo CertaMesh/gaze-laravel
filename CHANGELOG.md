@@ -4,6 +4,17 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Fixed
+
+- **Install hint and proxy docs no longer send adopters into a source build**
+  (#164). After every `gaze:install:binary` the adapter printed "gaze proxy is
+  opt-in … rebuild upstream with `cargo install gaze-cli --features proxy`",
+  and the proxy docs said the release binary lacks the feature. Upstream's
+  release build enables `document,proxy`, and both the 0.12.0 and 0.15.1
+  release binaries run `gaze proxy`. The hint now names the feature the release
+  binary really lacks (`safety-net-openai`, for the opf safety net); the docs
+  and the `gaze:doctor` hint point to `gaze:install --force` first.
+
 ## [0.14.0] - 2026-10-01
 
 ### Removed (BREAKING)

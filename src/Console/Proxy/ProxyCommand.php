@@ -19,9 +19,9 @@ use Illuminate\Process\Factory as ProcessFactory;
  * verb and (b) the verb-specific flag list assembled from config + artisan
  * options.
  *
- * Adopters need the upstream binary built with `cargo install gaze-cli
- * --features proxy` — the GitHub-release binary asset is built without the
- * feature.
+ * The `proxy` subcommand is feature-gated upstream; the GitHub-release
+ * binaries (what `gaze:install` downloads) are built with it. A self-built
+ * binary needs `cargo install gaze-cli --features proxy`.
  */
 abstract class ProxyCommand extends Command
 {

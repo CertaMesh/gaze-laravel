@@ -259,13 +259,13 @@ return [
      * exact `--flag` to the binary; null/empty omits the flag and lets the
      * binary fall back to its own config file (default `~/.config/gaze/proxy.toml`).
      *
-     * The upstream `proxy` subcommand is feature-gated. The GitHub-release
-     * binary asset is built WITHOUT `--features proxy`. Adopters that want
-     * `php artisan gaze:proxy:*` at runtime must rebuild upstream with:
+     * The upstream `proxy` subcommand is feature-gated, and the GitHub-release
+     * binaries `gaze:install` downloads are built WITH it (upstream's release
+     * build enables `document,proxy`). Only a self-built binary without the
+     * feature needs `cargo install gaze-cli --features proxy`; `gaze:doctor`
+     * says so when it detects one.
      *
-     *     cargo install gaze-cli --features proxy
-     *
-     * See `docs/proxy.md` for the full reference.
+     * See `docs/how-to/proxy-daemon.md` for the full reference.
      */
     'proxy' => [
         /*

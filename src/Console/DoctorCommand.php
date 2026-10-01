@@ -282,9 +282,9 @@ final class DoctorCommand extends Command
         }
 
         $this->warn(
-            'gaze proxy not available — rebuild upstream binary with: '
-            .'cargo install gaze-cli --features proxy. '
-            .'Adapter v0.8.1 proxy artisan commands will error on invocation.'
+            'gaze proxy not available — this binary was built without the proxy feature. '
+            .'Use the release binary (php artisan gaze:install --force) or rebuild with: '
+            .'cargo install gaze-cli --features proxy. The gaze:proxy:* commands will error until then.'
         );
     }
 

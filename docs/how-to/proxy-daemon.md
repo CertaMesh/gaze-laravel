@@ -8,8 +8,8 @@ the model's reply on the way back. Zero PII leaves the host.
 ## TL;DR
 
 ```bash
-# 1. Rebuild upstream with the proxy feature (one-time per host)
-cargo install gaze-cli --features proxy
+# 1. Install the pinned release binary (it includes the proxy feature)
+php artisan gaze:install
 
 # 2. Start the daemon
 php artisan gaze:proxy:start
@@ -17,15 +17,12 @@ php artisan gaze:proxy:start
 # 3. Point your LLM SDK at http://127.0.0.1:8787 instead of the provider
 ```
 
-> **Opt-in upstream feature.** The published GitHub-release `gaze` binary
-> asset is built **without** `--features proxy`, so the
-> `php artisan gaze:proxy:*` commands will fail with
-> `unrecognized subcommand 'proxy'` against a stock install. Run
-> `cargo install gaze-cli --features proxy` (and set `GAZE_BINARY` if you
-> install outside `vendor/bin/`) to enable it.
->
-> `php artisan gaze:doctor` will surface the exact hint when it detects
-> proxy configuration against a binary that lacks the feature.
+> **Feature-gated upstream, included in the release binaries.** Upstream's
+> release build enables `document,proxy`, so the binary `gaze:install`
+> downloads runs `php artisan gaze:proxy:*` as is. Only a self-built binary
+> without the feature needs `cargo install gaze-cli --features proxy` (set
+> `GAZE_BINARY` if you install outside `vendor/bin/`); `php artisan gaze:doctor`
+> surfaces that hint when it detects proxy configuration against such a binary.
 
 ## Config
 
@@ -102,12 +99,12 @@ adopter-set proxy configuration (any deviation from the package's default
 
 - **No probe.** All `gaze.proxy.*` keys at defaults — adopter is not
   using proxy. Doctor stays silent on proxy.
-- **`gaze proxy feature available`.** The binary on `PATH` is built with
-  `--features proxy`. Daemon commands will work.
+- **`gaze proxy feature available`.** The configured binary is built with
+  `--features proxy` (the release binaries are). Daemon commands will work.
 - **`gaze proxy not available — rebuild upstream binary with: cargo
   install gaze-cli --features proxy. ...`** The configured binary lacks
-  the feature. `php artisan gaze:proxy:*` will fail with
-  `unrecognized subcommand 'proxy'` until you rebuild.
+  the feature (a self-built binary). `php artisan gaze:proxy:*` will fail
+  until you rebuild or switch to the release binary (`gaze:install --force`).
 
 ## See also
 
