@@ -19,7 +19,7 @@ final class PolicyFile
 {
     /**
      * Parsed `[session] scope` per policy path, tagged with the stat
-     * fingerprint (mtime, size, inode) it was read under. Process-wide on
+     * fingerprint (mtime, ctime, size, inode, device) it was read under. Process-wide on
      * purpose: it holds no request state, and a changed file gets a new
      * fingerprint, so long-lived workers (Octane, queue workers) pick up a
      * policy edit on the next call. One entry per distinct path.
@@ -54,10 +54,14 @@ final class PolicyFile
      * The policy's raw `[session] scope` string, or null when the key is
      * absent, not a string, or the file cannot be read or parsed.
      *
-     * Cached by path and stat fingerprint, so the hot path costs one stat()
-     * and the TOML is parsed once per policy change. An edit that keeps the
-     * same mtime second, size, and inode is not seen until the next change;
-     * deploys that replace the file (new inode) or touch it are.
+     * Cached by path and stat fingerprint (mtime, ctime, size, inode,
+     * device), so a long-lived worker (Octane, queue) pays one stat() per
+     * call and parses once per policy change; ctime also catches a chmod.
+     * Under PHP-FPM the cache dies with the request, so the first call of
+     * each request reads the file — and skips the TOML parse entirely unless
+     * the body contains `ephemeral` (the only value this pre-flight acts on;
+     * the shipped policy never does). A failed read or parse is NOT cached,
+     * so a permissions fix takes effect on the next call.
      */
     public static function sessionScope(string $policyPath): ?string
     {
@@ -70,13 +74,34 @@ final class PolicyFile
             return null;
         }
 
-        $fingerprint = $stat['mtime'].':'.$stat['size'].':'.$stat['ino'];
+        $fingerprint = implode(':', [$stat['mtime'], $stat['ctime'], $stat['size'], $stat['ino'], $stat['dev']]);
         $cached = self::$sessionScopes[$policyPath] ?? null;
         if ($cached !== null && $cached['fingerprint'] === $fingerprint) {
             return $cached['scope'];
         }
 
-        $session = (self::decode($policyPath) ?? [])['session'] ?? null;
+        $body = @file_get_contents($policyPath);
+        if ($body === false) {
+            // Unreadable: not cached, the binary reports PolicyOpen itself.
+            return null;
+        }
+
+        if (! str_contains($body, 'ephemeral')) {
+            // Cheap negative: no value this pre-flight acts on can be set.
+            self::$sessionScopes[$policyPath] = ['fingerprint' => $fingerprint, 'scope' => null];
+
+            return null;
+        }
+
+        try {
+            /** @var array<string, mixed> $parsed */
+            $parsed = Toml::decode($body, asArray: true);
+        } catch (\Throwable) {
+            // Unparseable: not cached, the binary reports PolicyConfig itself.
+            return null;
+        }
+
+        $session = $parsed['session'] ?? null;
         $scope = is_array($session) && is_string($session['scope'] ?? null) ? $session['scope'] : null;
 
         self::$sessionScopes[$policyPath] = ['fingerprint' => $fingerprint, 'scope' => $scope];

@@ -14,8 +14,10 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   read the policy's `[session] scope` and throw the non-retryable
   `GazePolicyConfigDetailException` (exit 2, `stderrHash` null) before
   spawning. The read is cached per process by policy path and file fingerprint
-  (mtime, size, inode): one `stat()` per clean, one TOML parse per policy
-  change, picked up by long-lived workers without a restart. A
+  (mtime, ctime, size, inode, device): one `stat()` per clean in long-lived
+  workers, which pick up an edit without a restart. Under PHP-FPM the first
+  clean of a request reads the file and parses it only if it contains
+  `ephemeral`. Read or parse failures are never cached. A
   `conversation` / `persistent` override still wins over the policy, as
   `--session-scope` does upstream. An unreadable or unparseable policy is left
   to the binary, which reports `PolicyOpen` / `PolicyConfig` as before. The

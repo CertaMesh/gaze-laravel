@@ -202,3 +202,36 @@ it('caches the parsed scope per stat fingerprint and re-reads on an mtime change
     $gaze->clean('Hello Alice');
     Process::assertRanTimes(fn (): bool => true, 3);
 });
+
+it('does not cache a failed read, so a permissions fix takes effect at once', function () {
+    $path = tempnam(sys_get_temp_dir(), 'gaze-policy-').'.toml';
+    file_put_contents($path, "[session]\nscope = \"ephemeral\"\n");
+    chmod($path, 0000);
+
+    try {
+        if (is_readable($path)) {
+            $this->markTestSkipped('running as a user that can read mode-0000 files (root)');
+        }
+
+        expect(PolicyFile::sessionScope($path))->toBeNull();
+
+        chmod($path, 0644);
+
+        expect(PolicyFile::sessionScope($path))->toBe('ephemeral');
+    } finally {
+        @chmod($path, 0644);
+        @unlink($path);
+    }
+});
+
+it('skips the TOML parse when the policy cannot name ephemeral', function () {
+    $path = tempnam(sys_get_temp_dir(), 'gaze-policy-').'.toml';
+    // Invalid TOML on purpose: a parse would fail, the cheap negative never parses.
+    file_put_contents($path, "[session]\nscope = \"persistent\"\n[[[broken");
+
+    try {
+        expect(PolicyFile::sessionScope($path))->toBeNull();
+    } finally {
+        @unlink($path);
+    }
+});
