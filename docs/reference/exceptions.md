@@ -71,7 +71,7 @@ The `Install\Ner*` family lives under the `CertaMesh\Gaze\Install` namespace. Th
 | `GazeStdinParseException` | 1 | `NonRetryable` → fail | No | Binary could not parse the JSON sent on stdin |
 | `GazeOpsConfigException` | 2 | `NonRetryable` → fail | No | Abstract base for configuration-error subclasses |
 | `GazePolicyConfigException` | 2 | `NonRetryable` → fail | No | TOML policy file is syntactically invalid |
-| `GazePolicyConfigDetailException` | 2 | `NonRetryable` → fail | No | TOML policy file has a semantic validation error; exposes `detail(): ?string`. The adapter also throws it itself (exit 2, `stderrHash` null, binary never spawned) for `gaze.session_scope=ephemeral`, which `gaze clean` cannot export |
+| `GazePolicyConfigDetailException` | 2 | `NonRetryable` → fail | No | TOML policy file has a semantic validation error; exposes `detail(): ?string`. The adapter also throws it itself (exit 2, `stderrHash` null, binary never spawned) for `gaze.session_scope=ephemeral`, or a policy `[session] scope = "ephemeral"` with no override, which `gaze clean` cannot export |
 | `GazePolicySchemaUnsupportedException` | 2 | `NonRetryable` → fail | No | `policy.toml`'s `schema_version` major.minor prefix is outside the binary's supported range; exposes `found(): string` + `supported(): string` |
 | `GazeAuditPurgeIso8601Exception` | 2 | `NonRetryable` → fail | No | `--before` timestamp is not valid ISO 8601 UTC |
 | `GazeAuditDbNotConfiguredException` | N/A | `NonRetryable` → fail | No | `gaze.audit_db_path` is null and no per-call override given |
@@ -182,7 +182,7 @@ Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for thi
 
 `GazeUnsupportedSessionScopeException` is deprecated and never thrown: upstream only emitted `UnsupportedSessionScope` on the no-policy `gaze clean` path (the adapter always passes `--policy`) and removed the variant in gaze 0.15.0. Catch `GazePolicyConfigDetailException` for an invalid `--session-scope`. `attemptedScope()` still returns the `variant` sidecar if an older binary ever emits it.
 
-`GAZE_SESSION_SCOPE=ephemeral` also surfaces as `GazePolicyConfigDetailException`, thrown by the adapter before spawning. Without that pre-flight the binary answers with the retryable `GazePipelineException`, because gaze never exports an ephemeral session. A policy `[session] scope = "ephemeral"` still reaches the binary and fails with `GazePipelineException`; `gaze:doctor` warns about it. See [configuration](configuration.md#gazesession_scope).
+`GAZE_SESSION_SCOPE=ephemeral` also surfaces as `GazePolicyConfigDetailException`, thrown by the adapter before spawning. Without that pre-flight the binary answers with the retryable `GazePipelineException`, because gaze never exports an ephemeral session. A policy `[session] scope = "ephemeral"` with no `GAZE_SESSION_SCOPE` override is refused the same way, before spawning; `gaze:doctor` warns about it. A policy the adapter cannot read or parse is left to the binary, which reports `GazePolicyOpenException` / `GazePolicyConfigException` as before. See [configuration](configuration.md#gazesession_scope).
 
 ### `GazeInvalidBlobVersionException` + `GazeBlobExpiredException` (fresh clean required)
 

@@ -24,7 +24,7 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.15.1.
 | `--format=json` | Always set by `Gaze::clean()` |
 | `--max-bytes` | `gaze.max_bytes` / `GAZE_MAX_BYTES` |
 | `--session-ttl` | `gaze.session_ttl_seconds` / `GAZE_SESSION_TTL` |
-| `--session-scope` | `gaze.session_scope` / `GAZE_SESSION_SCOPE` — `conversation` / `persistent`. `ephemeral` is refused pre-flight: gaze never exports an ephemeral session, so `gaze clean` fails with `Pipeline` (see [configuration](configuration.md#gazesession_scope)). |
+| `--session-scope` | `gaze.session_scope` / `GAZE_SESSION_SCOPE` — `conversation` / `persistent`. `ephemeral` is refused pre-flight, as the override or (with no override) as the policy's `[session] scope`: gaze never exports an ephemeral session, so `gaze clean` fails with `Pipeline` (see [configuration](configuration.md#gazesession_scope)). |
 | `--audit-db` | `gaze.audit_db_path` / `GAZE_AUDIT_DB_PATH` |
 | `--locale` | `gaze.locale` / `GAZE_LOCALE` — passed verbatim. Upstream accepts a **comma-separated, priority-ordered fallback chain** (`--help`: "Active locale fallback chain, comma separated and priority ordered"), so `GAZE_LOCALE=de-DE,en` works today; a single BCP47 value is just a chain of one. |
 | `--ner-model-dir` (runtime) | **Not exposed.** Runtime override of policy `[ner].model_dir` on `gaze clean`. Deferred — the adapter only sets `model_dir` at install time via `gaze:install:ner` writing `policy.toml`. See [Deferred](#deferred). |
