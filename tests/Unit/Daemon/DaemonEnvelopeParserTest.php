@@ -50,23 +50,28 @@ it('returns GazeDaemonException for Pipeline wire variant', function () {
     }
 });
 
-it('returns GazeDaemonTransportException for Transport wire variant', function () {
+it('does not treat a Transport wire name as an adapter transport fault', function () {
     $line = gl_jsonEncode(['session_id' => 's1', 'error' => 'Transport', 'detail' => 'broken pipe']);
 
     $result = DaemonEnvelopeParser::parse($line);
 
-    expect($result)->toBeInstanceOf(GazeDaemonTransportException::class);
-    if ($result instanceof GazeDaemonTransportException) {
-        expect($result->daemonVariant())->toBe(DaemonErrorVariant::Transport);
+    expect($result)->toBeInstanceOf(GazeDaemonException::class)
+        ->not->toBeInstanceOf(GazeDaemonTransportException::class);
+    if ($result instanceof GazeDaemonException) {
+        expect($result->daemonVariant())->toBe(DaemonErrorVariant::Unknown);
     }
 });
 
-it('returns GazeDaemonTimeoutException for Timeout wire variant', function () {
-    $line = gl_jsonEncode(['session_id' => 's1', 'error' => 'Timeout', 'detail' => 'deadline exceeded']);
+it('maps the safety-net Timeout wire variant to SafetyNetTimeout, not the request deadline', function () {
+    $line = gl_jsonEncode(['session_id' => 's1', 'error' => 'Timeout', 'detail' => 'gaze daemon request failed closed']);
 
     $result = DaemonEnvelopeParser::parse($line);
 
-    expect($result)->toBeInstanceOf(GazeDaemonTimeoutException::class);
+    expect($result)->toBeInstanceOf(GazeDaemonException::class)
+        ->not->toBeInstanceOf(GazeDaemonTimeoutException::class);
+    if ($result instanceof GazeDaemonException) {
+        expect($result->daemonVariant())->toBe(DaemonErrorVariant::SafetyNetTimeout);
+    }
 });
 
 it('routes unknown wire variants to Unknown sink carrying raw payload', function () {

@@ -340,14 +340,38 @@ are exposed via `DaemonErrorVariant` so adopter `match()` ladders react
 per-variant. **`default` arm is required** — new wire variants land in
 `DaemonErrorVariant::Unknown`.
 
-| Wire variant | Exception subclass | Adapter posture |
-|---|---|---|
-| `JsonMalformed` | `GazeDaemonException` | Adapter framing bug |
-| `Pipeline` | `GazeDaemonException` | Upstream fail-closed |
-| `Transport` (adapter) | `GazeDaemonTransportException` | EOF / broken pipe / session id mismatch — fail-closed, no auto-reconnect |
-| `Timeout` (adapter) | `GazeDaemonTimeoutException` | Per-request `gaze.daemon.request_timeout_ms` exceeded |
-| `Unavailable` (adapter) | `GazeDaemonFeatureUnsupportedException` | Binary missing `daemon` subverb |
-| `Unknown` (forward-compat) | `GazeDaemonException` | New upstream variant; doctor logs adopter warning |
+Every wire variant the v0.15.1 daemon writes to stdout has its own case,
+pinned against upstream `commands/daemon.rs` by
+`tests/Contract/DaemonErrorVariantContractTest.php` (#162). The daemon writes
+a safety-net failure's own variant as `error`, so those cases carry a
+`SafetyNet` prefix. Without it, the safety net's `Timeout` and `Unavailable`
+would collide with the adapter-owned cases. All wire variants throw
+`GazeDaemonException`. The wire name stays in `raw()['error']`.
+
+| Wire variant | `DaemonErrorVariant` | Exception subclass | Adapter posture |
+|---|---|---|---|
+| `JsonMalformed` | `JsonMalformed` | `GazeDaemonException` | Adapter framing bug |
+| `ProtocolInvalid` | `ProtocolInvalid` | `GazeDaemonException` | Blank `session_id`; caller bug |
+| `Pipeline` | `Pipeline` | `GazeDaemonException` | Upstream fail-closed |
+| `PipelineInvariant` | `PipelineInvariant` | `GazeDaemonException` | Upstream internal invariant broke; report upstream |
+| `SuspectedLeak` | `SafetyNetSuspectedLeak` | `GazeDaemonException` | Safety net flagged a leak under `safety_net_mode=strict` |
+| `Timeout` | `SafetyNetTimeout` | `GazeDaemonException` | Safety-net backend exceeded `gaze.safety_net_timeout_ms`, **not** the request ceiling |
+| `InputTooLarge` | `SafetyNetInputTooLarge` | `GazeDaemonException` | Input exceeds `gaze.safety_net_input_limit_bytes` |
+| `Unavailable`, `WeightsMissing`, `ModelUnavailable`, `ModelIntegrityMismatch` | `SafetyNet` + wire name | `GazeDaemonException` | Safety-net backend or model unusable; fix the install |
+| `Runtime`, `InvalidOutput` | `SafetyNet` + wire name | `GazeDaemonException` | Safety-net backend failed at runtime |
+| n/a (adapter) | `Transport` | `GazeDaemonTransportException` | EOF / broken pipe / session id mismatch — fail-closed, no auto-reconnect |
+| n/a (adapter) | `Timeout` | `GazeDaemonTimeoutException` | Per-request `gaze.daemon.request_timeout_ms` exceeded |
+| n/a (adapter) | `Unavailable` | `GazeDaemonFeatureUnsupportedException` | Binary missing `daemon` subverb |
+| anything else | `Unknown` (forward-compat) | `GazeDaemonException` | New upstream variant; the raw envelope is kept |
+
+Deliberately unmapped (they land in `Unknown`): `PolicyConfig`,
+`SafetyNetConfig`, `PolicyOpen`, `Io` and `CliError` sit in upstream's
+`DaemonError::variant()` table, but no request can produce them at v0.15.1.
+Where those names do occur, they are startup errors, and so is
+`TolerantModeDisabled`. The daemon writes them to stderr as one-shot JSON and
+exits before it reads stdin. The client sees EOF
+(`GazeDaemonTransportException`), and the JSON line is kept only when
+`gaze.daemon.stderr_path` is set. `AuditWriteFailed` is stderr-only.
 
 ## Upstream v0.9.1 → v0.11.1 deltas
 

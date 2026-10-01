@@ -1,0 +1,95 @@
+<?php
+
+declare(strict_types=1);
+
+use CertaMesh\Gaze\Daemon\DaemonEnvelopeParser;
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+
+/**
+ * Source-of-truth fixture mirrored from upstream `crates/gaze-cli/src/commands/daemon.rs`
+ * for gaze v0.15.1. Each row pins one `error` name the daemon writes to stdout:
+ *   - 0: DaemonErrorVariant case name on the PHP side
+ *   - 1: the `{session_id, error, detail}` envelope upstream writes
+ *
+ * Where the names come from:
+ *   - JsonMalformed / ProtocolInvalid: `Daemon::handle_line`, before a session
+ *     exists, so `session_id` is null (verified against the real binary).
+ *   - Pipeline / PipelineInvariant: `DaemonError::variant()` for
+ *     `CliError::Pipeline` and `DaemonError::Invariant`.
+ *   - Everything else: `CliError::SafetyNetFailure { variant }`, written as
+ *     `error` verbatim — from `map_safety_net_error` (`pipeline/run.rs`) and,
+ *     for SuspectedLeak, `enforce_safety_net_mode`. Wire `Timeout` and
+ *     `Unavailable` are the safety net's, not the adapter's request deadline or
+ *     missing `daemon` subverb, hence the `SafetyNet` prefix on every such case.
+ *
+ * The dataset key is the wire name.
+ */
+const UPSTREAM_DAEMON_ERRORS = [
+    'JsonMalformed' => ['JsonMalformed', ['session_id' => null, 'error' => 'JsonMalformed', 'detail' => 'malformed JSON line']],
+    'ProtocolInvalid' => ['ProtocolInvalid', ['session_id' => null, 'error' => 'ProtocolInvalid', 'detail' => 'missing session_id']],
+    'Pipeline' => ['Pipeline', ['session_id' => 's1', 'error' => 'Pipeline', 'detail' => 'gaze daemon request failed closed']],
+    'PipelineInvariant' => ['PipelineInvariant', ['session_id' => 's1', 'error' => 'PipelineInvariant', 'detail' => 'unexpected non-text clean document']],
+    'SuspectedLeak' => ['SafetyNetSuspectedLeak', ['session_id' => 's1', 'error' => 'SuspectedLeak', 'detail' => 'gaze daemon request failed closed']],
+    'Unavailable' => ['SafetyNetUnavailable', ['session_id' => 's1', 'error' => 'Unavailable', 'detail' => 'gaze daemon request failed closed']],
+    'WeightsMissing' => ['SafetyNetWeightsMissing', ['session_id' => 's1', 'error' => 'WeightsMissing', 'detail' => 'gaze daemon request failed closed']],
+    'ModelUnavailable' => ['SafetyNetModelUnavailable', ['session_id' => 's1', 'error' => 'ModelUnavailable', 'detail' => 'gaze daemon request failed closed']],
+    'ModelIntegrityMismatch' => ['SafetyNetModelIntegrityMismatch', ['session_id' => 's1', 'error' => 'ModelIntegrityMismatch', 'detail' => 'gaze daemon request failed closed']],
+    'InputTooLarge' => ['SafetyNetInputTooLarge', ['session_id' => 's1', 'error' => 'InputTooLarge', 'detail' => 'gaze daemon request failed closed']],
+    'Timeout' => ['SafetyNetTimeout', ['session_id' => 's1', 'error' => 'Timeout', 'detail' => 'gaze daemon request failed closed']],
+    'Runtime' => ['SafetyNetRuntime', ['session_id' => 's1', 'error' => 'Runtime', 'detail' => 'gaze daemon request failed closed']],
+    'InvalidOutput' => ['SafetyNetInvalidOutput', ['session_id' => 's1', 'error' => 'InvalidOutput', 'detail' => 'gaze daemon request failed closed']],
+];
+
+/**
+ * Adapter-owned cases: the three faults `DaemonClient` raises itself, plus the
+ * `Unknown` sink. No wire name maps to the first three.
+ */
+const ADAPTER_DAEMON_VARIANTS = ['Transport', 'Timeout', 'Unavailable', 'Unknown'];
+
+/**
+ * Upstream daemon error names deliberately NOT mapped; they land in `Unknown`:
+ *   - SafetyNetConfig, PolicyConfig, PolicyOpen, Io, CliError: listed in
+ *     `DaemonError::variant()`, but no `clean_request` path builds those
+ *     `CliError`s at 0.15.1 (`CliError` is the catch-all name). All but
+ *     `CliError` do occur at startup (`Daemon::new`), as one-shot stderr JSON
+ *     before the daemon exits; the client then reads EOF →
+ *     `GazeDaemonTransportException`.
+ *   - TolerantModeDisabled: a `SafetyNetFailure` raised only in `Daemon::new`.
+ *   - Unknown: `map_safety_net_error`'s arm for a future `SafetyNetError`
+ *     variant (dead at 0.15.1, every variant is matched); it is the sink anyway.
+ *   - AuditWriteFailed: a failed eviction audit write (#570), stderr only.
+ */
+const UNMAPPED_DAEMON_ERRORS = ['SafetyNetConfig', 'PolicyConfig', 'PolicyOpen', 'Io', 'CliError', 'TolerantModeDisabled', 'Unknown', 'AuditWriteFailed'];
+
+it('upstream daemon error maps to its own case', function (string $case, array $envelope) {
+    expect(DaemonErrorVariant::fromWire($envelope['error']))
+        ->toBe(constant(DaemonErrorVariant::class.'::'.$case));
+})->with(UPSTREAM_DAEMON_ERRORS);
+
+it('parses the upstream envelope into a base GazeDaemonException', function (string $case, array $envelope) {
+    $result = DaemonEnvelopeParser::parse(json_encode($envelope, JSON_THROW_ON_ERROR));
+
+    expect($result)->toBeInstanceOf(GazeDaemonException::class)
+        ->and($result::class)->toBe(GazeDaemonException::class);
+    if ($result instanceof GazeDaemonException) {
+        expect($result->daemonVariant())->toBe(constant(DaemonErrorVariant::class.'::'.$case))
+            ->and($result->sessionId())->toBe($envelope['session_id'])
+            ->and($result->getMessage())->toBe($envelope['detail']);
+    }
+})->with(UPSTREAM_DAEMON_ERRORS);
+
+it('PHP enum is exactly the upstream set plus the adapter-owned cases (catches drift both ways)', function () {
+    $expectedNames = [...array_map(fn (array $row) => $row[0], array_values(UPSTREAM_DAEMON_ERRORS)), ...ADAPTER_DAEMON_VARIANTS];
+    $actualNames = array_map(fn (DaemonErrorVariant $v) => $v->name, DaemonErrorVariant::cases());
+    sort($expectedNames);
+    sort($actualNames);
+
+    expect($actualNames)->toBe($expectedNames);
+});
+
+it('routes every other wire name to Unknown, adapter-only names included', function () {
+    foreach ([...UNMAPPED_DAEMON_ERRORS, 'Transport'] as $wire) {
+        expect(DaemonErrorVariant::fromWire($wire))->toBe(DaemonErrorVariant::Unknown, "wire name {$wire}");
+    }
+});

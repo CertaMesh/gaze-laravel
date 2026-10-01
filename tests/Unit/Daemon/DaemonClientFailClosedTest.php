@@ -48,6 +48,9 @@ it('throws when daemon echoes a different session_id (no silent payload swap)', 
         $client->request('expected', 'hi');
         throw new RuntimeException('did not throw');
     } catch (GazeDaemonException $e) {
+        // The documented Transport subclass, so `catch (GazeDaemonTransportException)`
+        // ladders see a session swap like any other broken framing.
+        expect($e)->toBeInstanceOf(GazeDaemonTransportException::class);
         expect($e->daemonVariant())->toBe(DaemonErrorVariant::Transport);
         expect($e->getMessage())->toContain('mismatched session_id');
     }
