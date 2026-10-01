@@ -142,8 +142,9 @@ return [
          *     a gaze binary built with upstream's `safety-net-openai` feature
          *     (the release binaries are not).
          *   - `nym` — compiled into the release binary. Fetch the bundle with
-         *     `gaze setup --safety-net nym`; the binary locates it through
-         *     `GAZE_NYM_MODEL_DIR` in its own process environment.
+         *     `gaze setup --safety-net nym` and name its directory in the
+         *     policy's `[safety_net.nym] model_dir` (or in `GAZE_NYM_MODEL_DIR`
+         *     in the worker's real process environment).
          *
          * `kiji-distilbert` was removed upstream in gaze 0.15.0; the adapter
          * refuses it before spawning. Null omits the flag and lets upstream

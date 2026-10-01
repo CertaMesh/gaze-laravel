@@ -75,8 +75,9 @@ to Nym:
    ```
 
    `gaze setup` also writes a starter policy (`./gaze.toml` unless you pass
-   `--policy-out`); the adapter keeps using `GAZE_POLICY_PATH`, so you can
-   discard it.
+   `--policy-out`). The adapter keeps using `GAZE_POLICY_PATH`; take only the
+   `[safety_net.nym]` table (it names the bundle directory) from it, then
+   discard the file.
 
 2. **Select the backend:**
 
@@ -85,16 +86,27 @@ to Nym:
    GAZE_SAFETY_NET_BACKEND=nym
    ```
 
-3. **Point the binary at the bundle directory with `GAZE_NYM_MODEL_DIR` in
-   the real process environment of the PHP worker** — systemd `Environment=`,
-   supervisord `environment=`, the container's `ENV`, or PHP-FPM's
-   `env[GAZE_NYM_MODEL_DIR]`. The adapter has no config key for it; the gaze
-   subprocess reads it from the environment it inherits. A line in `.env`
-   alone is not enough: `php artisan config:cache` stops Laravel from loading
-   `.env` at all, so the inherited variable silently vanishes in production.
-   Without it, clean fails with `GazeSafetyNetConfigException`
-   (`nym model_dir is missing`); a set but empty or wrong directory fails with
-   `GazeSafetyNetArtifactMissingException` (`backend()` = `nym`).
+3. **Point the binary at the bundle directory in your policy** (the file
+   `GAZE_POLICY_PATH` names — the adapter always passes it as `--policy`):
+
+   ```toml
+   [safety_net.nym]
+   model_dir = "/var/lib/gaze/nym"
+   ```
+
+   This survives `php artisan config:cache` and needs no process environment.
+   The adapter has no config key for the bundle path yet (#157). Alternative:
+   set `GAZE_NYM_MODEL_DIR` in the **real process environment** of the PHP
+   worker (systemd `Environment=`, supervisord `environment=`, the container's
+   `ENV`, or PHP-FPM's `env[GAZE_NYM_MODEL_DIR]`) — a line in `.env` alone is
+   not enough, because `config:cache` stops Laravel from loading `.env`, so the
+   inherited variable silently vanishes in production. With neither, clean
+   fails with `GazeSafetyNetConfigException` (`nym model_dir is missing`); an
+   empty or wrong directory fails with `GazeSafetyNetArtifactMissingException`
+   (`backend()` = `nym`, `path()` = `<missing:SHA256SUMS> (install via …)`).
+
+   Keep the on/off switch in one place: a policy `[safety_net] backend = "nym"`
+   table turns Nym on even while `GAZE_SAFETY_NET=false`.
 
 4. Remove the `GAZE_KIJI_*` env vars and any `kiji` block from a published
    `config/gaze.php`, run `php artisan config:clear` (or re-cache), then
@@ -191,9 +203,9 @@ SafetyNet failures map onto three typed exceptions. All three sit under the
 
 | Exception | When raised | Exit | Retry policy | Accessors |
 |---|---|---|---|---|
-| `GazeSafetyNetConfigException` | Config invalid: a backend subprocess/config error upstream (exit 3), a Nym setup error such as an unset `GAZE_NYM_MODEL_DIR` (exit 2, gaze >= 0.15.0), or the adapter's pre-flight for an enabled `kiji-distilbert` backend (exit 2, no stderr — the binary never ran). | 3 / 2 | NonRetryable | inherited |
+| `GazeSafetyNetConfigException` | Config invalid: a backend subprocess/config error upstream (exit 3), a Nym setup error such as no bundle directory configured (exit 2, gaze >= 0.15.0), or the adapter's pre-flight for an enabled `kiji-distilbert` backend (exit 2, no stderr — the binary never ran). | 3 / 2 | NonRetryable | inherited |
 | `GazeSafetyNetFailureException` | Backend ran but failed (`Timeout`, `WeightsMissing`, `InputTooLarge`, `Unsupported`, `SuspectedLeak`, `Runtime`, `InvalidOutput`, `ModelUnavailable`, `Unavailable`, `Other`). | 3 | varies — implements `HasRetryDisposition`; classify via `GazeRetryPolicy::classify()` or `retryDisposition()` | `safetyNetVariant(): string` |
-| `GazeSafetyNetArtifactMissingException` (v0.9.0 new) | Backend's pinned artifact bundle is missing or incomplete — e.g. `GAZE_NYM_MODEL_DIR` points at a directory without the Nym bundle. | 2 | NonRetryable | `backend(): string`, `path(): string` |
+| `GazeSafetyNetArtifactMissingException` (v0.9.0 new) | Backend's pinned artifact bundle is missing or incomplete — e.g. the policy's `[safety_net.nym] model_dir` (or `GAZE_NYM_MODEL_DIR`) points at a directory without the Nym bundle; `path()` is upstream's `<missing:SHA256SUMS> (install via …)` placeholder, not the directory. | 2 | NonRetryable | `backend(): string`, `path(): string` |
 
 Use `GazeRetryPolicy::classify()` to route exceptions onto your queue's
 retry / fail / alert lanes:

@@ -44,6 +44,10 @@ Both stay until 1.0.
 
 ### Kiji safety net removed (BREAKING)
 
+> If you construct `GazeOptions` yourself: four parameters were removed from
+> the middle of its constructor. Pass arguments **by name** — positional
+> arguments after `safetyNetBackend` would shift silently.
+
 Upstream gaze 0.15.0 deleted the Kiji DistilBERT safety net and every
 `--kiji-*` flag ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)).
 A 0.15 binary rejects them with a bare `PolicyConfig` error, so v0.14.0:
@@ -77,12 +81,22 @@ Migration:
      1. As the user that runs gaze (PHP-FPM / queue worker), fetch the bundle
         with the adapter's binary: `vendor/bin/gaze setup --safety-net nym`.
      2. Set `GAZE_SAFETY_NET=true` and `GAZE_SAFETY_NET_BACKEND=nym`.
-     3. Set `GAZE_NYM_MODEL_DIR` to the bundle directory in the **real process
-        environment** of the PHP worker — systemd `Environment=`, supervisord
-        `environment=`, the container's `ENV`, or PHP-FPM `env[...]`. The gaze
-        subprocess inherits it; the adapter has no config key for it. A `.env`
-        entry alone is not enough: `php artisan config:cache` stops `.env`
-        from being loaded, so the inherited variable would vanish.
+     3. Name the bundle directory in your published policy — the
+        `[safety_net.nym]` table `gaze setup` writes into its starter
+        `gaze.toml`:
+
+        ```toml
+        [safety_net.nym]
+        model_dir = "/var/lib/gaze/nym"
+        ```
+
+        The adapter always passes `--policy`, so this survives
+        `php artisan config:cache`. Alternatively set `GAZE_NYM_MODEL_DIR` in
+        the worker's **real process environment** (systemd `Environment=`,
+        supervisord `environment=`, container `ENV`, PHP-FPM `env[...]`); a
+        `.env` entry alone vanishes under `config:cache`. A policy
+        `[safety_net] backend = "nym"` table would turn Nym on even with
+        `GAZE_SAFETY_NET=false` — keep the switch in one place.
 
      First-class Nym config and installer support is tracked in
      [#157](https://github.com/CertaMesh/gaze-laravel/issues/157).
