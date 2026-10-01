@@ -201,7 +201,7 @@ GAZE_SESSION_SCOPE=conversation
 | **PHP type** | `list<string>` |
 | **Default** | `[]` (the policy's `[policy.rulepacks] bundled` list applies) |
 
-Bundled rulepack names forwarded to `gaze clean` as one `--rulepack-bundled=<name>` flag each. Upstream ships `core`, `locale-de`, `locale-en`, `locale-br`, `locale-fr`, `locale-in`, `locale-nl`, `locale-uk` and `secrets`; `none` disables every bundled pack.
+Bundled rulepack names forwarded to `gaze clean` and `gaze daemon` as one `--rulepack-bundled=<name>` flag each. Upstream ships `core`, `locale-de`, `locale-en`, `locale-br`, `locale-fr`, `locale-in`, `locale-nl`, `locale-uk` and `secrets`. **Do not use `none`:** since gaze 0.15 it is accepted and disables every bundled pack, so cleans succeed with no detection (gaze 0.12 rejected it).
 
 **When to set:** To opt into the credential recognizers (API keys, security tokens) that gaze 0.15.0 moved out of `core` into the opt-in `secrets` pack (upstream #607).
 
@@ -211,7 +211,7 @@ Bundled rulepack names forwarded to `gaze clean` as one `--rulepack-bundled=<nam
 GAZE_RULEPACKS=core,secrets
 ```
 
-**Caveat:** The list **replaces** the policy's `bundled` list instead of extending it. `GAZE_RULEPACKS=secrets` alone drops `core`, and IBANs, cards, emails and phone numbers reach the model raw. Always keep `core` in the list. The one-shot `Gaze::clean()` path forwards this key; `gaze daemon` does not yet (#158).
+**Caveat:** The list **replaces** the policy's `bundled` list instead of extending it. `GAZE_RULEPACKS=secrets` alone drops `core`, and IBANs, cards, emails and phone numbers reach the model raw. Always keep `core` in the list — `gaze:doctor` warns when it is missing. Both `Gaze::clean()` and the daemon (`Gaze::daemon()`, `gaze:daemon:serve`) forward this key. Known gap in the upstream `secrets` pack: after a cue word (`Bearer eyJ…`) only the JWT header is tokenized; payload and signature stay raw (#175).
 
 ---
 
@@ -223,7 +223,7 @@ GAZE_RULEPACKS=core,secrets
 | **PHP type** | `list<string>` |
 | **Default** | `[]` |
 
-Filesystem paths to custom rulepack TOML files, forwarded as one `--rulepack-path=<path>` flag each. Since gaze 0.15.0 (#632) custom paths keep the `core` floor unless the policy sets `bundled = []` or you pass `GAZE_RULEPACKS=none`.
+Filesystem paths to custom rulepack TOML files, forwarded (one-shot and daemon) as one `--rulepack-path=<path>` flag each. Since gaze 0.15.0 (#632) custom paths keep the `core` floor unless the policy sets `bundled = []` or you pass `GAZE_RULEPACKS=none`.
 
 **Example:**
 

@@ -48,6 +48,13 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ### Added
 
+- **`gaze daemon` now honours `GAZE_RULEPACKS` / `GAZE_RULEPACK_PATHS`**
+  (`--rulepack-bundled` / `--rulepack-path`, accepted on the daemon since gaze
+  0.13, #446). Before, a configured override — e.g. `core,secrets` — protected
+  one-shot cleans but not daemon cleans. Closes #158.
+- **`gaze:doctor` warns when `gaze.rulepacks` lacks `core`.** The override
+  replaces the policy's bundled list, and since gaze 0.15 `none` is accepted
+  and detects nothing, so such a config fails open on every clean.
 - **`GazeSafetyNetUsageException` for upstream's new `SafetyNetUsage` error
   variant** (gaze >= 0.15.0, exit 2). The binary now rejects contradictory
   safety-net flag combinations — `--safety-net-backend` without exactly one
@@ -157,6 +164,9 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ### Fixed
 
+- **`gaze:doctor --deep` no longer passes vacuously.** It only checked that
+  restore returned the probe email; it now also requires `clean()` to have
+  masked it, so a pipeline that detects nothing fails the deep check.
 - **`--safety-net-backend` is forwarded only when the safety net is enabled**,
   on both `Gaze::clean()` and the daemon spawn paths (`DaemonArgv`: the
   `Gaze::daemon()` binding and `gaze:daemon:serve`). With

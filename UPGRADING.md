@@ -82,7 +82,9 @@ upcoming release in full; per-minor guides for earlier versions live in
      `GazePipelineException` instead of silently skipping names (#474).
    - `GAZE_LOCALE` no longer hides format-based identifiers: a US-format phone
      number is tokenized under `de-DE` too (#423). To exclude a
-     recognizer, disable it in an adopter rulepack.
+     recognizer, disable it in an adopter rulepack. `GAZE_LOCALE` still
+     *replaces* the policy's locale chain, so use full tags (`de-DE,en-US`) —
+     a bare `de` leaves German national phone numbers raw.
    - Token streams change: one token per entity (e.g. one IBAN token where
      there were two), and `entries` / `detections` count replacements (#628).
      Session blobs created by 0.12.0 still restore on 0.15.1.
@@ -97,8 +99,17 @@ upcoming release in full; per-minor guides for earlier versions live in
      or omit the key.
    - Credentials (API keys, tokens) moved to the opt-in `secrets` rulepack
      (#607). The shipped policy never protected them. To opt in, set
-     `GAZE_RULEPACKS=core,secrets`. Never set `secrets` alone: the variable
-     replaces the policy's packs and would drop `core`.
+     `GAZE_RULEPACKS=core,secrets` — the daemon now honours it too. Never set
+     `secrets` alone, and never `none` (gaze ≥ 0.15 accepts it and detects
+     nothing): the variable replaces the policy's packs, and `gaze:doctor`
+     warns whenever `core` is missing.
+5. **Known gaps at the 0.15.1 pin** (upstream known limitations; these reach
+   the model raw under every setup): UK national-format phone numbers with a
+   leading `0` (e.g. `020 7946 0958`; `+44` numbers are covered); dates of birth
+   without a birth-date cue or in `DD.MM.YYYY` after `Geburtsdatum`, and a
+   `"dob"` JSON field; repeats of an already tokenized name where no recognizer
+   fires; the JWT payload after a `Bearer` cue under `secrets` (#175). Upstream
+   tracks them; the adapter adds no PHP-side detection by design.
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
 
