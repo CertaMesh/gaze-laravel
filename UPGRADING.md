@@ -87,7 +87,7 @@ Migration:
 
         ```toml
         [safety_net.nym]
-        model_dir = "/var/lib/gaze/nym"
+        model_dir = "/srv/gaze/gaze/models/nym-small-int8"
         ```
 
         The adapter always passes `--policy`, so this survives

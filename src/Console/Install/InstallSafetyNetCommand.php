@@ -27,7 +27,8 @@ final class InstallSafetyNetCommand extends Command
     /** Shared with the `gaze:install` umbrella, which rejects kiji up front. */
     public const KIJI_REMOVED = 'the kiji safety-net backend was removed upstream in gaze 0.15.0. '
         .'Its replacement, nym, is not wired by the installer yet (tracked in CertaMesh/gaze-laravel#157); '
-        .'set it up by hand per docs/how-to/safety-net.md, or wire opf instead.';
+        .'set it up by hand per docs/how-to/safety-net.md. (opf needs a gaze binary built with the '
+        .'safety-net-openai feature; the pinned release binary is not.)';
 
     protected $signature = 'gaze:install:safety-net
         {--safety-net= : Backend to wire non-interactively: opf}

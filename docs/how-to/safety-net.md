@@ -71,13 +71,16 @@ to Nym:
    binary the adapter resolves (`GAZE_BINARY`, else `vendor/bin/gaze`):
 
    ```bash
-   vendor/bin/gaze setup --safety-net nym
+   sudo -u www-data env XDG_DATA_HOME=/srv/gaze vendor/bin/gaze setup \
+       --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml
    ```
 
-   `gaze setup` also writes a starter policy (`./gaze.toml` unless you pass
-   `--policy-out`). The adapter keeps using `GAZE_POLICY_PATH`; take only the
-   `[safety_net.nym]` table (it names the bundle directory) from it, then
-   discard the file.
+   Nym lands in `$XDG_DATA_HOME/gaze/models/nym-small-int8` (here
+   `/srv/gaze/gaze/models/nym-small-int8`); `--model-dir` would only move the
+   NER model, which `gaze setup` also downloads (~680 MB). The starter policy
+   it writes (`--policy-out`, else `./gaze.toml`) is not used by the adapter,
+   which keeps `GAZE_POLICY_PATH`; take only its `[safety_net.nym]` table (it
+   names the bundle directory), then discard the file.
 
 2. **Select the backend:**
 
@@ -91,7 +94,7 @@ to Nym:
 
    ```toml
    [safety_net.nym]
-   model_dir = "/var/lib/gaze/nym"
+   model_dir = "/srv/gaze/gaze/models/nym-small-int8"
    ```
 
    This survives `php artisan config:cache` and needs no process environment.
@@ -104,6 +107,8 @@ to Nym:
    fails with `GazeSafetyNetConfigException` (`nym model_dir is missing`); an
    empty or wrong directory fails with `GazeSafetyNetArtifactMissingException`
    (`backend()` = `nym`, `path()` = `<missing:SHA256SUMS> (install via …)`).
+   Through `Gaze::daemon()` both surface as `GazeDaemonTransportException`
+   (the daemon exits at startup; its stderr goes to `gaze.daemon.stderr_path`).
 
    Keep the on/off switch in one place: a policy `[safety_net] backend = "nym"`
    table turns Nym on even while `GAZE_SAFETY_NET=false`.
