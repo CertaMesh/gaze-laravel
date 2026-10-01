@@ -63,6 +63,62 @@ class Gaze implements AuditRunner, GazeContract
     {
         $this->assertInput($text);
 
+        $result = $this->run($this->cleanCommand($threshold), $text, 'clean');
+
+        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>,leak_report?:array<string,mixed>} $decoded */
+        $decoded = $this->decodeResponse($result->output(), 'clean');
+
+        return new GazeSession(
+            cleanText: $decoded['clean_text'],
+            ciphertext: EncryptedBlob::wrap($decoded['session_blob'], $this->encrypter),
+            detections: (int) ($decoded['stats']['detections'] ?? 0),
+            entries: $this->mapEntries($decoded['entries'] ?? null),
+            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null),
+        );
+    }
+
+    /**
+     * @internal gaze:doctor's upstream-warning probe (#159). Not a generic
+     * command runner: one real `gaze clean` of $text with the argv clean()
+     * builds — same binary, policy, pre-flight guards and pipeline flags —
+     * minus `--audit-db`, so a doctor run writes no audit row.
+     *
+     * gaze >= 0.15 prints its policy diagnostics on stderr only when a clean
+     * SUCCEEDS, and clean() discards that stderr. This returns the lines
+     * upstream prefixes with `warning:` / `notice:`; every other stderr byte
+     * stays here. Upstream builds those lines from class, family and rulepack
+     * names only, never from the input text.
+     *
+     * @return list<string>
+     *
+     * @throws GazeException when the clean fails or times out
+     */
+    public function probeCleanWarnings(string $text): array
+    {
+        $this->assertInput($text);
+
+        $result = $this->run($this->cleanCommand(null, auditSink: false), $text, 'clean');
+
+        $warnings = [];
+        foreach (preg_split('/\R/', $result->errorOutput()) ?: [] as $line) {
+            $line = trim($line);
+            if (str_starts_with($line, 'warning:') || str_starts_with($line, 'notice:')) {
+                $warnings[] = $line;
+            }
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Build the `gaze clean` argv, after the fail-closed pre-flight guards.
+     * Shared by clean() and probeCleanWarnings() so the probe can never drift
+     * from what clean() really runs. $auditSink=false drops `--audit-db` only.
+     *
+     * @return list<string>
+     */
+    private function cleanCommand(?float $threshold, bool $auditSink = true): array
+    {
         // Fail closed before spawning: gaze >= 0.15 removed kiji-distilbert
         // and reports it only as a detail-less PolicyConfig.
         SafetyNetBackendGuard::assertSupported($this->options->safetyNet, $this->options->safetyNetBackend);
@@ -87,7 +143,7 @@ class Gaze implements AuditRunner, GazeContract
             '--max-bytes' => $this->options->maxBytes,
             '--session-ttl' => $this->options->sessionTtlSeconds,
             '--session-scope' => $this->options->sessionScope,
-            '--audit-db' => $this->options->auditDbPath,
+            '--audit-db' => $auditSink ? $this->options->auditDbPath : null,
             '--locale' => $this->options->locale,
             '--rulepack-bundled' => $this->options->rulepacks,
             '--rulepack-path' => $this->options->rulepackPaths,
@@ -108,18 +164,7 @@ class Gaze implements AuditRunner, GazeContract
             '--safety-net-fallback' => $this->options->safetyNetFallback,
         ]);
 
-        $result = $this->run($command, $text, 'clean');
-
-        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>,leak_report?:array<string,mixed>} $decoded */
-        $decoded = $this->decodeResponse($result->output(), 'clean');
-
-        return new GazeSession(
-            cleanText: $decoded['clean_text'],
-            ciphertext: EncryptedBlob::wrap($decoded['session_blob'], $this->encrypter),
-            detections: (int) ($decoded['stats']['detections'] ?? 0),
-            entries: $this->mapEntries($decoded['entries'] ?? null),
-            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null),
-        );
+        return $command;
     }
 
     /**
