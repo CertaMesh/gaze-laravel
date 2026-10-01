@@ -97,7 +97,8 @@ Mirrors the upstream
 
 The proxy has no `--safety-net` flag. It runs the safety nets your **policy**
 configures: point `GAZE_PROXY_POLICY_PATH` at a policy with a `[safety_net]`
-table, e.g. Nym:
+table. For Nym, append this to a full policy (the snippet alone is not a valid
+policy; gaze rejects it with `missing field 'session'`):
 
 ```toml
 [safety_net]
@@ -137,8 +138,12 @@ the upstream `ProtectionError` (`Residual`, `SafetyNet` = a net failed to run,
 `Primary`, `Provenance`, `UnsupportedCoverage`, `EmptyPrimary`);
 `fallback_reason` is set when step 2 refused (`residual_suspect`,
 `overlap_conflict`, `validator_veto`, `anchor_missing`) and `null` when
-admission refused. Each refusal also writes one line to the proxy log —
-`php artisan gaze:proxy:logs` shows `gaze-proxy: request refused: {…}`.
+admission refused. Each refusal also writes one line,
+`gaze-proxy: request refused: {…}`, to the proxy's **stderr**. Under
+`gaze:proxy:serve` that is the console. Under `gaze:proxy:start` it is
+`proxy-stderr.log` next to `proxy.log` (see [Security](#security) for the
+directory). `php artisan gaze:proxy:logs` reads only `proxy.log`, so it does not
+show refusals.
 
 Handling it in your app:
 
@@ -146,9 +151,10 @@ Handling it in your app:
   same text will be refused again, so do not retry it unchanged. Route it like a
   policy violation (ask the user to rephrase, or clean it through
   `Gaze::clean()` first and send the clean text).
-- `refusal.error = "SafetyNet"` means the net itself failed (missing bundle,
-  timeout); that one is an operations problem — check `gaze:proxy:logs` and
-  `gaze:doctor`.
+- `refusal.error = "SafetyNet"` means the net itself failed at request time
+  (timeout, runtime error); that one is an operations problem — check
+  `proxy-stderr.log` and `gaze:doctor`. A missing or broken Nym bundle never
+  gets that far: `gaze proxy start` fails with `SafetyNetConfig` instead.
 - Before gaze 0.15.1 the proxy answered these cases with `500 {"error":"Pipeline"}`
   (legacy) or `502 InvalidToken` (Anthropic) and refused every request a net
   flagged at all; clients matching those codes must switch to `422`.

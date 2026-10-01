@@ -11,8 +11,10 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `--safety-net` flag), the three request steps (primary, Resolve, admission;
   upstream #585, #593, #660), the `422 Refused` / `ProtectionRefused` bodies and
   how to handle them (content refusal, do not retry unchanged; `SafetyNet` =
-  operations problem). Also corrects the pidfile and log paths, which pointed
-  at a `gaze-proxy/` directory that upstream never used.
+  operations problem). Refusal lines go to the proxy's stderr
+  (`proxy-stderr.log`), which `gaze:proxy:logs` does not read. Also corrects
+  the pidfile and log paths, which pointed at a `gaze-proxy/` directory that
+  upstream never used.
 
 ## [0.15.0] - 2026-10-01
 
