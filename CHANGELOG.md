@@ -4,6 +4,31 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Added
+
+- **First-class Nym safety net** (#157), the Kiji replacement compiled into
+  the gaze release binary:
+  - Config keys `gaze.safety_net.nym.model_dir` (`GAZE_NYM_MODEL_DIR`) →
+    `--nym-model-dir` and `gaze.safety_net.nym.intra_threads`
+    (`GAZE_NYM_INTRA_THREADS`) → `--nym-intra-threads`, on `Gaze::clean()` /
+    `Gaze::mask()`, `Gaze::daemon()` and `gaze:daemon:serve`. Forwarded only
+    while the net is enabled with backend `nym` (gaze 0.15.1 exits 3 with
+    `SafetyNetConfig` on them otherwise). The bundle directory now survives
+    `php artisan config:cache`. A non-positive `intra_threads` fails closed
+    before spawning (`GazeSafetyNetConfigException`).
+  - `gaze:install:safety-net --safety-net=nym [--nym-model-dir=]` and
+    `gaze:install --safety-net=nym [--nym-model-dir=]`: check the bundle
+    before writing `.env` (required files, owner = effective uid, directory
+    mode `0700`, no group/world-writable files or symlinks) and print the
+    `gaze setup --safety-net nym` command to fetch it as the runtime user.
+    The download stays upstream's. Path values that `.env` cannot hold bare
+    are now quoted.
+  - `gaze:doctor` Nym probe, active while the net is enabled with backend
+    `nym`: fails when no bundle directory is configured (config, process
+    environment or the policy's `[safety_net.nym] model_dir`) or when gaze
+    would refuse the bundle, judged as the user running doctor; the hint says
+    to run doctor as the PHP-FPM pool user.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it

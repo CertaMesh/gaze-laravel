@@ -6,6 +6,37 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.15.0 → v0.16.0 (Unreleased)
+
+> Same gaze 0.15.1 pin, no re-install. MINOR: new config keys, an installer
+> backend and a doctor probe.
+
+### TL;DR
+
+1. **Nym is now a first-class safety net.** If you run Nym through
+   `GAZE_SAFETY_NET=true` + `GAZE_SAFETY_NET_BACKEND=nym`, nothing breaks, but
+   you can now point the adapter at the bundle:
+   `GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8` is forwarded as
+   `--nym-model-dir`, so it survives `php artisan config:cache` (before, it
+   reached gaze only through the worker's real process environment).
+   `GAZE_NYM_INTRA_THREADS` sets the ONNX Runtime threads. Both are forwarded
+   only while the net is enabled with backend `nym`. A policy
+   `[safety_net.nym] model_dir` keeps working; the config key wins over it.
+   `php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=<dir>`
+   checks the bundle and wires `.env`. See
+   [SafetyNet → Quick start (Nym)](docs/how-to/safety-net.md#quick-start-nym).
+2. **`gaze:doctor` now fails on a Nym bundle gaze would refuse**, while the net
+   is enabled with backend `nym`: no bundle directory configured anywhere, a
+   missing directory or file, a bundle not owned by the user running doctor,
+   or a directory that is not mode `0700`. These checks hold for the user that
+   runs them, so **run doctor as the PHP-FPM pool / queue worker user**
+   (`sudo -u www-data php artisan gaze:doctor`). A deploy pipeline that runs
+   doctor as the deploy user against a bundle owned by `www-data` now fails;
+   run that step as `www-data` instead.
+3. **`GAZE_NYM_INTRA_THREADS=0` (or below) fails fast** with
+   `GazeSafetyNetConfigException` before gaze runs, instead of upstream's
+   detail-less `PolicyConfig`.
+
 ## v0.14.0 → v0.15.0
 
 > Bug-fix wave on the same gaze 0.15.1 pin. No re-install and no policy edit.

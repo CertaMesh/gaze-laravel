@@ -47,6 +47,11 @@ GAZE_SAFETY_NET_TIMEOUT_MS=5000
 GAZE_SAFETY_NET_INPUT_LIMIT_BYTES=1048576
 GAZE_SAFETY_NET_MODE=strict
 
+# Nym safety-net knobs, forwarded only with GAZE_SAFETY_NET=true and
+# GAZE_SAFETY_NET_BACKEND=nym. The bundle comes from `gaze setup --safety-net nym`.
+GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8
+GAZE_NYM_INTRA_THREADS=
+
 # Optional restore behavior: strict or tolerant.
 GAZE_RESTORE_MODE=
 ```
@@ -328,7 +333,7 @@ GAZE_SAFETY_NET=true
 | **PHP type** | `string\|null` |
 | **Default** | `null` (binary default: `openai-filter`) |
 
-Optional safety-net backend selector, forwarded as `--safety-net-backend=<value>` **only while `gaze.safety_net` is true** (gaze >= 0.15.0 rejects a lone selector, so a disabled net with a leftover backend stays off). Valid upstream values are `openai-filter` (needs a gaze binary built with upstream's `safety-net-openai` feature) and `nym` (gaze >= 0.15.0, compiled into the release binary; name the bundle directory in the policy's `[safety_net.nym] model_dir`, or in `GAZE_NYM_MODEL_DIR` in the worker's real process environment — see [SafetyNet](../how-to/safety-net.md#kiji-was-removed-upstream-in-gaze-0150)).
+Optional safety-net backend selector, forwarded as `--safety-net-backend=<value>` **only while `gaze.safety_net` is true** (gaze >= 0.15.0 rejects a lone selector, so a disabled net with a leftover backend stays off). Valid upstream values are `openai-filter` (needs a gaze binary built with upstream's `safety-net-openai` feature) and `nym` (gaze >= 0.15.0, compiled into the release binary; name the bundle directory in [`gaze.safety_net.nym.model_dir`](#gazesafety_netnymmodel_dir) or the policy's `[safety_net.nym] model_dir` — see [SafetyNet → Quick start (Nym)](../how-to/safety-net.md#quick-start-nym)).
 
 **Caveat:** `kiji-distilbert` was removed upstream in gaze 0.15.0. With the net enabled it fails closed before the binary is spawned (`GazeSafetyNetConfigException`) and `gaze:doctor` fails. The Kiji env vars — `GAZE_KIJI_BACKEND`, `GAZE_KIJI_DISTILBERT_PRECISION`, `GAZE_KIJI_DISTILBERT_COMMAND`, `GAZE_KIJI_DISTILBERT_MODEL_DIR`, `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES` — were removed in v0.14.0; leftover values are ignored and `gaze:doctor` warns.
 
@@ -338,6 +343,48 @@ Optional safety-net backend selector, forwarded as `--safety-net-backend=<value>
 GAZE_SAFETY_NET=true
 GAZE_SAFETY_NET_BACKEND=nym
 ```
+
+---
+
+### `gaze.safety_net.nym.model_dir`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_NYM_MODEL_DIR` |
+| **PHP type** | `string\|null` |
+| **Default** | `null` (gaze falls back to `GAZE_NYM_MODEL_DIR` in its process environment, then to the policy) |
+
+Directory of the pinned Nym-small int8 bundle that `gaze setup --safety-net nym` fetches (upstream default `$XDG_DATA_HOME/gaze/models/nym-small-int8`). Forwarded as `--nym-model-dir=<value>` on `Gaze::clean()` / `Gaze::mask()` and on both daemon spawn paths, **only while `gaze.safety_net` is true and `gaze.safety_net_backend` is `nym`**: gaze rejects the flag in any other state (exit 3, `safety-net backend options require --safety-net=<kind> activation`). It wins over the policy's `[safety_net.nym] model_dir`. The provider mirrors it to the flat `gaze.nym_model_dir` at boot.
+
+**When to set:** Whenever the net runs Nym and the policy does not name the bundle. `php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=<dir>` writes it after checking the bundle.
+
+**Example:**
+
+```dotenv
+GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8
+```
+
+**Caveat:** gaze refuses a bundle that is not owned by the user running it (under PHP-FPM, the pool user), whose directory is not mode `0700`, or that holds group/world-writable files or symlinks. `gaze:doctor` checks this as the user running doctor; run it as the pool user. Use an absolute path. Unlike a variable that only lives in the worker's process environment, this key survives `php artisan config:cache`.
+
+---
+
+### `gaze.safety_net.nym.intra_threads`
+
+| | |
+|---|---|
+| **Env var** | `GAZE_NYM_INTRA_THREADS` |
+| **PHP type** | `int\|null` |
+| **Default** | `null` (binary default: 1) |
+
+ONNX Runtime intra-op threads for the Nym backend. Forwarded as `--nym-intra-threads=<value>` under the same rule as `gaze.safety_net.nym.model_dir`.
+
+**Example:**
+
+```dotenv
+GAZE_NYM_INTRA_THREADS=2
+```
+
+**Caveat:** Must be a positive integer. `0` or a negative value fails closed before gaze runs (`GazeSafetyNetConfigException`, exit 2); upstream would reject it with a detail-less `PolicyConfig`.
 
 ---
 
