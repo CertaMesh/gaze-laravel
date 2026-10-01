@@ -25,6 +25,10 @@ upcoming release in full; per-minor guides for earlier versions live in
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
    gaze >= 0.15.0.
+4. **Published-policy leak fix — action required if you published the
+   policy.** The shipped policy's default rule now tokenizes instead of
+   preserving. Change the last rule of your copy; see
+   [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
 
@@ -93,6 +97,47 @@ Migration:
    Kiji; a `kiji config … ignored` warning lists leftover keys or env vars to
    delete. On Nym, add `--deep` to exercise the bundle through a real
    clean/restore round-trip.
+
+### Published policies: tokenize by default (leak fix)
+
+The shipped `resources/policy.toml` used to end with a `preserve` default.
+Every class the bundled `core` pack detects but no `[[rule]]` names — SSNs,
+Steuer-IDs, VAT IDs and crypto addresses already at the 0.12.0 pin; passports,
+driver licences, national IDs, NHS/BSN/CPF/CNPJ numbers, dates of birth and
+URLs with the gaze 0.15 pin — therefore reached the model **raw**, with a
+success exit. gaze ≥ 0.15.0 prints a warning about it on stderr
+(`warning: policy preserves N detected classes without a reachable class
+rule: …`), but `Gaze::clean()` discards stderr on success, so you will not see
+it in your logs.
+
+The shipped policy now ends with:
+
+```toml
+[[rule]]
+kind = "default"
+action = "tokenize"
+```
+
+If you published the policy into your app (`vendor:publish` or
+`gaze:install`), make the same change in your copy:
+
+```diff
+ [[rule]]
+ kind = "default"
+-action = "preserve"
++action = "tokenize"
+```
+
+To keep a class readable on purpose, add an explicit class rule with
+`action = "preserve"` **above** the default. Check your copy directly against
+the pinned binary — no output means nothing is left raw:
+
+```bash
+echo probe | vendor/bin/gaze clean --policy=policy.toml --format=json 2>&1 >/dev/null | grep 'policy preserves'
+```
+
+Expect more tokens after the change: whole URLs become `Custom:url` tokens
+(they restore exactly), and the ID/date-of-birth classes above are tokenized.
 
 ## v0.12.0 → v0.13.0
 

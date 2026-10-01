@@ -21,6 +21,25 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   shape upstream now emits for Nym bundle/policy setup errors and
   `PolicySchemaUnsupported.supported = "0.1."`.
 
+### Security
+
+- **Shipped policy: the default rule now tokenizes instead of preserving
+  (leak fix).** `resources/policy.toml` ended in `kind = "default"` /
+  `action = "preserve"`, so every class the bundled `core` pack detects but no
+  class rule names reached the model raw with a success exit. Verified on the
+  real binaries: at the 0.12.0 pin that already covered US SSNs, German
+  Steuer-IDs, EU VAT IDs and Ethereum addresses; gaze 0.13–0.15 add passports,
+  driver licences, national IDs and the `custom:family:government-id`
+  collision family, NHS/BSN/CPF/CNPJ numbers, dates of birth and URLs — 19
+  preserved classes in total, which gaze 0.15 names in a new stderr warning
+  (upstream #641) that the adapter never surfaces, because it discards stderr
+  on success. Upstream classifies a `preserve` default as a leak and switched
+  its own `gaze setup` policy to `tokenize` (upstream #635). The explicit class
+  rules stay. Expect more tokens — notably whole URLs now come back as
+  `Custom:url` tokens and restore exactly. New integration tests pin both the
+  tokenize default and the absence of the upstream warning. **Published
+  policies do not update themselves — see UPGRADING.md.**
+
 ### Deprecated
 
 - **`Variant::UnsupportedSessionScope` / `GazeUnsupportedSessionScopeException`.**
