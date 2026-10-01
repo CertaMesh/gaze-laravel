@@ -85,10 +85,75 @@ Mirrors the upstream
 - **TLS pinning is upstream-owned.** Outbound TLS to the provider uses
   the upstream binary's reqwest stack (rustls, system roots). Adapter
   does not override.
-- **Logs and pidfile location.** Both live under
-  `$XDG_STATE_HOME/gaze-proxy/` (Linux) or
-  `~/Library/Application Support/gaze-proxy/` (macOS) per the upstream
-  daemon-paths contract. Set `XDG_STATE_HOME` to relocate.
+- **Logs and pidfile location** (upstream `gaze-proxy` daemon paths, gaze
+  0.15.1): the pidfile is `<data dir>/gaze/proxy.pid` — `$XDG_DATA_HOME` (else
+  `~/.local/share`) on Linux, `~/Library/Application Support` on macOS. Logs
+  (`proxy.log`, `proxy-stderr.log`) go to `<data dir>/gaze/Logs/` on Linux and
+  `~/Library/Logs/gaze/` on macOS; the detached config is
+  `<config dir>/gaze/proxy.toml`. Set `XDG_DATA_HOME` / `XDG_CONFIG_HOME` to
+  relocate them on Linux.
+
+## Safety nets and refusals (gaze ≥ 0.15)
+
+The proxy has no `--safety-net` flag. It runs the safety nets your **policy**
+configures: point `GAZE_PROXY_POLICY_PATH` at a policy with a `[safety_net]`
+table, e.g. Nym:
+
+```toml
+[safety_net]
+backend = "nym"
+
+[safety_net.nym]
+model_dir = "/srv/gaze/gaze/models/nym-small-int8"
+```
+
+With a net configured, each request string goes through three steps before
+anything reaches the provider (upstream
+[proxy runtime](https://github.com/CertaMesh/gaze/blob/v0.15.1/docs/explanation/proxy/proxy-runtime.md#safety-nets-and-refusals)):
+
+1. The primary pipeline tokenizes what the rules detect.
+2. The nets scan the result; every span they flag becomes a restorable token
+   (the Resolve step of `gaze clean --safety-net-fallback strict`, upstream
+   #660 in 0.15.1).
+3. Admission scans once more and **refuses** any raw span a net still flags
+   (#585, #593).
+
+The proxy never deletes bytes one way: what step 2 cannot tokenize, or step 3
+still flags, is refused. That is stricter than `Gaze::clean()`, whose default
+`redact` fallback writes a one-way `[REDACTED:<class>]` marker instead — so the
+same text can clean fine and still be refused by the proxy.
+
+A refusal is `422 Unprocessable Entity` and carries the reason, never the text.
+Legacy OpenAI and Gemini routes:
+
+```json
+{"error": "Refused",
+ "refusal": {"error": "Residual", "fallback_reason": "residual_suspect", "suspect_classes": ["name", "location"]}}
+```
+
+The Anthropic route returns its usual error envelope with
+`"code": "ProtectionRefused"` and the same `refusal` object. `refusal.error` is
+the upstream `ProtectionError` (`Residual`, `SafetyNet` = a net failed to run,
+`Primary`, `Provenance`, `UnsupportedCoverage`, `EmptyPrimary`);
+`fallback_reason` is set when step 2 refused (`residual_suspect`,
+`overlap_conflict`, `validator_veto`, `anchor_missing`) and `null` when
+admission refused. Each refusal also writes one line to the proxy log —
+`php artisan gaze:proxy:logs` shows `gaze-proxy: request refused: {…}`.
+
+Handling it in your app:
+
+- Treat `422` + `Refused` / `ProtectionRefused` as a **content** refusal: the
+  same text will be refused again, so do not retry it unchanged. Route it like a
+  policy violation (ask the user to rephrase, or clean it through
+  `Gaze::clean()` first and send the clean text).
+- `refusal.error = "SafetyNet"` means the net itself failed (missing bundle,
+  timeout); that one is an operations problem — check `gaze:proxy:logs` and
+  `gaze:doctor`.
+- Before gaze 0.15.1 the proxy answered these cases with `500 {"error":"Pipeline"}`
+  (legacy) or `502 InvalidToken` (Anthropic) and refused every request a net
+  flagged at all; clients matching those codes must switch to `422`.
+- Without a configured net, steps 2 and 3 do nothing; spans no rule detects
+  are forwarded raw, exactly as `gaze clean` prints them.
 
 ## Doctor probe
 

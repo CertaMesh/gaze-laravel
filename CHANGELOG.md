@@ -4,6 +4,16 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Documentation
+
+- **Proxy safety nets and the `422` refusal contract** (#167). New section in
+  `docs/how-to/proxy-daemon.md`: nets come from the proxy's policy (there is no
+  `--safety-net` flag), the three request steps (primary, Resolve, admission;
+  upstream #585, #593, #660), the `422 Refused` / `ProtectionRefused` bodies and
+  how to handle them (content refusal, do not retry unchanged; `SafetyNet` =
+  operations problem). Also corrects the pidfile and log paths, which pointed
+  at a `gaze-proxy/` directory that upstream never used.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
