@@ -6,6 +6,12 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ### Fixed
 
+- **`gaze:proxy:serve --foreground-daemon` now starts the proxy** (#161). It
+  forwarded `--foreground-daemon`, but upstream only accepts its hidden
+  `--_foreground-daemon` re-exec flag (since 0.8.0), so every release binary
+  exited 2 with `PolicyConfig` and the systemd/launchd foreground contract
+  never ran. Verified against the 0.15.1 release binary: the underscore
+  spelling starts the proxy and writes its pidfile.
 - **Install hint and proxy docs no longer send adopters into a source build**
   (#164). After every `gaze:install:binary` the adapter printed "gaze proxy is
   opt-in … rebuild upstream with `cargo install gaze-cli --features proxy`",
@@ -19,6 +25,7 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   names a feature that never existed — `gaze daemon` ships unconditionally
   since gaze 0.9.0, so doctor and `GazeDaemonFeatureUnsupportedException` now
   point to installing the pinned binary.
+
 
 ## [0.14.0] - 2026-10-01
 
