@@ -16,6 +16,10 @@ use CertaMesh\Gaze\Queue\RetryAction;
  * branch on with `instanceof`. When a single exception class can be terminal
  * for one variant and transient for another, implement this contract instead —
  * `GazeRetryPolicy::classify()` consults it before any marker interface.
+ *
+ * `RetryAction::Throw` is a valid answer: it means "no Gaze disposition", and
+ * `GazeRetryPolicy::dispatch()` re-throws. `GazeDaemonException` returns it
+ * for every variant except the `SafetyNet*` ones.
  */
 interface HasRetryDisposition
 {

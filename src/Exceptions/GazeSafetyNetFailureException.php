@@ -6,6 +6,7 @@ namespace CertaMesh\Gaze\Exceptions;
 
 use CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition;
 use CertaMesh\Gaze\Queue\RetryAction;
+use CertaMesh\Gaze\Queue\SafetyNetRetryMap;
 use CertaMesh\Gaze\Variant;
 
 /**
@@ -13,6 +14,9 @@ use CertaMesh\Gaze\Variant;
  * `variant` sidecar, so this exception deliberately implements NONE of the
  * static marker interfaces (NonRetryable / Retryable / RetryableWithAlert).
  * Branch on {@see self::retryDisposition()} or `GazeRetryPolicy::classify()`.
+ *
+ * The variant → disposition map lives in {@see SafetyNetRetryMap}, shared
+ * with the daemon's `SafetyNet*` errors.
  */
 final class GazeSafetyNetFailureException extends GazeIntegrityException implements HasRetryDisposition
 {
@@ -33,17 +37,22 @@ final class GazeSafetyNetFailureException extends GazeIntegrityException impleme
 
     public function isRetryable(): bool
     {
-        return in_array($this->safetyNetVariant, ['Timeout', 'Other'], true);
+        return $this->retryDisposition() === RetryAction::ReleaseWithBackoff;
     }
 
     public function isRetryableWithAlert(): bool
     {
-        return $this->safetyNetVariant === 'SuspectedLeak';
+        return $this->retryDisposition() === RetryAction::ReleaseWithAlert;
     }
 
+    /**
+     * True only for variants explicitly mapped to `Fail`. An unknown variant
+     * also fails (closed), but answers false here.
+     */
     public function isNonRetryable(): bool
     {
-        return in_array($this->safetyNetVariant, ['InputTooLarge', 'Unsupported', 'WeightsMissing'], true);
+        return SafetyNetRetryMap::knows($this->safetyNetVariant)
+            && $this->retryDisposition() === RetryAction::Fail;
     }
 
     /**
@@ -52,10 +61,6 @@ final class GazeSafetyNetFailureException extends GazeIntegrityException impleme
      */
     public function retryDisposition(): RetryAction
     {
-        return match (true) {
-            $this->isRetryableWithAlert() => RetryAction::ReleaseWithAlert,
-            $this->isRetryable() => RetryAction::ReleaseWithBackoff,
-            default => RetryAction::Fail,
-        };
+        return SafetyNetRetryMap::for($this->safetyNetVariant);
     }
 }

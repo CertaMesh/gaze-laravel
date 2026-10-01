@@ -89,9 +89,11 @@ class RedactAndForwardJob implements ShouldQueue
 | `RetryAction::Fail` | Exception implements `NonRetryable` | Calls `$job->fail($e)` — permanent failure |
 | `RetryAction::ReleaseWithBackoff` | Exception implements `Retryable` (but not `RetryableWithAlert`) | Calls `$job->release($delay)` — re-queues with backoff |
 | `RetryAction::ReleaseWithAlert` | Exception implements `RetryableWithAlert` | Fires `GazeInfraAlert` event, then calls `$job->release($delay)` |
-| `RetryAction::Throw` | Exception does not implement any Gaze retry interface | Re-throws — not a Gaze exception |
+| `RetryAction::Throw` | Exception does not implement any Gaze retry interface, or its `retryDisposition()` says `Throw` (daemon errors other than `SafetyNet*`) | Re-throws — no Gaze disposition |
 
-**Variant-dependent exceptions:** before checking the marker interfaces above, `classify()` consults `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition` and returns `$e->retryDisposition()` directly. `GazeSafetyNetFailureException` uses this contract because its retry lane depends on the upstream safety-net `variant` sidecar (`Timeout` retries, `InputTooLarge` fails, `SuspectedLeak` alerts, unknown variants fail closed) — it implements none of the static markers. If you hand-roll an `instanceof` chain instead of calling `classify()`, add a `HasRetryDisposition` arm first.
+**Variant-dependent exceptions:** before checking the marker interfaces above, `classify()` consults `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition` and returns `$e->retryDisposition()` directly. `GazeSafetyNetFailureException` uses this contract because its retry lane depends on the upstream safety-net `variant` sidecar (`Timeout` and `Runtime` retry, `SuspectedLeak` alerts, configuration, model and input variants such as `WeightsMissing` or `InputTooLarge` fail, unknown variants fail closed — full table in the [exception reference](../reference/exceptions.md#safety-net-and-session-scope-exceptions)) — it implements none of the static markers. If you hand-roll an `instanceof` chain instead of calling `classify()`, add a `HasRetryDisposition` arm first.
+
+`GazeDaemonException` implements the same contract, so a job that cleans through `Gaze::daemon()` gets the same lanes: a `DaemonErrorVariant::SafetyNet*` error (`SafetyNetTimeout`, `SafetyNetWeightsMissing`, …) classifies exactly like the one-shot variant of the same name. Every other daemon error returns `RetryAction::Throw`, so `dispatch()` re-throws it and its retry stays your call.
 
 ### Backoff resolution
 
