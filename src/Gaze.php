@@ -87,7 +87,8 @@ class Gaze implements AuditRunner, GazeContract
      * SUCCEEDS, and clean() discards that stderr. This returns the lines
      * upstream prefixes with `warning:` / `notice:`; every other stderr byte
      * stays here. Upstream builds those lines from class, family and rulepack
-     * names only, never from the input text.
+     * names only, never from the input text. Its failures name the stage
+     * `clean probe`, so logs tell them apart from real cleans.
      *
      * @return list<string>
      *
@@ -97,7 +98,7 @@ class Gaze implements AuditRunner, GazeContract
     {
         $this->assertInput($text);
 
-        $result = $this->run($this->cleanCommand(null, auditSink: false), $text, 'clean');
+        $result = $this->run($this->cleanCommand(null, auditSink: false), $text, 'clean probe');
 
         $warnings = [];
         foreach (preg_split('/\R/', $result->errorOutput()) ?: [] as $line) {

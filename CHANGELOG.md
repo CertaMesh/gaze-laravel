@@ -12,8 +12,11 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   input, with the configured binary, policy and pipeline flags but without
   `--audit-db`. It prints every `warning:` / `notice:` line as a WARN: the
   preserve fall-through with the classes that leak, one-way `generalize`, the
-  core floor being off, and uncovered collision families. The exit code is
-  unchanged; a failed or timed-out probe is a WARN row. On gaze 0.15 or later
+  core floor being off, and uncovered collision families. The warnings leave
+  the exit code unchanged. A probe that fails NonRetryable (a broken policy, a
+  missing safety-net model) is a FAIL with exit 1, since every
+  `Gaze::clean()` fails the same way; a transient failure or timeout is a
+  WARN row. On gaze 0.15 or later
   these lines replace the static preserve-default and missing-`core` checks,
   which stay as the fallback. See
   [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).

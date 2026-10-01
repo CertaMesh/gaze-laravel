@@ -39,19 +39,22 @@ it('runs the argv clean() builds, minus --audit-db only', function () {
     $gaze->clean('Hello Alice');
     $gaze->probeCleanWarnings('gaze doctor probe');
 
+    /** @var list<list<string>> $commands */
     $commands = [];
     Process::assertRanTimes(function ($process) use (&$commands): bool {
-        $commands[] = (array) $process->command;
+        $commands[] = array_values(array_map('strval', (array) $process->command));
 
         return true;
     }, 2);
-    [$clean, $probe] = $commands;
+    $clean = $commands[0] ?? [];
+    $probe = $commands[1] ?? [];
+    $expectedProbe = array_values(array_filter(
+        $clean,
+        fn (string $arg): bool => ! str_starts_with($arg, '--audit-db='),
+    ));
 
     expect($clean)->toContain('--audit-db=/var/lib/gaze/audit.sqlite')
-        ->and($probe)->toBe(array_values(array_filter(
-            $clean,
-            fn (string $arg): bool => ! str_starts_with($arg, '--audit-db='),
-        )));
+        ->and($probe)->toBe($expectedProbe);
 });
 
 it('returns only the warning: and notice: lines of a successful clean', function () {

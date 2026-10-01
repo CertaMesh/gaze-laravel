@@ -10,6 +10,8 @@ use CertaMesh\Gaze\Exceptions\GazeException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Queue\RetryAction;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
 use CertaMesh\Gaze\SessionScopeGuard;
 use Devium\Toml\Toml;
@@ -81,7 +83,11 @@ final class DoctorCommand extends Command
 
             return self::FAILURE;
         }
-        $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported);
+        if (! $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
         $this->probeProxyFeature($binary, $config, $process);
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
@@ -243,9 +249,12 @@ final class DoctorCommand extends Command
      * each `warning:` / `notice:` line gaze prints on its success path — the
      * preserve fall-through (#641), one-way generalize, the core floor, the
      * collision-family notice (#360). Gaze::clean() discards that stderr, so
-     * without this probe an adopter never sees them. WARN, never FAIL: the
-     * exit code stays unchanged, like the other policy checks. A failed or
-     * timed-out probe is a WARN row too, never an uncaught exception.
+     * without this probe an adopter never sees them. The warnings are WARN
+     * rows: the exit code stays unchanged, like the other policy checks. A
+     * failed or timed-out probe is never an uncaught exception: a WARN row
+     * when the failure is transient, a FAIL (returns false) when it is
+     * NonRetryable, since every Gaze::clean() then fails the same way (a
+     * broken policy, a missing safety-net model).
      *
      * Dedupe, so each finding prints once. Upstream is the source of truth
      * for policy semantics (NORTH_STAR §1), so the static preserve-default
@@ -256,17 +265,23 @@ final class DoctorCommand extends Command
      * also covers the policy file, which upstream does not; gaze's own
      * core-extended line is dropped when that check already fired.
      */
-    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported): void
+    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported): bool
     {
         try {
             $warnings = $gaze->probeCleanWarnings(self::PROBE_INPUT);
         } catch (\Throwable $e) {
-            $this->components->twoColumnDetail('upstream warnings', '<fg=yellow>probe failed</>');
-            $this->warn("The gaze clean probe failed ({$e->getMessage()}); using the static policy checks only.");
+            $fatal = GazeRetryPolicy::classify($e) === RetryAction::Fail;
+            $this->components->twoColumnDetail('upstream warnings', $fatal ? '<fg=red>FAIL</>' : '<fg=yellow>probe failed</>');
+            if ($fatal) {
+                $this->error("The gaze clean probe failed ({$e->getMessage()}).");
+                $this->line('Every Gaze::clean() fails the same way until this is fixed.');
+            } else {
+                $this->warn("The gaze clean probe failed ({$e->getMessage()}); using the static policy checks only.");
+            }
             $this->warnIfPolicyPreservesByDefault($policyPath);
             $this->warnIfRulepacksDropCore($config);
 
-            return;
+            return ! $fatal;
         }
 
         $version = BinaryDownloader::parseVersion($versionOutput);
@@ -296,7 +311,7 @@ final class DoctorCommand extends Command
                 $authoritative ? '<fg=green>none</>' : 'none (gaze < '.self::POLICY_WARNINGS_SINCE.': static checks only)',
             );
 
-            return;
+            return true;
         }
 
         $this->components->twoColumnDetail('upstream warnings', '<fg=yellow>'.count($warnings).'</>');
@@ -310,6 +325,8 @@ final class DoctorCommand extends Command
                 }
             }
         }
+
+        return true;
     }
 
     /**

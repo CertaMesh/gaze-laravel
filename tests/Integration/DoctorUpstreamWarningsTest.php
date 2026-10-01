@@ -14,11 +14,9 @@ use Symfony\Component\Process\Process;
  */
 
 beforeEach(function () {
-    $binary = getenv('GAZE_BINARY');
-    if (! is_string($binary) || $binary === '') {
+    $binary = (string) getenv('GAZE_BINARY');
+    if ($binary === '') {
         $this->markTestSkipped('GAZE_BINARY not set — integration tests skipped.');
-
-        return;
     }
 
     $versionProcess = new Process([$binary, '--version']);

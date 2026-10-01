@@ -22,7 +22,9 @@ gaze 0.15 and later print policy warnings on stderr, but only when a clean **suc
 - **Input:** the fixed, PII-free string `gaze doctor probe`.
 - **Argv:** the same binary, policy, pre-flight guards and pipeline flags `Gaze::clean()` uses (locale, rulepacks, NER threshold, safety net, session scope). The probe leaves out `--audit-db`, so doctor writes no audit row. It uses `gaze.timeout_seconds` as its timeout.
 - **Output:** each stderr line that starts with `warning:` or `notice:` becomes a WARN line under an `upstream warnings` row. Nothing else from stderr is printed. gaze builds these lines from class, family and rulepack names, never from the input.
-- **Exit code:** unchanged. When the probe fails or times out, doctor prints `probe failed` with the typed error message and falls back to its static policy checks.
+- **Exit code:** the warnings leave it unchanged. When the probe itself fails, doctor prints the typed error message (stage `clean probe`) and runs its static policy checks:
+  - a NonRetryable failure (a broken policy, a missing safety-net model; see [the retry contract](exceptions.md#retry-contract-interfaces)) is a red `FAIL` row and exit `1`, because every `Gaze::clean()` fails the same way;
+  - a transient failure or a timeout is a yellow `probe failed` row, and the exit code stays unchanged.
 
 What gaze 0.15.1 reports:
 

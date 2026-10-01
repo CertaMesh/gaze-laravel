@@ -150,16 +150,35 @@ it('reports none when gaze >= 0.15 prints no warning', function () {
         ->not->toContain('probe failed');
 });
 
-it('reports a binary error as a WARN row, falls back to the static checks and keeps exit 0', function () {
+it('fails on a NonRetryable probe error, since every clean fails the same way, and still runs the static checks', function () {
     $this->policies[] = $policy = uwp_preservePolicy();
     $this->app['config']->set('gaze.policy_path', $policy);
     uwp_fake('0.15.1', '{"error":"PolicyConfig","exit":2}', 2);
 
     [$exit, $output] = uwp_doctor();
 
+    expect($exit)->toBe(1)
+        ->and($output)->toMatch('/upstream warnings\s.*FAIL/')
+        ->toContain('The gaze clean probe failed (gaze clean probe ')
+        ->toContain('Every Gaze::clean() fails the same way')
+        ->not->toContain('using the static policy checks only')
+        // The static preserve check still reports what it can see.
+        ->toContain('policy default')
+        ->toContain('reaches the model raw')
+        ->toMatch('/status\s.*FAIL/')
+        ->not->toContain('encrypter');
+});
+
+it('reports a transient probe error as a WARN row, falls back to the static checks and keeps exit 0', function () {
+    $this->policies[] = $policy = uwp_preservePolicy();
+    $this->app['config']->set('gaze.policy_path', $policy);
+    uwp_fake('0.15.1', '{"error":"SafetyNet","exit":3,"variant":"Timeout"}', 3);
+
+    [$exit, $output] = uwp_doctor();
+
     expect($exit)->toBe(0)
         ->and($output)->toMatch('/upstream warnings\s.*probe failed/')
-        ->toContain('The gaze clean probe failed (')
+        ->toContain('The gaze clean probe failed (gaze clean probe ')
         ->toContain('using the static policy checks only')
         // The static preserve check stands in for the probe.
         ->toContain('policy default')
@@ -180,7 +199,7 @@ it('times out cleanly as a WARN row and keeps exit 0', function () {
 
     expect($exit)->toBe(0)
         ->and($output)->toMatch('/upstream warnings\s.*probe failed/')
-        ->toContain('gaze clean timed out')
+        ->toContain('gaze clean probe timed out')
         ->toMatch('/status\s.*OK/');
 });
 
