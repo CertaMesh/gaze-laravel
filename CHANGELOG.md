@@ -4,8 +4,57 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Changed
+
+- **Binary pin bumped `0.12.0` → `0.15.1`** (upstream released 2026-09-26; the
+  pin skips 0.13.0–0.15.0). Every version step is adjudicated in
+  [docs/reference/upstream-coverage.md](docs/reference/upstream-coverage.md).
+  Help contracts: `restore` and the whole `audit` family are byte-identical to
+  0.12.0; `clean --help` drops the Kiji flags and gains `nym` / `none` (the
+  adapter-side consequences land in the preceding PRs of this release); the
+  version snapshot moves. **Why upgrade:** leaks that the 0.12.0 pin shipped raw
+  through the published policy are closed, each pinned by a new
+  `PublishedPolicyTest` case that fails on 0.12.0 and passes on 0.15.1:
+  payment cards with touching digits such as a CVV or expiry (upstream #658 —
+  still raw on 0.15.0, hence the `.1` pin), IBANs followed by or glued to a
+  `BIC` label (#622, #626), NBSP-grouped IBANs and national IDs under JSON keys
+  (#647). With a safety net enabled, a Resolve+Redact fallback no longer leaves
+  newly detectable raw text behind (#584). Two further upstream leak fixes are
+  shipped in the binary but were not reachable through the adapter, because it
+  always passes `--policy` and never enables the prefix cache: the
+  `--rulepack-path` no-policy leak (#545) and the stale prefix-cache leak
+  (#579). **Model ownership:** gaze verifies safety-net model bundles (Nym, OPF
+  checkpoints) recursively against the effective user running `gaze`: every
+  file and directory owned by that user, directories `0700`, no group- or
+  world-writable files, no symlinks (OPF since 0.13 #422, Nym since 0.15).
+  `gaze setup` refuses foreign-owned bundles. Under PHP-FPM that user is the pool user, not the deploy user who ran
+  `artisan`. The `[ner]` model directory installed by `gaze:install:ner` is not
+  owner-checked by `gaze clean` at this pin.
+  Behaviour changes adopters can observe without touching config:
+  strict restore no longer throws `GazeUnknownTokenException` on
+  identifier-shaped literals (#473); a corrupt NER model now fails `clean` with
+  `GazePipelineException` instead of silently skipping names (#474);
+  `GAZE_LOCALE` no longer suppresses format-based identifiers (#423);
+  token streams change (one token per entity, #628); `gaze:proxy:start`
+  now actually applies `gaze.proxy.policy_path` / `rulepack` / `upstream.*`
+  (#441); audit DBs gain a nullable `restore_trap_shape_count` column on
+  the first 0.15 write (even `audit purge --dry-run` migrates them — rolling
+  back to 0.12.0 stays safe) and `export()` rows now carry the `restore_*`
+  fields (#555); a policy with `schema_version = "0.1"` no longer loads — use
+  `"0.1.0"` (#576; the docs used to recommend `"0.1"` and are corrected).
+  Verified against the real sha256-pinned 0.15.1 binary, including an
+  end-to-end `BinaryDownloader` install. `gaze:doctor` warns on a stale
+  `vendor/bin/gaze` with the `gaze:install --force` hint.
+
 ### Added
 
+- **`gaze daemon` now honours `GAZE_RULEPACKS` / `GAZE_RULEPACK_PATHS`**
+  (`--rulepack-bundled` / `--rulepack-path`, accepted on the daemon since gaze
+  0.13, #446). Before, a configured override — e.g. `core,secrets` — protected
+  one-shot cleans but not daemon cleans. Closes #158.
+- **`gaze:doctor` warns when `gaze.rulepacks` lacks `core`.** The override
+  replaces the policy's bundled list, and since gaze 0.15 `none` is accepted
+  and detects nothing, so such a config fails open on every clean.
 - **`GazeSafetyNetUsageException` for upstream's new `SafetyNetUsage` error
   variant** (gaze >= 0.15.0, exit 2). The binary now rejects contradictory
   safety-net flag combinations — `--safety-net-backend` without exactly one
@@ -115,6 +164,9 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ### Fixed
 
+- **`gaze:doctor --deep` no longer passes vacuously.** It only checked that
+  restore returned the probe email; it now also requires `clean()` to have
+  masked it, so a pipeline that detects nothing fails the deep check.
 - **`--safety-net-backend` is forwarded only when the safety net is enabled**,
   on both `Gaze::clean()` and the daemon spawn paths (`DaemonArgv`: the
   `Gaze::daemon()` binding and `gaze:daemon:serve`). With

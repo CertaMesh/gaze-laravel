@@ -137,9 +137,11 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
    `restore_phase_mask`. Query restore-only rows with
    `CertaMesh\Gaze\Audit\QueryBuilder::onlyRestoreEvents()` (forwards
    `--restore-events`). Default `null` = off = upstream default (no telemetry).
-4. **Telemetry caveat — audit trail, NOT DLP.** `restore_fresh_pii_count` and
-   `restore_manifest_bypass_count` are **always `0`** through the stock CLI:
-   gaze-cli's `run_restore` never enables the Phase-B DLP builder. This surface
+4. **Telemetry caveat — audit trail, NOT DLP.** `restore_fresh_pii_count` is
+   **always `0`** through the stock CLI (gaze-cli's `run_restore` never enables
+   the Phase-B DLP builder), and `restore_manifest_bypass_count` only counts
+   identifier-shaped literals restore passed through. (Corrected at v0.14.0;
+   this guide originally claimed both were always `0`.) This surface
    exists for restore-decision and unknown-token audit trails (did a restore
    run strict vs tolerant, how many unknown tokens were encountered) — it is
    **not** outbound-DLP fresh-PII detection. Do not build DLP controls on those
@@ -172,9 +174,8 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 - **Facade:** `Gaze::restore()` forwards `--telemetry --audit-db=<…>` when
   telemetry is enabled.
 - **Audit query:** `Audit\QueryBuilder::onlyRestoreEvents()` → `--restore-events`.
-- **Six restore audit columns** (two — `restore_fresh_pii_count`,
-  `restore_manifest_bypass_count` — are always `0` via the stock CLI; see the
-  caveat above).
+- **Six restore audit columns** (`restore_fresh_pii_count` is always `0` via
+  the stock CLI; see the caveat above).
 
 > See [docs/how-to/audit-query-export.md](./audit-query-export.md) for
 > restore-event queries and
@@ -373,7 +374,8 @@ on `composer update`.
 - **Existing `policy.toml` files keep loading.** Upstream v0.7.2
   introduces a top-level `schema_version` field but soft-defaults
   missing values to `0.1.0`, so 0.6.x policies stay drop-in. Pin
-  explicitly with `schema_version = "0.1"` at the top of `policy.toml`
+  explicitly with `schema_version = "0.1.0"` (not `"0.1"`, which gaze ≥ 0.15
+  refuses) at the top of `policy.toml`
   once you want the schema-drift gate to fail closed on future contract
   breaks.
 - **New typed exception `GazePolicySchemaUnsupportedException`** fires
