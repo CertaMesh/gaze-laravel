@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use CertaMesh\Gaze\Install\BinaryInstaller;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Symfony\Component\Process\Process;
 
 const HELP_SNAPSHOTS = [
@@ -35,6 +36,19 @@ it('pins the installed gaze help surface for the pinned upstream version', funct
 
     expect($actual)->toBe($expected);
 })->with(HELP_SNAPSHOTS);
+
+it('keeps the accepted safety-net backend values in step with the pinned clean help', function () {
+    // gaze:doctor fails any enabled value outside this list; it must match
+    // upstream's `--safety-net-backend` ValueEnum exactly.
+    $matched = preg_match(
+        '/--safety-net-backend <SAFETY_NET_BACKEND>\n.*\[possible values: ([^\]]+)\]/',
+        readHelpSnapshot('help-clean.txt'),
+        $match,
+    );
+
+    expect($matched)->toBe(1)
+        ->and(explode(', ', $match[1] ?? ''))->toBe(SafetyNetBackendGuard::ACCEPTED);
+});
 
 function resolveGazeContractBinary(): ?string
 {

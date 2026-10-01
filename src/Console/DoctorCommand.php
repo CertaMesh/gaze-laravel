@@ -17,6 +17,7 @@ use Devium\Toml\Toml;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Process\Factory as ProcessFactory;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final class DoctorCommand extends Command
 {
@@ -60,6 +61,11 @@ final class DoctorCommand extends Command
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
         if (! $this->probeKijiRemoval($config)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
+        if (! $this->probeSafetyNetBackend($config)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
@@ -500,6 +506,44 @@ final class DoctorCommand extends Command
         $this->warn('Remove it (see UPGRADING.md); for a safety net, switch to nym.');
 
         return true;
+    }
+
+    /**
+     * Backend selector probe: FAILS when the enabled net selects a value
+     * gaze does not accept for `--safety-net-backend` — anything but exactly
+     * `openai-filter` or `nym` ({@see SafetyNetBackendGuard::ACCEPTED}).
+     * Upstream matches the value exactly, so `Nym` or a quoted `" nym"`
+     * fails every clean with a detail-less PolicyConfig, and the Nym probe
+     * below never runs for it (`nymSelected()` is exact for the same
+     * reason). `kiji-distilbert`, in any case, is left to
+     * {@see self::probeKijiRemoval()}, which runs first.
+     */
+    private function probeSafetyNetBackend(ConfigRepository $config): bool
+    {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        $backend = $options->safetyNetBackend;
+
+        if (! $options->safetyNet || $backend === null
+            || SafetyNetBackendGuard::isAccepted($backend) || SafetyNetBackendGuard::isRemoved($backend)) {
+            return true;
+        }
+
+        // Quoted, so stray whitespace shows.
+        $shown = OutputFormatter::escape("'{$backend}'");
+        $normalized = strtolower(trim($backend));
+        $hint = SafetyNetBackendGuard::isAccepted($normalized)
+            ? " Did you mean {$normalized}? gaze matches the value exactly: case and spaces count."
+            : '';
+
+        $this->components->twoColumnDetail('safety_net_backend', "<fg=red>unknown {$shown}</>");
+        $this->error(
+            "GAZE_SAFETY_NET_BACKEND={$shown} is not a backend gaze accepts, so every clean fails with PolicyConfig. "
+            .'Use nym or openai-filter.'.$hint
+        );
+
+        return false;
     }
 
     /**

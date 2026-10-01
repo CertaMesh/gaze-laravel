@@ -456,6 +456,50 @@ it('fails on kiji-distilbert regardless of case and whitespace', function () {
         ->expectsOutputToContain('kiji-distilbert removed in gaze 0.15.0');
 });
 
+it('fails an enabled backend value gaze does not accept, naming it (upstream matches it exactly)', function (string $backend, string $shown, string $hint) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set(['gaze.safety_net' => true, 'gaze.safety_net_backend' => $backend]);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.15.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(1)
+        ->expectsOutputToContain("unknown {$shown}")
+        ->expectsOutputToContain(
+            "GAZE_SAFETY_NET_BACKEND={$shown} is not a backend gaze accepts, so every clean fails with PolicyConfig. "
+            .'Use nym or openai-filter.'.$hint
+        )
+        ->doesntExpectOutputToContain('nym bundle')
+        ->expectsOutputToContain('FAIL');
+})->with([
+    'wrong case' => ['Nym', "'Nym'", ' Did you mean nym? gaze matches the value exactly: case and spaces count.'],
+    'stray space' => [' openai-filter', "' openai-filter'", ' Did you mean openai-filter? gaze matches the value exactly: case and spaces count.'],
+    'not a backend' => ['presidio', "'presidio'", ''],
+]);
+
+it('accepts the exact backend values and ignores any value on a disabled net', function (bool $enabled, string $backend) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set(['gaze.safety_net' => $enabled, 'gaze.safety_net_backend' => $backend]);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.15.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->doesntExpectOutputToContain('safety_net_backend');
+})->with([
+    'enabled openai-filter' => [true, 'openai-filter'],
+    'disabled, wrong case' => [false, 'Nym'],
+    'disabled, not a backend' => [false, 'presidio'],
+]);
+
 it('warns but passes on a leftover GAZE_KIJI_* env var', function () {
     $this->app->instance(
         BinaryResolver::class,

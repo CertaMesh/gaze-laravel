@@ -42,6 +42,13 @@ final class SafetyNetBackendGuard
     public const NYM = 'nym';
 
     /**
+     * Every value gaze 0.15 accepts for `--safety-net-backend`. Upstream
+     * parses it with clap's ValueEnum: exact and case-sensitive, so `Nym`
+     * fails every clean with a detail-less PolicyConfig (exit 2).
+     */
+    public const ACCEPTED = ['openai-filter', self::NYM];
+
+    /**
      * Throw when an ENABLED safety net selects a removed backend. A disabled
      * net never forwards `--safety-net-backend`, so its leftover selector is
      * inert (doctor warns about it instead).
@@ -81,6 +88,12 @@ final class SafetyNetBackendGuard
                 null,
             );
         }
+    }
+
+    /** True when gaze accepts `$backend` as is ({@see self::ACCEPTED}). */
+    public static function isAccepted(string $backend): bool
+    {
+        return in_array($backend, self::ACCEPTED, true);
     }
 
     /**
