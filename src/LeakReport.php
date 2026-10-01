@@ -78,6 +78,44 @@ final readonly class LeakReport
     ) {}
 
     /**
+     * Restore a serialized report, including one an older release serialized.
+     *
+     * A `GazeSession` may travel in a queued job's payload
+     * (docs/explanation/blob-lifecycle.md), so a worker on this release can
+     * unserialize a report written by v0.15.x, before `actsOnSuspects` and
+     * `unactionableSubwordCount` existed. Unserialize never runs the
+     * constructor, so its parameter defaults never apply: without this method
+     * those properties stayed uninitialized and the first `coverageState()`
+     * threw. A missing field takes its constructor default — for
+     * `actsOnSuspects` that is false, observe semantics, which reads a flagged
+     * span red exactly as v0.15.x did. The five counts have no default and stay
+     * mandatory: a payload without them throws instead of reading green.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function __unserialize(array $data): void
+    {
+        $data += ['suspects' => [], 'replayHash' => null, 'actsOnSuspects' => false, 'unactionableSubwordCount' => 0];
+
+        $this->suspectCount = self::serializedInt($data, 'suspectCount');
+        $this->uncoveredCount = self::serializedInt($data, 'uncoveredCount');
+        $this->partialBleedCount = self::serializedInt($data, 'partialBleedCount');
+        $this->classMismatchCount = self::serializedInt($data, 'classMismatchCount');
+        $this->localeSkippedCount = self::serializedInt($data, 'localeSkippedCount');
+        $this->unactionableSubwordCount = self::serializedInt($data, 'unactionableSubwordCount');
+        $this->suspects = self::serializedSuspects($data['suspects']);
+
+        $replayHash = $data['replayHash'];
+        $actsOnSuspects = $data['actsOnSuspects'];
+        if (! is_bool($actsOnSuspects) || ($replayHash !== null && ! is_string($replayHash))) {
+            throw new \UnexpectedValueException('LeakReport payload carries an invalid actsOnSuspects or replayHash.');
+        }
+
+        $this->replayHash = $replayHash;
+        $this->actsOnSuspects = $actsOnSuspects;
+    }
+
+    /**
      * Build a LeakReport from the decoded `leak_report` object. Tolerates absent
      * or malformed fields (defaults to zero counts / empty suspects) so a shape
      * drift never turns a clean() into a hard failure.
@@ -197,6 +235,41 @@ final readonly class LeakReport
     private static function count(array $stats, string $key): int
     {
         return isset($stats[$key]) && is_numeric($stats[$key]) ? (int) $stats[$key] : 0;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function serializedInt(array $data, string $key): int
+    {
+        $value = $data[$key] ?? null;
+
+        if (! is_int($value)) {
+            throw new \UnexpectedValueException("LeakReport payload is missing a valid {$key}.");
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return list<LeakSuspect>
+     */
+    private static function serializedSuspects(mixed $raw): array
+    {
+        if (! is_array($raw)) {
+            throw new \UnexpectedValueException('LeakReport payload carries invalid suspects.');
+        }
+
+        $suspects = [];
+        foreach ($raw as $suspect) {
+            if (! $suspect instanceof LeakSuspect) {
+                throw new \UnexpectedValueException('LeakReport payload carries invalid suspects.');
+            }
+
+            $suspects[] = $suspect;
+        }
+
+        return $suspects;
     }
 
     /**
