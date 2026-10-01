@@ -6,6 +6,35 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.14.0 → v0.15.0
+
+> Bug-fix wave on the same gaze 0.15.1 pin. No re-install and no policy edit.
+> It is a MINOR release because it adds enum cases and a doctor probe.
+
+### TL;DR
+
+1. **`GAZE_SESSION_SCOPE=ephemeral` now fails fast.** It never worked: gaze
+   cannot export an ephemeral session, so every `clean()` failed with a
+   *retryable* `GazePipelineException` and queue jobs retried forever. It now
+   throws the non-retryable `GazePolicyConfigDetailException` before gaze runs.
+   Use `conversation` or `persistent`, or unset the variable. `gaze:doctor`
+   fails on the override and warns on a policy-level `ephemeral` scope.
+2. **Daemon errors are mapped precisely.** If you caught
+   `GazeDaemonTimeoutException`, or matched `DaemonErrorVariant::Timeout` /
+   `Unavailable`, to handle the **safety net's** daemon errors, match
+   `DaemonErrorVariant::SafetyNetTimeout` / `SafetyNetUnavailable` on
+   `GazeDaemonException` instead; the old cases now mean only the adapter's
+   own request timeout and a binary without `gaze daemon`. A `match()` on
+   `DaemonErrorVariant` needs its `default` arm (11 new cases). Session-id
+   mismatches now throw `GazeDaemonTransportException` (a subclass, so
+   existing `catch (GazeDaemonException)` blocks still match).
+3. **`gaze:proxy:serve --foreground-daemon` works** (it forwarded a flag every
+   release binary rejected).
+4. **Ignore the old "rebuild with `--features proxy` / `--features daemon`"
+   advice.** The release binaries include the proxy, and there never was a
+   `daemon` feature. Only the opf safety net needs a custom build
+   (`--features safety-net-openai`).
+
 ## v0.13.0 → v0.14.0
 
 > Pre-1.0 SemVer: breaking changes land on a MINOR bump. v0.14.0 moves the
