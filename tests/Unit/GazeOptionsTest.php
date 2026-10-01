@@ -220,5 +220,25 @@ it('appends the nym properties after every existing constructor parameter (posit
         (new ReflectionMethod(GazeOptions::class, '__construct'))->getParameters(),
     );
 
-    expect(array_slice($parameters, -3))->toBe(['nerThreshold', 'nymModelDir', 'nymIntraThreads']);
+    expect(array_slice($parameters, -4))->toBe(['nerThreshold', 'nymModelDir', 'nymIntraThreads', 'invalidNymIntraThreads']);
 });
+
+it('reads intra_threads strictly: integers only, anything else kept for the guard to name', function (mixed $value, ?int $threads, ?string $invalid) {
+    $options = GazeOptions::fromConfig(['safety_net' => ['nym' => ['intra_threads' => $value]]]);
+
+    expect($options->nymIntraThreads)->toBe($threads)
+        ->and($options->invalidNymIntraThreads)->toBe($invalid);
+})->with([
+    'int' => [2, 2, null],
+    'digit string' => ['4', 4, null],
+    'signed digit string' => ['-1', -1, null],
+    'padded digit string' => [' 3 ', 3, null],
+    'unset' => [null, null, null],
+    'empty env string' => ['', null, null],
+    'decimal string' => ['1.5', null, "'1.5'"],
+    'float' => [2.0, null, '2.0'],
+    'word' => ['abc', null, "'abc'"],
+    'exponent' => ['1e3', null, "'1e3'"],
+    'bool' => [true, null, 'true'],
+    'array' => [[2], null, 'array'],
+]);

@@ -24,8 +24,8 @@ use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
  * safety-net flag and is deliberately NOT guarded, so sessions cleaned under
  * Kiji stay restorable.
  *
- * The same two spawn paths also refuse a non-positive
- * `gaze.safety_net.nym.intra_threads` ({@see self::assertNymIntraThreads()}):
+ * The same two spawn paths also refuse a `gaze.safety_net.nym.intra_threads`
+ * that is not a positive integer ({@see self::assertNymIntraThreads()}):
  * upstream parses `--nym-intra-threads` as a non-zero integer and answers `0`
  * with the same detail-less PolicyConfig.
  */
@@ -66,8 +66,10 @@ final class SafetyNetBackendGuard
     }
 
     /**
-     * Throw when an enabled Nym net is given a non-positive ONNX Runtime
-     * thread count. Only checked while the flag would be forwarded
+     * Throw when an enabled Nym net is given an ONNX Runtime thread count
+     * that is not a positive integer: `0`, `-1`, or a value that is no
+     * integer at all (`1.5`, `abc`), which the adapter would otherwise
+     * truncate or drop. Only checked while the flag would be forwarded
      * ({@see GazeOptions::nymSelected()}); a value on a net that is off or
      * on another backend is inert.
      *
@@ -78,11 +80,16 @@ final class SafetyNetBackendGuard
      */
     public static function assertNymIntraThreads(GazeOptions $options): void
     {
-        $threads = $options->nymIntraThreads;
+        if (! $options->nymSelected()) {
+            return;
+        }
 
-        if ($options->nymSelected() && $threads !== null && $threads < 1) {
+        $threads = $options->nymIntraThreads;
+        $invalid = $options->invalidNymIntraThreads ?? ($threads !== null && $threads < 1 ? (string) $threads : null);
+
+        if ($invalid !== null) {
             throw new GazeSafetyNetConfigException(
-                "gaze.safety_net.nym.intra_threads must be a positive integer, got {$threads} (pre-flight). "
+                "gaze.safety_net.nym.intra_threads must be a positive integer, got {$invalid} (pre-flight). "
                 .'Unset GAZE_NYM_INTRA_THREADS to keep the upstream default of 1.',
                 2,
                 null,

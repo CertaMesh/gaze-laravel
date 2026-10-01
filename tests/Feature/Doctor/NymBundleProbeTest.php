@@ -158,6 +158,22 @@ it('fails a bundle owned by another uid than the one doctor runs as', function (
         ->expectsOutputToContain('FAIL');
 });
 
+it('fails an intra_threads every clean would refuse, before looking at the bundle', function (string $value, string $got) {
+    $this->app['config']->set('gaze.nym_model_dir', $this->bundle);
+    $this->app['config']->set('gaze.nym_intra_threads', $value);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(1)
+        ->expectsOutputToContain('nym intra_threads')
+        ->expectsOutputToContain("gaze.safety_net.nym.intra_threads must be a positive integer, got {$got}")
+        ->doesntExpectOutputToContain('OK for')
+        ->expectsOutputToContain('FAIL');
+})->with([
+    'zero' => ['0', '0'],
+    'decimal' => ['1.5', "'1.5'"],
+    'word' => ['abc', "'abc'"],
+]);
+
 it('warns instead of saying OK when ext-posix is missing and the owner went unchecked', function () {
     $this->app->instance(NymBundle::class, new NymBundle(posix: false));
     $this->app['config']->set('gaze.nym_model_dir', $this->bundle);

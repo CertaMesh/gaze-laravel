@@ -7,6 +7,7 @@ namespace CertaMesh\Gaze\Console;
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Console\Concerns\RunsHealthProbes;
 use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
@@ -553,6 +554,9 @@ final class DoctorCommand extends Command
      * clean / daemon start.
      *
      * FAILS (P7 doctor-before-failure) when:
+     *  - `gaze.safety_net.nym.intra_threads` is not a positive integer, the
+     *    pre-flight every clean and daemon start applies
+     *    ({@see SafetyNetBackendGuard::assertNymIntraThreads()});
      *  - no bundle directory is configured anywhere: not in
      *    `gaze.safety_net.nym.model_dir`, not in a `GAZE_NYM_MODEL_DIR` the
      *    process environment passes to gaze, not in the policy's
@@ -580,6 +584,16 @@ final class DoctorCommand extends Command
         $options = GazeOptions::fromConfig($gazeConfig);
         if (! $options->nymSelected()) {
             return true;
+        }
+
+        try {
+            SafetyNetBackendGuard::assertNymIntraThreads($options);
+        } catch (GazeSafetyNetConfigException $e) {
+            // The same refusal every clean and daemon start would hit.
+            $this->components->twoColumnDetail('nym intra_threads', '<fg=red>invalid</>');
+            $this->error($e->getMessage());
+
+            return false;
         }
 
         $bundle = $this->laravel->make(NymBundle::class);

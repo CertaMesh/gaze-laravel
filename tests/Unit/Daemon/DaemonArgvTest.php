@@ -278,12 +278,25 @@ it('reads the nym knobs from a nested safety_net group set at runtime', function
     ]);
 });
 
-it('refuses a non-positive nym intra_threads on an enabled nym net before any argv is built', function () {
+it('refuses a nym intra_threads that is not a positive integer on an enabled nym net before any argv is built', function (string $value, string $got) {
     $config = configRepoForArgv(
         daemon: ['policy_path' => '/etc/gaze/policy.toml'],
-        topLevel: ['safety_net' => true, 'safety_net_backend' => 'nym', 'nym_intra_threads' => '0'],
+        topLevel: ['safety_net' => true, 'safety_net_backend' => 'nym', 'nym_intra_threads' => $value],
     );
 
     expect(fn () => DaemonArgv::flags($config))
-        ->toThrow(GazeSafetyNetConfigException::class, 'gaze.safety_net.nym.intra_threads must be a positive integer, got 0 (pre-flight)');
+        ->toThrow(GazeSafetyNetConfigException::class, "gaze.safety_net.nym.intra_threads must be a positive integer, got {$got} (pre-flight)");
+})->with([
+    'zero' => ['0', '0'],
+    'decimal (was truncated to 1)' => ['1.5', "'1.5'"],
+    'word (was dropped)' => ['abc', "'abc'"],
+]);
+
+it('ignores a non-integer intra_threads while the net does not select nym', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => true, 'safety_net_backend' => 'openai-filter', 'nym_intra_threads' => 'abc'],
+    );
+
+    expect(DaemonArgv::flags($config))->not->toContain('--nym-intra-threads=abc');
 });

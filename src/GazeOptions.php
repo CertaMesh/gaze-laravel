@@ -61,6 +61,13 @@ final readonly class GazeOptions
         public ?float $nerThreshold = null,
         public ?string $nymModelDir = null,
         public ?int $nymIntraThreads = null,
+        /**
+         * The configured `gaze.safety_net.nym.intra_threads` when it is set
+         * but not an integer (`1.5`, `abc`), rendered for messages; then
+         * {@see $nymIntraThreads} is null. {@see SafetyNetBackendGuard}
+         * refuses it instead of truncating or dropping it.
+         */
+        public ?string $invalidNymIntraThreads = null,
     ) {}
 
     /**
@@ -98,6 +105,7 @@ final readonly class GazeOptions
         $opf = is_array($group['openai_filter'] ?? null) ? $group['openai_filter'] : [];
         $nym = is_array($group['nym'] ?? null) ? $group['nym'] : [];
         $enabled = is_array($safetyNetRoot) ? ($group['enabled'] ?? false) : $safetyNetRoot;
+        $nymThreads = $nym['intra_threads'] ?? $config['nym_intra_threads'] ?? null;
 
         return new self(
             timeoutSeconds: self::intOrNull($config['timeout_seconds'] ?? null) ?? 30,
@@ -124,8 +132,25 @@ final readonly class GazeOptions
             // Flat `nym_*` keys are not published: the provider back-fills
             // them from the nested group before collapsing it at boot.
             nymModelDir: self::stringOrNull($nym['model_dir'] ?? $config['nym_model_dir'] ?? null),
-            nymIntraThreads: self::intOrNull($nym['intra_threads'] ?? $config['nym_intra_threads'] ?? null),
+            nymIntraThreads: self::strictIntOrNull($nymThreads),
+            invalidNymIntraThreads: self::strictIntOrNull($nymThreads) === null && $nymThreads !== null && $nymThreads !== ''
+                ? (is_scalar($nymThreads) ? var_export($nymThreads, true) : get_debug_type($nymThreads))
+                : null,
         );
+    }
+
+    /**
+     * An int, or a string of digits (sign and surrounding spaces allowed),
+     * as int; null for anything else. Unlike {@see self::intOrNull()} it
+     * neither truncates `1.5` to 1 nor accepts `1e3`.
+     */
+    private static function strictIntOrNull(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        return is_string($value) && preg_match('/^[+-]?\d+$/', trim($value)) === 1 ? (int) trim($value) : null;
     }
 
     /**
