@@ -200,7 +200,10 @@ it('fails closed on a SafetyNet envelope without its variant sidecar', function 
     $e = Variant::tryFromStderr('{"error":"SafetyNet","exit":3}', 3)
         ->toException('clean', 3, hash('sha256', ''), '{"error":"SafetyNet","exit":3}');
 
-    expect($e)->toBeInstanceOf(GazeSafetyNetFailureException::class)
-        ->and($e->safetyNetVariant())->toBe('Unknown')
+    if (! $e instanceof GazeSafetyNetFailureException) {
+        throw new RuntimeException('Expected a GazeSafetyNetFailureException.');
+    }
+
+    expect($e->safetyNetVariant())->toBe('Unknown')
         ->and($e->retryDisposition())->toBe(RetryAction::Fail);
 });
