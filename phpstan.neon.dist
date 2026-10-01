@@ -6,8 +6,8 @@ parameters:
     tmpDir: .phpstan.cache
     treatPhpDocTypesAsCertain: false
     # The matrix analyses across pest v3 (PHP 8.2), pest v4 (PHP 8.3, and 8.4+ on
-    # Laravel 11/12) and pest v5 (PHP 8.4+ on Laravel 13), and across Laravel
-    # 11/12 (Symfony Console 7) and Laravel 13 (Symfony Console 8).
+    # Laravel 12) and pest v5 (PHP 8.4+ on Laravel 13), and across Laravel 12
+    # (Symfony Console 7) and Laravel 13 (Symfony Console 8).
     # The pest version changes the inferred test-closure $this type, and the
     # Symfony version changes which reflection FPs phpstan 1.x emits, so a given
     # ignore pattern only matches on some combos. Don't fail a job just because a
