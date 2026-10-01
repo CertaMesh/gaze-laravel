@@ -34,7 +34,7 @@ upcoming release in full; per-minor guides for earlier versions live in
    policy.** The shipped policy's default rule now tokenizes instead of
    preserving. Change the last rule of your copy; see
    [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
-4. **Laravel 11 dropped (BREAKING); PHP 8.2 support ends after 2026-12-31.**
+6. **Laravel 11 dropped (BREAKING); PHP 8.2 support ends after 2026-12-31.**
    See [Laravel 11 is no longer supported](#laravel-11-is-no-longer-supported-breaking).
 
 ### Laravel 11 is no longer supported (BREAKING)
