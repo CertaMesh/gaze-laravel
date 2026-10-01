@@ -102,6 +102,13 @@ final class InstallSafetyNetCommand extends Command
             .'(GAZE_OPENAI_FILTER_COMMAND / GAZE_OPENAI_FILTER_CHECKPOINT); '
             .'gaze:doctor cannot verify the opf subprocess.'
         );
+        // The pinned release binaries are built without upstream's
+        // `safety-net-openai` feature: with them every clean fails
+        // `SafetyNetConfig` ("not compiled with feature safety-net-openai").
+        $this->components->warn(
+            'opf needs a gaze binary built with the safety-net-openai feature; '
+            .'the pinned release binary is not. Point GAZE_BINARY at your own build.'
+        );
 
         return self::SUCCESS;
     }
