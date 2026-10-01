@@ -4,6 +4,27 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.13.0 → v0.14.0
+
+> **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
+> The binary pin moves **v0.12.0 → v0.15.1** (`gaze:install --force`; take
+> 0.15.1, not 0.15.0). It closes payment-card, IBAN and national-ID leaks the
+> 0.12.0 pin shipped raw, and safety-net model files must be owned by the user
+> that runs gaze (under PHP-FPM, the pool user). BREAKING set: (1) the Kiji
+> DistilBERT safety net is gone (removed upstream in gaze 0.15.0). An enabled
+> `kiji-distilbert` backend fails closed before spawning, and every Kiji config
+> key, env var and installer option is removed. Migrate to Nym or turn the net
+> off. (2) Laravel 11 is no longer supported (`illuminate/*: ^12.0|^13.0`).
+> **The policy leak fix requires action on every existing install** (your app
+> runs its own `policy.toml` copy): flip the default rule from `preserve` to
+> `tokenize`; `gaze:doctor` warns until you do. The daemon now honours
+> `GAZE_RULEPACKS`. Also:
+> `GazeSafetyNetUsageException` is new, `GazeUnsupportedSessionScopeException`
+> is deprecated, `--safety-net-backend` is forwarded only while the net is
+> enabled, and PHP 8.2 support ends with the first release after 2026-12-31.
+> Full steps and the observable upstream behaviour changes live in the root
+> [UPGRADING.md](../../UPGRADING.md).
+
 ## v0.12.0 → v0.13.0
 
 > **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
