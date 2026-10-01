@@ -292,7 +292,7 @@ final class DoctorCommand extends Command
         /** @var array<string, mixed> $gazeConfig */
         $gazeConfig = (array) $config->get('gaze', []);
         $options = GazeOptions::fromConfig($gazeConfig);
-        $kijiSelected = $options->safetyNetBackend === SafetyNetBackendGuard::KIJI_DISTILBERT;
+        $kijiSelected = SafetyNetBackendGuard::isRemoved($options->safetyNetBackend);
 
         if ($kijiSelected && $options->safetyNet) {
             $this->components->twoColumnDetail('safety_net_backend', '<fg=red>kiji-distilbert removed in gaze 0.15.0</>');

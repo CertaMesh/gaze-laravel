@@ -104,10 +104,12 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `kiji-distilbert` selector on a disabled net, `safety_net.kiji.*` or flat
   `kiji_*` keys, `daemon.kiji_distilbert_locales`, or the Kiji env vars.
 - **Migration:** turn the safety net off, or move to Nym (compiled into the
-  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`,
-  `GAZE_NYM_MODEL_DIR` set in the PHP worker's real process environment (not
-  only `.env` — `php artisan config:cache` stops `.env` from loading), bundle
-  fetched with `gaze setup --safety-net nym`. See
+  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`, the
+  bundle fetched with `gaze setup --safety-net nym` as the user that runs gaze,
+  and its directory named in the policy's `[safety_net.nym] model_dir` (or in
+  `GAZE_NYM_MODEL_DIR` in the worker's real process environment — `.env` alone
+  vanishes under `config:cache`). Code that constructs `GazeOptions`
+  positionally must switch to named arguments. See
   [UPGRADING.md](UPGRADING.md#kiji-safety-net-removed-breaking).
 
 ### Fixed
