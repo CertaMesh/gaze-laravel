@@ -23,6 +23,10 @@ namespace CertaMesh\Gaze;
  *    UPGRADING.md).
  *
  * When both spellings carry a value, the nested key wins.
+ *
+ * The Kiji DistilBERT knobs (`safety_net.kiji.*` / flat `kiji_*`) are no
+ * longer read: upstream removed that backend in gaze 0.15.0, and a selected
+ * `kiji-distilbert` backend fails closed in {@see SafetyNetBackendGuard}.
  */
 final readonly class GazeOptions
 {
@@ -47,10 +51,6 @@ final readonly class GazeOptions
         public ?int $safetyNetInputLimitBytes = null,
         public ?string $safetyNetMode = null,
         public ?string $safetyNetBackend = null,
-        public ?string $kijiBackend = null,
-        public ?string $kijiDistilbertPrecision = null,
-        public ?string $kijiDistilbertCommand = null,
-        public ?string $kijiDistilbertModelDir = null,
         public ?string $safetyNetFallback = null,
         public ?string $sessionScope = null,
         public ?string $restoreMode = null,
@@ -78,7 +78,6 @@ final readonly class GazeOptions
         $safetyNetRoot = $config['safety_net'] ?? null;
         $group = is_array($safetyNetRoot) ? $safetyNetRoot : [];
         $opf = is_array($group['openai_filter'] ?? null) ? $group['openai_filter'] : [];
-        $kiji = is_array($group['kiji'] ?? null) ? $group['kiji'] : [];
         $enabled = is_array($safetyNetRoot) ? ($group['enabled'] ?? false) : $safetyNetRoot;
 
         return new self(
@@ -98,10 +97,6 @@ final readonly class GazeOptions
             safetyNetInputLimitBytes: self::intOrNull($group['input_limit_bytes'] ?? $config['safety_net_input_limit_bytes'] ?? null),
             safetyNetMode: self::stringOrNull($group['mode'] ?? $config['safety_net_mode'] ?? null),
             safetyNetBackend: self::stringOrNull($group['backend'] ?? $config['safety_net_backend'] ?? null),
-            kijiBackend: self::stringOrNull($kiji['backend'] ?? $config['kiji_backend'] ?? null),
-            kijiDistilbertPrecision: self::stringOrNull($kiji['distilbert_precision'] ?? $config['kiji_distilbert_precision'] ?? null),
-            kijiDistilbertCommand: self::stringOrNull($kiji['distilbert_command'] ?? $config['kiji_distilbert_command'] ?? null),
-            kijiDistilbertModelDir: self::stringOrNull($kiji['distilbert_model_dir'] ?? $config['kiji_distilbert_model_dir'] ?? null),
             safetyNetFallback: self::stringOrNull($group['fallback'] ?? $config['safety_net_fallback'] ?? null),
             sessionScope: self::stringOrNull($config['session_scope'] ?? null),
             restoreMode: self::stringOrNull($config['restore_mode'] ?? null),

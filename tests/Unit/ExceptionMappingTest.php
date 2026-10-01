@@ -77,7 +77,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
     [['error' => 'SafetyNetConfig', 'detail' => 'missing config'], GazeSafetyNetConfigException::class],
     [['error' => 'SafetyNetUsage', 'detail' => '--safety-net-backend requires exactly one --safety-net value'], GazeSafetyNetUsageException::class],
     [['error' => 'SafetyNet', 'variant' => 'Timeout'], GazeSafetyNetFailureException::class],
-    [['error' => 'SafetyNetArtifactMissing', 'backend' => 'kiji-distilbert', 'path' => '/var/lib/gaze/models/kiji'], GazeSafetyNetArtifactMissingException::class],
+    [['error' => 'SafetyNetArtifactMissing', 'backend' => 'nym', 'path' => '/var/lib/gaze/models/nym'], GazeSafetyNetArtifactMissingException::class],
     [['error' => 'UnsupportedSessionScope', 'variant' => 'global'], GazeUnsupportedSessionScopeException::class],
     [['error' => 'Io'], GazeIoException::class],
     [['error' => 'SigPipe'], GazeSigPipeException::class],
@@ -134,8 +134,8 @@ it('exposes the upstream SafetyNetArtifactMissing backend/path sidecars', functi
     $payload = [
         'error' => 'SafetyNetArtifactMissing',
         'exit' => 2,
-        'backend' => 'kiji-distilbert',
-        'path' => '/var/lib/gaze/models/kiji',
+        'backend' => 'nym',
+        'path' => '/var/lib/gaze/models/nym',
     ];
     $stderr = json_encode($payload, JSON_THROW_ON_ERROR).PHP_EOL;
 
@@ -144,8 +144,8 @@ it('exposes the upstream SafetyNetArtifactMissing backend/path sidecars', functi
     try {
         $this->makeGaze()->restore($this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1), 'Hello Name_1');
     } catch (GazeSafetyNetArtifactMissingException $e) {
-        expect($e->backend())->toBe('kiji-distilbert')
-            ->and($e->path())->toBe('/var/lib/gaze/models/kiji')
+        expect($e->backend())->toBe('nym')
+            ->and($e->path())->toBe('/var/lib/gaze/models/nym')
             ->and($e)->toBeInstanceOf(NonRetryable::class)
             ->and($e->variant?->value)->toBe('SafetyNetArtifactMissing')
             ->and($e->variant?->exitBucket())->toBe(2);

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Illuminate\Support\Facades\Process;
 
 it('assembles clean argv with policy and json output', function () {
@@ -322,13 +324,65 @@ it('appends OpenAI privacy-filter argv flags when configured', function (string 
     'safety net timeout' => ['safetyNetTimeoutMs', 7500, '--safety-net-timeout-ms=7500'],
     'safety net input limit' => ['safetyNetInputLimitBytes', 123456, '--safety-net-input-limit-bytes=123456'],
     'safety net mode' => ['safetyNetMode', 'tolerant', '--safety-net-mode=tolerant'],
-    'safety net backend' => ['safetyNetBackend', 'kiji-distilbert', '--safety-net-backend=kiji-distilbert'],
-    'kiji backend' => ['kijiBackend', 'ort', '--kiji-backend=ort'],
-    'kiji distilbert precision' => ['kijiDistilbertPrecision', 'int8', '--kiji-distilbert-precision=int8'],
-    'kiji distilbert command' => ['kijiDistilbertCommand', '/usr/local/bin/kiji-distilbert', '--kiji-distilbert-command=/usr/local/bin/kiji-distilbert'],
-    'kiji distilbert model dir' => ['kijiDistilbertModelDir', '/var/lib/gaze/models/kiji', '--kiji-distilbert-model-dir=/var/lib/gaze/models/kiji'],
     'safety net fallback' => ['safetyNetFallback', 'redact', '--safety-net-fallback=redact'],
 ]);
+
+it('forwards --safety-net-backend right after the enable switch when the net is enabled', function (string $backend) {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNet: true, safetyNetBackend: $backend)->clean('Hello');
+
+    Process::assertRan(function ($process) use ($backend): bool {
+        expect($process->command)->toBe([
+            '/fake/gaze',
+            'clean',
+            '--policy=/tmp/policy.toml',
+            '--format=json',
+            '--safety-net=openai-filter',
+            "--safety-net-backend={$backend}",
+        ]);
+
+        return true;
+    });
+})->with(['openai-filter', 'nym']);
+
+it('omits --safety-net-backend when the net is disabled (gaze >= 0.15 rejects a lone selector)', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    // The natural "turn the net off" state: GAZE_SAFETY_NET=false with the
+    // backend gaze:install:safety-net wrote still in .env. Only the selector
+    // is gated — the other sub-options keep forwarding as before.
+    $this->makeGaze(
+        policyPath: '/tmp/policy.toml',
+        safetyNet: false,
+        safetyNetBackend: 'openai-filter',
+        safetyNetMode: 'strict',
+    )->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toBe([
+            '/fake/gaze',
+            'clean',
+            '--policy=/tmp/policy.toml',
+            '--format=json',
+            '--safety-net-mode=strict',
+        ]);
+
+        return true;
+    });
+});
 
 it('omits locale, rulepacks, safety-net flags when not configured', function () {
     Process::fake([
@@ -353,11 +407,77 @@ it('omits locale, rulepacks, safety-net flags when not configured', function () 
                 ->not->toStartWith('--openai-filter-command=')
                 ->not->toStartWith('--openai-filter-checkpoint=')
                 ->not->toStartWith('--openai-filter-operating-point=')
-                ->not->toStartWith('--kiji-backend=')
-                ->not->toStartWith('--kiji-distilbert-precision=')
-                ->not->toStartWith('--kiji-distilbert-command=')
-                ->not->toStartWith('--kiji-distilbert-model-dir=');
+                ->not->toStartWith('--kiji-');
         }
+
+        return true;
+    });
+});
+
+it('refuses an enabled kiji-distilbert backend before spawning (removed upstream in gaze 0.15.0)', function () {
+    Process::fake();
+
+    try {
+        $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNet: true, safetyNetBackend: 'kiji-distilbert')->clean('Hello');
+    } catch (GazeSafetyNetConfigException $e) {
+        expect($e->getMessage())->toBe(SafetyNetBackendGuard::KIJI_DISTILBERT_REMOVED)
+            ->toContain('removed upstream in gaze 0.15.0')
+            ->toContain('nym')
+            ->not->toContain('Hello')
+            ->and($e->exitCode)->toBe(2)
+            ->and($e->stderrHash)->toBeNull();
+
+        Process::assertNothingRan();
+
+        return;
+    }
+
+    $this->fail('Expected GazeSafetyNetConfigException to be thrown.');
+});
+
+it('refuses an enabled kiji-distilbert backend on mask() too, before spawning', function () {
+    Process::fake();
+
+    expect(fn () => $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNet: true, safetyNetBackend: 'kiji-distilbert')->mask('Hello'))
+        ->toThrow(GazeSafetyNetConfigException::class, 'removed upstream in gaze 0.15.0');
+
+    Process::assertNothingRan();
+});
+
+it('lets a disabled net with a leftover kiji-distilbert selector clean without the selector', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->makeGaze(policyPath: '/tmp/policy.toml', safetyNet: false, safetyNetBackend: 'kiji-distilbert')->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toBe([
+            '/fake/gaze',
+            'clean',
+            '--policy=/tmp/policy.toml',
+            '--format=json',
+        ]);
+
+        return true;
+    });
+});
+
+it('keeps restore working when the safety net still selects kiji-distilbert', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode(['text' => 'Hello Alice'], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1);
+    $restored = $this->makeGaze(safetyNet: true, safetyNetBackend: 'kiji-distilbert')->restore($session, 'Hello Name_1');
+
+    expect($restored)->toBe('Hello Alice');
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toBe(['/fake/gaze', 'restore', '--format=json']);
 
         return true;
     });

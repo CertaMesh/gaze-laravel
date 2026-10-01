@@ -49,12 +49,12 @@ it('publishes config to application config path', function () {
             'mode',
             'fallback',
             'openai_filter',
-            'kiji',
         ]);
     expect($published['safety_net']['openai_filter'])->toBeArray()
         ->toHaveKeys(['command', 'checkpoint', 'operating_point']);
-    expect($published['safety_net']['kiji'])->toBeArray()
-        ->toHaveKeys(['backend', 'distilbert_precision', 'distilbert_command', 'distilbert_model_dir']);
+    // Kiji DistilBERT was removed upstream in gaze 0.15.0 — no group, no keys.
+    expect($published['safety_net'])->not->toHaveKey('kiji');
+    expect($published['daemon'])->not->toHaveKey('kiji_distilbert_locales');
     foreach ([
         'safety_net_backend',
         'safety_net_device',

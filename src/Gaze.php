@@ -63,6 +63,10 @@ class Gaze implements AuditRunner, GazeContract
     {
         $this->assertInput($text);
 
+        // Fail closed before spawning: gaze >= 0.15 removed kiji-distilbert
+        // and reports it only as a detail-less PolicyConfig.
+        SafetyNetBackendGuard::assertSupported($this->options->safetyNet, $this->options->safetyNetBackend);
+
         $command = [
             $this->resolver->resolve(),
             'clean',
@@ -93,11 +97,10 @@ class Gaze implements AuditRunner, GazeContract
             '--safety-net-timeout-ms' => $this->options->safetyNetTimeoutMs,
             '--safety-net-input-limit-bytes' => $this->options->safetyNetInputLimitBytes,
             '--safety-net-mode' => $this->options->safetyNetMode,
-            '--safety-net-backend' => $this->options->safetyNetBackend,
-            '--kiji-backend' => $this->options->kijiBackend,
-            '--kiji-distilbert-precision' => $this->options->kijiDistilbertPrecision,
-            '--kiji-distilbert-command' => $this->options->kijiDistilbertCommand,
-            '--kiji-distilbert-model-dir' => $this->options->kijiDistilbertModelDir,
+            // Only alongside the enable switch: gaze >= 0.15 rejects a lone
+            // backend selector with SafetyNetUsage (0.12 silently ignored it),
+            // so a disabled net with a leftover backend must stay net-off.
+            '--safety-net-backend' => $this->options->safetyNet ? $this->options->safetyNetBackend : null,
             '--safety-net-fallback' => $this->options->safetyNetFallback,
         ]);
 

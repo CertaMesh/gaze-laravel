@@ -33,6 +33,76 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   promised the session-scope exception and is corrected. The case and class stay
   until 1.0 so referencing code keeps compiling.
 
+### Removed (BREAKING)
+
+- **Kiji DistilBERT safety net.** Upstream gaze 0.15.0 deleted the backend and
+  every `--kiji-*` flag from `gaze clean` and `gaze daemon`
+  ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)). A 0.15
+  binary answers `--safety-net-backend=kiji-distilbert` or any `--kiji-*` flag
+  with a detail-less `{"error":"PolicyConfig","exit":2}`, which the adapter
+  surfaced as a misleading `GazePolicyConfigException`. Removed:
+  - argv forwarding of `--kiji-backend`, `--kiji-distilbert-precision`,
+    `--kiji-distilbert-command` and `--kiji-distilbert-model-dir` from
+    `Gaze::clean()`, and of `--kiji-backend`, `--kiji-distilbert-command`,
+    `--kiji-distilbert-model-dir` and `--kiji-distilbert-locales` from
+    `DaemonArgv` (the `Gaze::daemon()` binding and `gaze:daemon:serve`);
+  - config: the `gaze.safety_net.kiji.*` group and
+    `gaze.daemon.kiji_distilbert_locales`, with their env vars
+    `GAZE_KIJI_BACKEND`, `GAZE_KIJI_DISTILBERT_PRECISION`,
+    `GAZE_KIJI_DISTILBERT_COMMAND`, `GAZE_KIJI_DISTILBERT_MODEL_DIR` and
+    `GAZE_DAEMON_KIJI_DISTILBERT_LOCALES`. The provider no longer back-fills the
+    deprecated flat `gaze.kiji_*` keys, and `GazeOptions::fromConfig()` ignores
+    both spellings;
+  - `GazeOptions` constructor parameters / properties `kijiBackend`,
+    `kijiDistilbertPrecision`, `kijiDistilbertCommand` and
+    `kijiDistilbertModelDir`;
+  - the installer's `kiji` backend and `--kiji-model-dir` option on
+    `gaze:install:safety-net` and `gaze:install`. `--safety-net=kiji` now fails
+    with a clear message (exit 2 on the sub-command; the umbrella exits 1 before
+    any step runs) and never writes `.env`; the interactive choosers offer
+    `opf` (and `none` on the umbrella) only. First-class Nym support is tracked
+    in [#157](https://github.com/CertaMesh/gaze-laravel/issues/157);
+  - the `$kijiModelDir` parameter of `SafetyNetConfigurator::pairsFor()` —
+    positional callers change `pairsFor('opf', null, $command, $checkpoint)` to
+    `pairsFor('opf', $command, $checkpoint)`;
+  - `CertaMesh\Gaze\Install\KijiArtifacts`, the artifact list behind the old
+    doctor probe and installer gate.
+- **Fail-closed guard instead of a misleading error.** An enabled safety net
+  that still selects `kiji-distilbert` now throws
+  `GazeSafetyNetConfigException` before the binary is spawned — from
+  `Gaze::clean()` / `mask()`, the `Gaze::daemon()` binding and
+  `gaze:daemon:serve` (which prints it and exits 1). The exception is
+  adapter-synthesized (exit 2, `stderrHash` null) and its message names the
+  removal and the `nym` replacement. Guard and message live in one place, the
+  new `CertaMesh\Gaze\SafetyNetBackendGuard`. `Gaze::restore()` is not
+  guarded: sessions cleaned under Kiji stay restorable.
+- **`gaze:doctor`** replaces the Kiji artifact probe: it FAILs (non-zero exit)
+  when an enabled safety net selects `kiji-distilbert`, and warns without
+  changing the exit code on leftover Kiji config the adapter now ignores — a
+  `kiji-distilbert` selector on a disabled net, `safety_net.kiji.*` or flat
+  `kiji_*` keys, `daemon.kiji_distilbert_locales`, or the Kiji env vars.
+- **Migration:** turn the safety net off, or move to Nym (compiled into the
+  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`, the
+  bundle fetched with `gaze setup --safety-net nym` as the user that runs gaze,
+  and its directory named in the policy's `[safety_net.nym] model_dir` (or in
+  `GAZE_NYM_MODEL_DIR` in the worker's real process environment — `.env` alone
+  vanishes under `config:cache`). Code that constructs `GazeOptions`
+  positionally must switch to named arguments. See
+  [UPGRADING.md](UPGRADING.md#kiji-safety-net-removed-breaking).
+
+### Fixed
+
+- **`--safety-net-backend` is forwarded only when the safety net is enabled**,
+  on both `Gaze::clean()` and the daemon spawn paths (`DaemonArgv`: the
+  `Gaze::daemon()` binding and `gaze:daemon:serve`). With
+  `GAZE_SAFETY_NET=false` and a leftover `GAZE_SAFETY_NET_BACKEND` — the
+  natural "turn the net off" state, since `gaze:install:safety-net` writes both
+  keys — the adapter still forwarded the lone selector. gaze 0.12.0 silently
+  ignored it (net off); gaze >= 0.15.0 rejects it with `SafetyNetUsage`
+  (`--safety-net-backend requires exactly one --safety-net value`), so every
+  clean and daemon spawn would fail after the pin bump. Dropping the flag keeps
+  the 0.12 semantics exactly. The other safety-net sub-options are unchanged.
+
 ## [0.13.0] - 2026-07-06
 
 ### Changed (BREAKING)

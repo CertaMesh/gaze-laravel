@@ -79,7 +79,7 @@ The `Install\Ner*` family lives under the `CertaMesh\Gaze\Install` namespace. Th
 | `GazeIntegrityException` | 3 | (see subclasses) | No | Abstract base for session-integrity subclasses |
 | `GazeUnknownTokenException` | 3 | `NonRetryable` → fail | No | Binary encountered a token it could not map back to PII |
 | `GazeResponseDecodeException` | 3 | `NonRetryable` → fail | No | Binary stdout was not valid JSON or not a JSON object |
-| `GazeSafetyNetConfigException` | 3 | `NonRetryable` → fail | No | Safety-net configuration is invalid; extends `GazePolicyConfigException`. Since gaze 0.15.0 upstream also emits it at exit 2 for Nym policy/bundle setup errors |
+| `GazeSafetyNetConfigException` | 3 | `NonRetryable` → fail | No | Safety-net configuration is invalid; extends `GazePolicyConfigException`. Since gaze 0.15.0 upstream also emits it at exit 2 for Nym policy/bundle setup errors. The adapter also throws it itself (exit 2, `stderrHash` null, binary never spawned) when an enabled safety net selects `kiji-distilbert`, removed upstream in gaze 0.15.0 |
 | `GazeSafetyNetUsageException` | 2 | `NonRetryable` → fail | No | gaze >= 0.15.0 rejected the safety-net flag combination (e.g. `--safety-net-backend` without exactly one `--safety-net`); extends `GazePolicyConfigException`; exposes `detail(): ?string` |
 | `GazeSafetyNetFailureException` | 3 | See safety-net table | No | Safety-net subprocess failed or suspected a leak; exposes `safetyNetVariant(): string` |
 | `GazeUnsupportedSessionScopeException` | 3 | `NonRetryable` → fail | No | **Deprecated, never thrown.** Upstream removed the variant in gaze 0.15.0; an invalid `--session-scope` surfaces as `GazePolicyConfigDetailException`. Kept for BC until 1.0 |

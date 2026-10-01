@@ -31,13 +31,13 @@ final class SafetyNetConfigurator
      * Build the `.env` pairs for a safety-net backend.
      *
      * `opf` (openai-filter) is a LOCAL subprocess — the command + checkpoint are
-     * filesystem paths, symmetric with kiji's model dir — NOT an OpenAI API key.
+     * filesystem paths — NOT an OpenAI API key. `kiji` is gone (removed
+     * upstream in gaze 0.15.0) and throws like any other unknown backend.
      *
      * @return array<string, string>
      */
     public static function pairsFor(
         string $backend,
-        ?string $kijiModelDir,
         ?string $opfCommand = null,
         ?string $opfCheckpoint = null,
     ): array {
@@ -47,13 +47,6 @@ final class SafetyNetConfigurator
                 'GAZE_SAFETY_NET_BACKEND' => 'openai-filter',
                 'GAZE_OPENAI_FILTER_COMMAND' => $opfCommand,
                 'GAZE_OPENAI_FILTER_CHECKPOINT' => $opfCheckpoint,
-            ]),
-            'kiji' => self::nonEmpty([
-                'GAZE_SAFETY_NET' => 'true',
-                'GAZE_SAFETY_NET_BACKEND' => 'kiji-distilbert',
-                'GAZE_KIJI_BACKEND' => 'ort',
-                'GAZE_KIJI_DISTILBERT_PRECISION' => 'int8',
-                'GAZE_KIJI_DISTILBERT_MODEL_DIR' => $kijiModelDir,
             ]),
             default => throw new \InvalidArgumentException("unknown safety-net backend: {$backend}"),
         };

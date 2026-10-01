@@ -34,8 +34,7 @@ final class InstallCommand extends Command
         {--skip-binary : Do not install the gaze binary}
         {--skip-ner : Do not install the NER model (~184 MB)}
         {--skip-safety-net : Do not configure a safety-net backend}
-        {--safety-net= : Safety-net backend non-interactively: opf|kiji|none}
-        {--kiji-model-dir= : Kiji DistilBERT model dir forwarded to gaze:install:safety-net}
+        {--safety-net= : Safety-net backend non-interactively: opf|none}
         {--ner-variant=int8 : NER quantization variant forwarded to gaze:install:ner}
         {--ner-locale= : BCP47 locale forwarded to gaze:install:ner}
         {--no-doctor : Skip the final gaze:doctor green-check}';
@@ -44,6 +43,13 @@ final class InstallCommand extends Command
 
     public function handle(Application $app, ProcessFactory $process, SafetyNetConfigurator $configurator): int
     {
+        // Fail fast, before the binary/NER downloads: kiji was removed upstream.
+        if ($this->stringOption('safety-net') === 'kiji' && ! $this->option('skip-safety-net')) {
+            $this->error(InstallSafetyNetCommand::KIJI_REMOVED);
+
+            return self::FAILURE;
+        }
+
         $force = (bool) $this->option('force');
         $headless = ! $this->input->isInteractive();
 
@@ -118,10 +124,6 @@ final class InstallCommand extends Command
                 $summary['safety-net'] = 'SKIP';
             } else {
                 $args = ['--safety-net' => $backend];
-                $modelDir = $this->stringOption('kiji-model-dir');
-                if ($modelDir !== null) {
-                    $args['--kiji-model-dir'] = $modelDir;
-                }
                 if ($force) {
                     $args['--force'] = true;
                 }
@@ -171,7 +173,6 @@ final class InstallCommand extends Command
         $choice = $this->choice('Configure a safety-net backend?', [
             'none' => 'None',
             'opf' => 'OpenAI privacy-filter (Tier 2)',
-            'kiji' => 'Kiji DistilBERT NER (Tier 2.5)',
         ], 'none');
 
         return is_string($choice) ? $choice : 'none';
@@ -179,7 +180,7 @@ final class InstallCommand extends Command
 
     private function runDoctorGate(Application $app, ProcessFactory $process): bool
     {
-        // A subprocess boots a fresh kernel that re-reads .env, so a kiji/opf
+        // A subprocess boots a fresh kernel that re-reads .env, so an opf
         // wiring written moments ago is actually reflected (CB4).
         $result = $process->newPendingProcess()
             ->path($app->basePath())
