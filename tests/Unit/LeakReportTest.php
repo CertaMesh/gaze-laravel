@@ -7,7 +7,7 @@ use CertaMesh\Gaze\LeakReport;
 use CertaMesh\Gaze\LeakSuspect;
 
 /**
- * Representative upstream `leak_report` shapes. Mirrors gaze v0.12.0
+ * Representative upstream `leak_report` shapes. Mirrors gaze v0.15.1
  * `LeakReportResponse` (crates/gaze-cli/src/pipeline/run.rs):
  *   { stats: {suspect_count, uncovered_count, partial_bleed_count,
  *             class_mismatch_count, locale_skipped_count},

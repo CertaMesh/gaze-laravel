@@ -47,6 +47,7 @@ final class DoctorCommand extends Command
 
         $this->warnIfDeprecatedRulepack($config, $policy);
         $this->warnIfPolicyPreservesByDefault($policy);
+        $this->warnIfRulepacksDropCore($config);
         $this->probeProxyFeature($binary, $config, $process);
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
@@ -73,7 +74,10 @@ final class DoctorCommand extends Command
             $session = $gaze->clean('doctor@example.com');
             $restored = $gaze->restore($session, $session->cleanText);
 
-            if (! str_contains($restored, 'doctor@example.com')) {
+            // Both directions: the probe value must leave clean() masked AND
+            // come back from restore(). A round-trip alone passes vacuously when
+            // nothing is detected (e.g. GAZE_RULEPACKS=none).
+            if (str_contains($session->cleanText, 'doctor@example.com') || ! str_contains($restored, 'doctor@example.com')) {
                 $this->components->twoColumnDetail('deep', '<fg=red>FAIL</>');
                 $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
@@ -229,6 +233,28 @@ final class DoctorCommand extends Command
         );
         // Own short line so the fix survives console width-wrapping.
         $this->warn('Set the default rule to action = "tokenize" (UPGRADING.md, v0.14.0).');
+    }
+
+    /**
+     * WARN (never fail) when `gaze.rulepacks` overrides the policy's bundled
+     * list without `core`. The override REPLACES the list, so e.g.
+     * `GAZE_RULEPACKS=secrets` drops emails, phones, IBANs and cards, and
+     * since gaze 0.15 `GAZE_RULEPACKS=none` is accepted and runs no bundled
+     * pack at all (0.12 rejected it) — every clean succeeds with no detection.
+     */
+    private function warnIfRulepacksDropCore(ConfigRepository $config): void
+    {
+        $rulepacks = $config->get('gaze.rulepacks');
+        if (! is_array($rulepacks) || $rulepacks === [] || in_array('core', $rulepacks, true) || in_array('core-extended', $rulepacks, true)) {
+            return;
+        }
+
+        $this->components->twoColumnDetail('rulepacks', '<fg=yellow>'.implode(',', array_filter($rulepacks, is_string(...))).' (no core)</>');
+        $this->warn(
+            'GAZE_RULEPACKS replaces the policy\'s bundled rulepacks and does not include core: '
+            .'emails, phones, IBANs, cards and IPs reach the model raw.'
+        );
+        $this->warn('Keep core in the list, e.g. GAZE_RULEPACKS=core,secrets.');
     }
 
     /**

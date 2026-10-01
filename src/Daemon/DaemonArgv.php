@@ -88,6 +88,18 @@ final class DaemonArgv
         self::append($argv, 'ner-model-dir', self::string($config, 'gaze.daemon.ner_model_dir'));
         self::append($argv, 'ner-locale', self::string($config, 'gaze.daemon.ner_locale'));
 
+        // Rulepack overrides (gaze >= 0.13 accepts them on the daemon, #446) —
+        // the same shared `gaze.rulepacks` / `gaze.rulepack_paths` lists the
+        // one-shot path forwards, one flag per element. Without them a
+        // configured `GAZE_RULEPACKS=core,secrets` protected one-shot cleans
+        // but not daemon cleans.
+        foreach ($options->rulepacks ?? [] as $pack) {
+            $argv[] = '--rulepack-bundled='.$pack;
+        }
+        foreach ($options->rulepackPaths ?? [] as $path) {
+            $argv[] = '--rulepack-path='.$path;
+        }
+
         // OpenAI Privacy Filter (Tier 2) backend knobs — top-level `gaze.*`
         // keys shared with the one-shot path. Config-only.
         self::append($argv, 'openai-filter-device', self::string($config, 'gaze.safety_net_device'));

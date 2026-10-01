@@ -53,6 +53,58 @@ it('runs the deep round-trip check when requested', function () {
         ->expectsOutputToContain('OK');
 });
 
+it('fails the deep check when clean() leaves the probe value unmasked', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    Process::fake(['*' => Process::result(output: "gaze 0.3.0-rc.3\n")]);
+
+    // Nothing detected (e.g. GAZE_RULEPACKS=none on gaze >= 0.15): the clean
+    // text still carries the raw value, and the round-trip alone would pass.
+    $clean = new GazeSession(
+        cleanText: 'doctor@example.com',
+        ciphertext: EncryptedBlob::wrap(base64_encode(json_encode([
+            'text' => 'doctor@example.com',
+        ], JSON_THROW_ON_ERROR))),
+        detections: 0,
+    );
+
+    $this->bindScriptedGaze($clean, 'doctor@example.com');
+
+    $this->artisan('gaze:doctor', ['--deep' => true])
+        ->assertExitCode(1)
+        ->expectsOutputToContain('FAIL');
+});
+
+it('warns when GAZE_RULEPACKS replaces the bundled list without core', function (array $rulepacks, bool $warns) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.rulepacks', $rulepacks);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $command = $this->artisan('gaze:doctor')->assertExitCode(0);
+
+    if ($warns) {
+        $command->expectsOutputToContain('(no core)')
+            ->expectsOutputToContain('reach the model raw')
+            ->expectsOutputToContain('GAZE_RULEPACKS=core,secrets');
+    } else {
+        $command->doesntExpectOutputToContain('(no core)');
+    }
+})->with([
+    'none' => [['none'], true],
+    'secrets alone' => [['secrets'], true],
+    'core plus secrets' => [['core', 'secrets'], false],
+    'unset' => [[], false],
+]);
+
 it('does not warn when rulepacks list only the unified core bundle', function () {
     $this->app->instance(
         BinaryResolver::class,

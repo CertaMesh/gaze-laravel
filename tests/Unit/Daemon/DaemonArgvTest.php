@@ -174,6 +174,21 @@ it('ignores a leftover kiji-distilbert selector while the net is disabled', func
     expect(DaemonArgv::flags($config))->toBe(['--policy=/etc/gaze/policy.toml']);
 });
 
+it('forwards the shared rulepack lists after the NER overrides, one flag per element', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml', 'ner_locale' => 'de'],
+        topLevel: ['rulepacks' => ['core', 'secrets'], 'rulepack_paths' => ['/etc/gaze/tenant.toml']],
+    );
+
+    expect(DaemonArgv::flags($config))->toBe([
+        '--policy=/etc/gaze/policy.toml',
+        '--ner-locale=de',
+        '--rulepack-bundled=core',
+        '--rulepack-bundled=secrets',
+        '--rulepack-path=/etc/gaze/tenant.toml',
+    ]);
+});
+
 it('lets caller overrides win over config for the operational knobs', function () {
     $config = configRepoForArgv(
         daemon: [
