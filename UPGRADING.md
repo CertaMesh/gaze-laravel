@@ -23,19 +23,28 @@ upcoming release in full; per-minor guides for earlier versions live in
    only while the net is enabled with backend `nym`. A policy
    `[safety_net.nym] model_dir` keeps working; the config key wins over it.
    `php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=<dir>`
-   checks the bundle and wires `.env`. See
+   checks the bundle and wires `.env`. Run it as the runtime user, or as the
+   deploy user with `--runtime-user=www-data` (new option) so the owner is
+   checked for the user that runs gaze. See
    [SafetyNet → Quick start (Nym)](docs/how-to/safety-net.md#quick-start-nym).
 2. **`gaze:doctor` now fails on a Nym bundle gaze would refuse**, while the net
    is enabled with backend `nym`: no bundle directory configured anywhere, a
-   missing directory or file, a bundle not owned by the user running doctor,
-   or a directory that is not mode `0700`. These checks hold for the user that
-   runs them, so **run doctor as the PHP-FPM pool / queue worker user**
+   bare `GAZE_NYM_MODEL_DIR=` line (gaze takes the empty value and skips the
+   policy), a missing or unreadable file, a bundle not owned by the user
+   running doctor, a directory that is not mode `0700`, or a symlink or fifo
+   in it. These checks hold for the user that runs them, so **run doctor as
+   the PHP-FPM pool / queue worker user**
    (`sudo -u www-data php artisan gaze:doctor`). A deploy pipeline that runs
    doctor as the deploy user against a bundle owned by `www-data` now fails;
    run that step as `www-data` instead.
-3. **`GAZE_NYM_INTRA_THREADS=0` (or below) fails fast** with
-   `GazeSafetyNetConfigException` before gaze runs, instead of upstream's
-   detail-less `PolicyConfig`.
+3. **`gaze:doctor` now fails a mis-spelled backend.** With the net enabled,
+   `GAZE_SAFETY_NET_BACKEND` must be exactly `nym` or `openai-filter`. `Nym`
+   used to pass doctor while every clean failed with `PolicyConfig`; fix the
+   spelling.
+4. **`GAZE_NYM_INTRA_THREADS` must be a positive integer.** `0`, a negative
+   number or a non-integer (`1.5`, `abc`) fails fast with
+   `GazeSafetyNetConfigException` before gaze runs, and doctor fails on it.
+   Before, `1.5` was cut to `1` and `abc` was dropped without a word.
 
 ## v0.14.0 → v0.15.0
 

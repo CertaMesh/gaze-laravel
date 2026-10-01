@@ -259,8 +259,9 @@ return [
 
             /*
              * ONNX Runtime intra-op threads for the Nym backend. Positive
-             * integer, forwarded as `--nym-intra-threads=<value>`. Null lets
-             * the binary use its default of 1.
+             * integer, forwarded as `--nym-intra-threads=<value>`; any other
+             * value (`0`, `1.5`, `abc`) fails closed before gaze runs. Null
+             * lets the binary use its default of 1.
              */
             'intra_threads' => env('GAZE_NYM_INTRA_THREADS'),
         ],

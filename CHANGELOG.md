@@ -14,20 +14,32 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
     `Gaze::mask()`, `Gaze::daemon()` and `gaze:daemon:serve`. Forwarded only
     while the net is enabled with backend `nym` (gaze 0.15.1 exits 3 with
     `SafetyNetConfig` on them otherwise). The bundle directory now survives
-    `php artisan config:cache`. A non-positive `intra_threads` fails closed
-    before spawning (`GazeSafetyNetConfigException`).
-  - `gaze:install:safety-net --safety-net=nym [--nym-model-dir=]` and
-    `gaze:install --safety-net=nym [--nym-model-dir=]`: check the bundle
-    before writing `.env` (required files, owner = effective uid, directory
-    mode `0700`, no group/world-writable files or symlinks) and print the
-    `gaze setup --safety-net nym` command to fetch it as the runtime user.
-    The download stays upstream's. Path values that `.env` cannot hold bare
-    are now quoted.
+    `php artisan config:cache`. An `intra_threads` that is not a positive
+    integer (`0`, `-1`, `1.5`, `abc`) fails closed before spawning
+    (`GazeSafetyNetConfigException`) instead of being cut or dropped.
+  - `gaze:install:safety-net --safety-net=nym [--nym-model-dir=]
+    [--runtime-user=]` and `gaze:install --safety-net=nym [--nym-model-dir=]`:
+    check the bundle before writing `.env` (required files present and
+    readable, owner, every directory mode `0700`, no group/world-writable
+    files, no symlinks or fifos) and print the `gaze setup --safety-net nym`
+    command to fetch it as the runtime user. The download stays upstream's.
+    Path values that `.env` cannot hold bare are now quoted.
+  - `--runtime-user=<name|uid>` (new option) checks the owner for the user
+    that runs gaze instead of the user running the installer, so the deploy
+    user can wire a bundle that `www-data` owns. A `0700` bundle the installer
+    cannot open is then wired with a warning, and its files are left to
+    `gaze:doctor` run as that user.
   - `gaze:doctor` Nym probe, active while the net is enabled with backend
     `nym`: fails when no bundle directory is configured (config, process
-    environment or the policy's `[safety_net.nym] model_dir`) or when gaze
-    would refuse the bundle, judged as the user running doctor; the hint says
-    to run doctor as the PHP-FPM pool user.
+    environment or the policy's `[safety_net.nym] model_dir`), when
+    `GAZE_NYM_MODEL_DIR` is set but empty (gaze then never reads the
+    policy), when `intra_threads` is invalid, or when gaze would refuse the
+    bundle, judged as the user running doctor; the hint says to run doctor
+    as the PHP-FPM pool user. Without ext-posix it warns that the owner was
+    not checked.
+  - `gaze:doctor` fails an enabled `GAZE_SAFETY_NET_BACKEND` other than
+    exactly `openai-filter` or `nym`. gaze matches the value exactly, so
+    `Nym` passed doctor before but failed every clean with `PolicyConfig`.
 
 ## [0.15.0] - 2026-10-01
 

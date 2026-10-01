@@ -38,29 +38,41 @@ adapter never downloads it.
 1. **Fetch the bundle as the user that runs gaze**: the PHP-FPM pool user and
    your queue workers' user, not the deploy user. gaze refuses a bundle it does
    not own (see [Nym bundle ownership](#nym-bundle-ownership)). Use the binary
-   the adapter resolves (`GAZE_BINARY`, else `vendor/bin/gaze`):
+   the adapter resolves (`GAZE_BINARY`, else `vendor/bin/gaze`). The data home
+   must exist and belong to that user:
 
    ```bash
+   sudo install -d -o www-data /srv/gaze
    sudo -u www-data env XDG_DATA_HOME=/srv/gaze vendor/bin/gaze setup \
-       --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml
+       --safety-net nym --non-interactive \
+       --policy-out /srv/gaze/gaze-setup.toml --force
    ```
 
    The bundle lands in `$XDG_DATA_HOME/gaze/models/nym-small-int8` (here
    `/srv/gaze/gaze/models/nym-small-int8`). Upstream `setup` has no flag that
    moves the Nym bundle: `--model-dir` only moves the NER model, which `setup`
-   also downloads (~680 MB). The adapter does not use the starter policy
-   written to `--policy-out`, so delete that file.
+   also downloads (~680 MB). `setup` also writes a starter policy to
+   `--policy-out`. The adapter does not use it, so delete it. `--force` only
+   lets a re-run overwrite that file; without it a re-run fails at the very
+   end, after the downloads.
 
-2. **Wire it:**
+2. **Wire it.** Run the installer as the runtime user, or name that user with
+   `--runtime-user` (a name or a uid). Whoever runs it must be able to write
+   `.env`:
 
    ```bash
    php artisan gaze:install:safety-net --safety-net=nym \
-       --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8
+       --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 \
+       --runtime-user=www-data
    ```
 
-   The installer first runs the same bundle checks as `gaze:doctor`. If one
-   fails it leaves `.env` untouched and prints the `gaze setup` command (and a
-   `chown` / `chmod` fix for an existing directory). Otherwise it writes:
+   The installer first runs the same bundle checks as `gaze:doctor`, with the
+   owner checked against the runtime user. If one fails it leaves `.env`
+   untouched and prints the `gaze setup` command (and a `chown` / `chmod` fix
+   for an existing directory). A `0700` bundle of another user is closed to
+   the installer: it then checks only the directory itself, writes `.env`, and
+   tells you to check the files with `gaze:doctor` as the runtime user (step
+   3). Otherwise it writes:
 
    ```env
    GAZE_SAFETY_NET=true
@@ -68,11 +80,16 @@ adapter never downloads it.
    GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8
    ```
 
+   Without `--nym-model-dir` the installer prompts for the directory, or,
+   non-interactively, accepts a directory that `GAZE_NYM_MODEL_DIR` or the
+   policy already names (and then writes only the first two keys). A
+   `GAZE_NYM_MODEL_DIR=` line with no value counts as set: gaze uses the empty
+   value and never reads the policy, so the installer refuses it. Remove the
+   line, or pass `--nym-model-dir`, which fills it in.
+
    `php artisan gaze:install --safety-net=nym --nym-model-dir=…` runs the same
-   step inside the umbrella install. Without `--nym-model-dir` the installer
-   prompts for the directory, or, non-interactively, accepts a directory that
-   `GAZE_NYM_MODEL_DIR` or the policy already names (and then writes only the
-   first two keys).
+   step inside the umbrella install. It has no `--runtime-user` and ends on a
+   `gaze:doctor` run as you, so use it only as the runtime user.
 
 3. **Check it as the runtime user:** run `php artisan config:clear` (or
    re-cache), then `sudo -u www-data php artisan gaze:doctor`. Add `--deep` for
@@ -90,9 +107,11 @@ paths (`Gaze::daemon()`, `gaze:daemon:serve`), **only while
 `GAZE_SAFETY_NET=true` and `GAZE_SAFETY_NET_BACKEND=nym`**. gaze rejects them in
 any other state (exit 3, `safety-net backend options require
 --safety-net=<kind> activation`), so leftover values on a disabled net stay
-inert. `intra_threads` must be a positive integer; `0` or less fails closed
-before spawning with `GazeSafetyNetConfigException` (upstream would answer with
-a detail-less `PolicyConfig`).
+inert. `intra_threads` must be a positive integer. `0`, a negative number or
+a value that is no integer (`1.5`, `abc`) fails closed before spawning with
+`GazeSafetyNetConfigException` (upstream would answer `0` with a detail-less
+`PolicyConfig`; the adapter used to cut `1.5` to `1`). `gaze:doctor` fails on
+it too.
 
 The adapter passes the directory as a flag, so it survives
 `php artisan config:cache`. Before v0.16.0, short of editing the policy, the
@@ -122,10 +141,12 @@ adapter enables the net.
 incomplete directory fails with `GazeSafetyNetArtifactMissingException`
 (`backend()` = `nym`, `path()` = `<missing:SHA256SUMS> (install via …)`), a
 bundle gaze does not trust (owner, mode, digest) with
-`GazeSafetyNetConfigException`. Through `Gaze::daemon()` they all surface as
-`GazeDaemonTransportException`: the daemon exits at startup, and its stderr
-goes to `gaze.daemon.stderr_path`. `gaze:doctor` catches all but the digest
-case before the first request.
+`GazeSafetyNetConfigException`. A `GAZE_NYM_MODEL_DIR` that is set but empty
+counts as a directory: gaze takes the empty path, skips the policy, and fails
+with `GazeSafetyNetArtifactMissingException`. Through `Gaze::daemon()` they
+all surface as `GazeDaemonTransportException`: the daemon exits at startup,
+and its stderr goes to `gaze.daemon.stderr_path`. `gaze:doctor` catches all
+but the digest case before the first request.
 
 ### Nym bundle ownership
 
@@ -133,10 +154,12 @@ gaze checks the bundle on every clean and every daemon start, as the user it
 runs as (the effective uid), and refuses it when:
 
 - the directory, or one of `SHA256SUMS`, `config.json`, `model_int8.onnx`,
-  `tokenizer.json`, is missing;
+  `tokenizer.json`, is missing, or one of those files is not readable;
 - any path in it is not owned by that user;
-- the directory mode is not exactly `0700`;
-- a file is group- or world-writable, or anything in it is a symlink;
+- the directory, or a directory in it, is not mode exactly `0700`;
+- a file is group- or world-writable;
+- anything in it is a symlink, or neither a regular file nor a directory (a
+  fifo, a socket);
 - a file does not match its pinned SHA-256 digest.
 
 Under PHP-FPM that user is the pool user (`www-data`, `nginx`, …); under
@@ -145,13 +168,17 @@ hand an existing one over:
 
 ```bash
 sudo chown -R www-data /srv/gaze/gaze/models/nym-small-int8
-sudo chmod 700 /srv/gaze/gaze/models/nym-small-int8
+sudo chmod -R go-w /srv/gaze/gaze/models/nym-small-int8
+sudo find /srv/gaze/gaze/models/nym-small-int8 -type d -exec chmod 700 {} +
 ```
 
 `gaze:doctor` and the installer run every check except the digests (the binary
 verifies those; `gaze:doctor --deep` exercises them), but as the user that runs
 *them*. A deploy user's doctor run says nothing about the pool user, so run
-doctor as the runtime user.
+doctor as the runtime user. The installer can judge for that user instead
+(`--runtime-user`), but it cannot open a `0700` bundle of another user, so it
+leaves the files to doctor. Without ext-posix neither can check the owner:
+doctor shows `WARN owner not checked (ext-posix missing)` instead of `OK`.
 
 ### Nym latency: prefer the daemon
 
@@ -212,9 +239,9 @@ The argv-forwarding contract is the declarative flag map in `Gaze::clean()`
 | Config key | Env var | Type | Default | Meaning |
 |---|---|---|---|---|
 | `gaze.safety_net` | `GAZE_SAFETY_NET` | `bool` | `false` | Master switch. When `false`, no safety-net flag is forwarded. When `true`, the binary runs Pass-3 against the active backend. Legacy v0.6.5 key. |
-| `gaze.safety_net_backend` | `GAZE_SAFETY_NET_BACKEND` | `string\|null` | `null` | Backend selector. Valid: `openai-filter`, `nym`. Forwarded only while `gaze.safety_net` is `true`. `null` lets the binary keep its single-backend default of `openai-filter`. Wins over the legacy `--safety-net=<kind>` flag. `kiji-distilbert` was removed upstream in gaze 0.15.0 and fails closed before spawning. |
+| `gaze.safety_net_backend` | `GAZE_SAFETY_NET_BACKEND` | `string\|null` | `null` | Backend selector. Valid: `openai-filter`, `nym`, spelled exactly (gaze rejects `Nym`); `gaze:doctor` fails any other value on an enabled net. Forwarded only while `gaze.safety_net` is `true`. `null` lets the binary keep its single-backend default of `openai-filter`. Wins over the legacy `--safety-net=<kind>` flag. `kiji-distilbert` was removed upstream in gaze 0.15.0 and fails closed before spawning. |
 | `gaze.safety_net.nym.model_dir` | `GAZE_NYM_MODEL_DIR` | `string\|null` | `null` | Nym bundle directory, forwarded as `--nym-model-dir` only while the enabled net selects `nym`. Wins over the policy's `[safety_net.nym] model_dir`. See [Nym config keys](#nym-config-keys). |
-| `gaze.safety_net.nym.intra_threads` | `GAZE_NYM_INTRA_THREADS` | `int\|null` | `null` | ONNX Runtime threads for Nym, forwarded as `--nym-intra-threads` only while the enabled net selects `nym`. Positive; `null` uses the binary's default of `1`. |
+| `gaze.safety_net.nym.intra_threads` | `GAZE_NYM_INTRA_THREADS` | `int\|null` | `null` | ONNX Runtime threads for Nym, forwarded as `--nym-intra-threads` only while the enabled net selects `nym`. Positive integer; anything else fails closed. `null` uses the binary's default of `1`. |
 | `gaze.openai_filter_command` | `GAZE_OPENAI_FILTER_COMMAND` | `string\|null` | `null` | Absolute path to the `opf` binary. `null` lets the binary `PATH`-resolve. |
 | `gaze.openai_filter_checkpoint` | `GAZE_OPENAI_FILTER_CHECKPOINT` | `string\|null` | `null` | Model-checkpoint directory for OPF. `null` uses the binary's built-in default. |
 | `gaze.openai_filter_operating_point` | `GAZE_OPENAI_FILTER_OPERATING_POINT` | `string\|null` | `null` | Sensitivity trade-off. Valid: `high-recall`, `balanced`, `high-precision`. `null` uses the binary's default. |
@@ -258,6 +285,9 @@ Example matrix:
 `src/Console/DoctorCommand.php`) while `GAZE_SAFETY_NET=true` and
 `GAZE_SAFETY_NET_BACKEND=nym`:
 
+- **FAIL** when `gaze.safety_net.nym.intra_threads` is not a positive
+  integer: the same pre-flight every clean and daemon start applies.
+
 - **FAIL** when no bundle directory is configured anywhere (config key,
   `GAZE_NYM_MODEL_DIR` in the process environment, the policy's
   `[safety_net.nym] model_dir`). gaze would fail every clean with
@@ -267,29 +297,46 @@ Example matrix:
   nym bundle ............................................... not configured
   GAZE_SAFETY_NET_BACKEND=nym, but no Nym bundle directory is configured: ...
   Fetch the bundle as the PHP-FPM pool / queue worker user (replace www-data):
-  sudo -u www-data env XDG_DATA_HOME=/srv/gaze /app/vendor/bin/gaze setup --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml
+  sudo -u www-data env XDG_DATA_HOME=/srv/gaze /app/vendor/bin/gaze setup --safety-net nym --non-interactive --policy-out /srv/gaze/gaze-setup.toml --force
+  Then: php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 --runtime-user=www-data
+  status ......................................................... FAIL
+  ```
+
+- **FAIL** when `GAZE_NYM_MODEL_DIR` is set but empty (a bare
+  `GAZE_NYM_MODEL_DIR=` line in `.env`). gaze uses the empty value as is and
+  never falls back to the policy, even when the policy names a good bundle:
+
+  ```
+  nym bundle ................................. GAZE_NYM_MODEL_DIR is empty
+  GAZE_NYM_MODEL_DIR is set but empty. gaze uses it as is: it does not fall back to the policy, and every clean fails with SafetyNetArtifactMissing. Remove the GAZE_NYM_MODEL_DIR= line from .env (or the environment), or set it to the bundle directory.
   status ......................................................... FAIL
   ```
 
 - **FAIL** when gaze would refuse the bundle: the directory or a required file
-  is missing, a path is not owned by the user running doctor, the directory is
-  not `0700`, a file is group/world-writable or a path is a symlink. The
-  result names the uid it was checked for; run doctor as the PHP-FPM pool user
+  is missing or unreadable, a path is not owned by the user running doctor, a
+  directory is not `0700`, a file is group/world-writable, or a path is a
+  symlink or neither a file nor a directory. The result names the uid it was
+  checked as; run doctor as the PHP-FPM pool user
   (`sudo -u www-data php artisan gaze:doctor`) to check what gaze will see:
 
   ```
   nym bundle ......................................... refused for uid 1000 (deploy)
   gaze would refuse the Nym bundle at /srv/gaze/gaze/models/nym-small-int8 (from gaze.safety_net.nym.model_dir):
-    - the directory is owned by uid 33 (www-data), but gaze would run as uid 1000 (deploy)
+    - the directory is owned by uid 33 (www-data), checked as uid 1000 (deploy)
+    - the directory is not readable by uid 1000 (deploy), so its files cannot be checked
   These checks ran as uid 1000 (deploy). gaze enforces them for the user that runs it, so run doctor as the PHP-FPM pool user, e.g. sudo -u www-data php artisan gaze:doctor.
   status ......................................................... FAIL
   ```
 
+- **WARN** (exit code unchanged) when every other check passed but ext-posix
+  is missing, so the owner could not be checked:
+  `nym bundle ... WARN owner not checked (ext-posix missing)`.
+
 - **OK** otherwise (`nym bundle ... OK for uid 33 (www-data)`). The SHA-256
   digests are left to the binary; `--deep` exercises them.
 
-It also checks the safety-net backend selector against the upstream removal
-of Kiji (`probeKijiRemoval()`):
+It also checks the safety-net backend selector, for the upstream removal of
+Kiji (`probeKijiRemoval()`) and for values gaze does not accept:
 
 - **FAIL** when the safety net is enabled and `gaze.safety_net_backend` is
   `kiji-distilbert` — the same pre-flight `Gaze::clean()` and the daemon
@@ -311,6 +358,18 @@ of Kiji (`probeKijiRemoval()`):
   kiji config ...................................................... ignored
   Kiji DistilBERT config is ignored — upstream removed the backend in gaze 0.15.0: gaze.kiji_backend, GAZE_KIJI_DISTILBERT_MODEL_DIR.
   Remove it (see UPGRADING.md); for a safety net, switch to nym.
+  ```
+
+- **FAIL** when the safety net is enabled and `gaze.safety_net_backend` is
+  any other value than exactly `openai-filter` or `nym`
+  (`probeSafetyNetBackend()`). gaze matches the value exactly, so `Nym` fails
+  every clean with a bare `PolicyConfig`, and the Nym bundle probe would never
+  run for it:
+
+  ```
+  safety_net_backend ............................................ unknown 'Nym'
+  GAZE_SAFETY_NET_BACKEND='Nym' is not a backend gaze accepts, so every clean fails with PolicyConfig. Use nym or openai-filter. Did you mean nym? gaze matches the value exactly: case and spaces count.
+  status ........................................................... FAIL
   ```
 
 - **Silent** otherwise. Doctor does not probe the OPF subprocess;
