@@ -30,7 +30,7 @@ final readonly class Entry
      *
      * @param  array<string, mixed>  $payload
      */
-    public static function fromArray(array $payload): self
+    public static function fromArray(#[\SensitiveParameter] array $payload): self
     {
         return new self(
             class: (string) ($payload['class'] ?? ''),

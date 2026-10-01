@@ -39,6 +39,27 @@ use PHPUnit\Framework\Assert as PHPUnit;
  */
 final class Gaze extends Facade
 {
+    /**
+     * Same dispatch as {@see Facade::__callStatic()}, with the argument array
+     * marked `#[\SensitiveParameter]`: a `Gaze::clean($text)` call would
+     * otherwise record the raw text in this frame's arguments, which error
+     * trackers read from `getTrace()` (#195). Calls the root directly — going
+     * through `parent::` would add another, unmarked frame.
+     *
+     * @param  string  $method
+     * @param  array<int|string, mixed>  $args
+     */
+    public static function __callStatic($method, #[\SensitiveParameter] $args): mixed
+    {
+        $instance = self::getFacadeRoot();
+
+        if (! $instance) {
+            throw new \RuntimeException('A facade root has not been set.');
+        }
+
+        return $instance->$method(...$args);
+    }
+
     protected static function getFacadeAccessor(): string
     {
         // The contract is the canonical container binding; the concrete
