@@ -40,7 +40,6 @@ const UPSTREAM_VARIANTS = [
     'BlobExpired' => ['BlobExpired', 3, ['error' => 'BlobExpired', 'exit' => 3]],
     'Pipeline' => ['Pipeline', 3, ['error' => 'Pipeline', 'exit' => 3]],
     'Io' => ['Io', 4, ['error' => 'Io', 'exit' => 4]],
-    'SigPipe' => ['SigPipe', 141, ['error' => 'SigPipe', 'exit' => 141]],
     'PolicyOpen' => ['PolicyOpen', 4, ['error' => 'PolicyOpen', 'exit' => 4]],
 ];
 
@@ -73,7 +72,12 @@ it('PHP enum has no variants beyond the upstream set (catches reverse drift)', f
     $expectedNames = array_map(fn (array $row) => $row[0], array_values(UPSTREAM_VARIANTS));
     $actualNames = array_map(fn (Variant $v) => $v->name, Variant::cases());
 
-    expect(array_values(array_diff($actualNames, $expectedNames, UpstreamErrorNames::RETIRED_VARIANTS)))->toBe([]);
+    expect(array_values(array_diff($actualNames, $expectedNames, UpstreamErrorNames::RETIRED_VARIANTS, UpstreamErrorNames::ADAPTER_VARIANTS)))->toBe([]);
+});
+
+it('keeps the adapter-made SigPipe on exit 141 and parseable by name', function () {
+    expect(Variant::SigPipe->exitBucket())->toBe(141)
+        ->and(Variant::tryFromStderr('{"error":"SigPipe","exit":141}', 141))->toBe(Variant::SigPipe);
 });
 
 it('has no case for the deliberately unmapped upstream wire names', function () {

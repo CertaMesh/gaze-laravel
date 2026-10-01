@@ -22,6 +22,19 @@ final class UpstreamErrorNames
     public const RETIRED_VARIANTS = ['UnsupportedSessionScope'];
 
     /**
+     * `Variant` cases the adapter builds itself; no gaze release writes them:
+     *   - SigPipe: Gaze::buildException() makes it for exit 141 with empty
+     *     stderr (a reader closed the pipe early).
+     */
+    public const ADAPTER_VARIANTS = ['SigPipe'];
+
+    /**
+     * `DaemonErrorVariant` cases the adapter builds itself (transport surface,
+     * never parsed from the wire), plus the `Unknown` sink.
+     */
+    public const ADAPTER_DAEMON_ERRORS = ['Transport', 'Timeout', 'Unavailable', 'Unknown'];
+
+    /**
      * `variant_name()` wire names in upstream `error.rs` deliberately NOT
      * mapped to a `Variant` case, because no command the adapter runs (clean,
      * restore, audit, daemon, proxy) can emit them:

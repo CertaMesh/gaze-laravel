@@ -12,8 +12,10 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   fails on any error name that is neither mapped by `Variant` /
   `DaemonErrorVariant` nor listed as deliberately unmapped. Before, a new
   upstream name silently became `Unknown` until someone updated the hand-copied
-  lists. The unmapped and retired lists move to `tests/Fixtures/UpstreamErrorNames.php`,
-  shared with the contract tests. The check is skipped when the variable is
+  lists. It also fails when a mapped case's name is no longer found, so a
+  refactor that shrinks the extraction cannot hide one. The unmapped, retired
+  and adapter-made lists (`SigPipe` is the adapter's, not upstream's) move to
+  `tests/Fixtures/UpstreamErrorNames.php`, shared with the contract tests. The check is skipped when the variable is
   unset and runs during the pin-bump audit, not in regular CI.
 
 ## [0.15.0] - 2026-10-01

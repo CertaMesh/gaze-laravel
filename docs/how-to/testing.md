@@ -313,12 +313,14 @@ At tag `v` + `BinaryDownloader::PINNED_VERSION`, it reads
 fetched. It extracts every error name the binary writes and fails on any name
 that is neither mapped by `Variant` / `DaemonErrorVariant` nor listed in
 `tests/Fixtures/UpstreamErrorNames.php`. It also fails on a listed name upstream
-no longer writes.
+no longer writes, and on a mapped case whose name the extraction no longer finds.
+Cases the adapter builds itself (`Variant::SigPipe`, the daemon's `Transport`,
+`Timeout` and `Unavailable`) are listed there too and skip that reverse check.
 
 The extraction is regex over Rust source, and its limits are listed at the top of
 the test. A name built at runtime is invisible to it. If upstream refactors one of
 the scanned functions, the test fails and asks to be updated; it never passes on
-an empty list. Run it during every pin bump (see the lockstep audit in
+an empty or shrunken list. Run it during every pin bump (see the lockstep audit in
 `AGENTS.md`).
 
 ---

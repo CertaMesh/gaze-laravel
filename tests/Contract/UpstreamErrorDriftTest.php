@@ -124,7 +124,7 @@ it('maps or deliberately lists every error name upstream writes at the pinned ta
     $daemonRules = [
         'DaemonResponse::error() names in daemon.rs' => ued_names('/DaemonResponse::error\(\s*[^,]*,\s*"(\w+)"/', $daemonRs),
         'DaemonError::variant() arms in daemon.rs' => ued_names($arm, ued_fnBody($daemonRs, 'variant')),
-        'SafetyNetFailure { variant } in daemon.rs / run.rs' => ued_names('/SafetyNetFailure\s*\{\s*variant:\s*"(\w+)"/', $daemonRs."\n".$runRs),
+        'SafetyNetFailure { variant } in error.rs / daemon.rs / run.rs' => ued_names('/SafetyNetFailure\s*\{\s*variant:\s*"(\w+)"/', $errorRs."\n".$daemonRs."\n".$runRs),
     ];
     foreach (['variant_name() arms in error.rs' => $cliNames, ...$daemonRules] as $rule => $names) {
         expect($names)->not->toBeEmpty("{$rule}: extraction matched nothing at {$tag}; upstream refactored it, update this test");
@@ -154,6 +154,17 @@ it('maps or deliberately lists every error name upstream writes at the pinned ta
     foreach (array_diff(UpstreamErrorNames::UNMAPPED_VARIANTS, $cliNames) as $name) {
         $drift[] = "error.rs no longer writes {$name}: drop it from UpstreamErrorNames::UNMAPPED_VARIANTS";
     }
+    // Reverse: an extraction that silently shrinks (a match split into a
+    // helper) must not hide a mapped name.
+    foreach (Variant::cases() as $case) {
+        $wire = $case === Variant::PolicyConfigDetail ? Variant::PolicyConfig->value : $case->value;
+        if (! in_array($case->name, [...UpstreamErrorNames::RETIRED_VARIANTS, ...UpstreamErrorNames::ADAPTER_VARIANTS], true) && ! in_array($wire, $cliNames, true)) {
+            $drift[] = "Variant::{$case->name} maps {$wire}, which variant_name() in error.rs no longer yields: retire the case or fix the extraction";
+        }
+    }
+    foreach (array_intersect(UpstreamErrorNames::ADAPTER_VARIANTS, $cliNames) as $name) {
+        $drift[] = "error.rs now writes {$name}: move it from UpstreamErrorNames::ADAPTER_VARIANTS to VariantContractTest's upstream rows";
+    }
     foreach ($daemonNames as $name) {
         if (DaemonErrorVariant::fromWire($name) === DaemonErrorVariant::Unknown && ! in_array($name, UpstreamErrorNames::UNMAPPED_DAEMON_ERRORS, true)) {
             $drift[] = "the daemon writes {$name}: add a DaemonErrorVariant case and a DaemonErrorVariantContractTest row, or list it in UpstreamErrorNames::UNMAPPED_DAEMON_ERRORS";
@@ -161,6 +172,17 @@ it('maps or deliberately lists every error name upstream writes at the pinned ta
     }
     foreach (array_diff(UpstreamErrorNames::UNMAPPED_DAEMON_ERRORS, $daemonNames) as $name) {
         $drift[] = "the daemon no longer writes {$name}: drop it from UpstreamErrorNames::UNMAPPED_DAEMON_ERRORS";
+    }
+    foreach (DaemonErrorVariant::cases() as $case) {
+        if (in_array($case->name, UpstreamErrorNames::ADAPTER_DAEMON_ERRORS, true)) {
+            continue;
+        }
+        // The daemon writes a safety-net failure's own variant (wire `Timeout`
+        // is SafetyNetTimeout).
+        $wire = str_starts_with($case->name, 'SafetyNet') ? substr($case->name, strlen('SafetyNet')) : $case->value;
+        if (DaemonErrorVariant::fromWire($wire) !== $case || ! in_array($wire, $daemonNames, true)) {
+            $drift[] = "DaemonErrorVariant::{$case->name} maps {$wire}, which the daemon no longer writes: retire the case or fix the extraction";
+        }
     }
 
     expect($drift)->toBe([], "gaze {$tag} drifted from the adapter's error contract:\n  ".implode("\n  ", $drift));
