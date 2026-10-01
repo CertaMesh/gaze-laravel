@@ -166,3 +166,59 @@ it('falls back to flat keys for values the nested group leaves null', function (
         ->and($options->safetyNetMode)->toBe('tolerant')
         ->and($options->safetyNetFallback)->toBe('redact');
 });
+
+it('reads the nested nym group and coerces env-shaped strings', function () {
+    $options = GazeOptions::fromConfig([
+        'safety_net' => [
+            'enabled' => 'true',
+            'backend' => 'nym',
+            'nym' => ['model_dir' => '/srv/nym', 'intra_threads' => '4'],
+        ],
+    ]);
+
+    expect($options->nymModelDir)->toBe('/srv/nym')
+        ->and($options->nymIntraThreads)->toBe(4)
+        ->and($options->nymSelected())->toBeTrue();
+});
+
+it('reads the provider back-filled flat nym keys, with the nested group winning', function () {
+    $flat = GazeOptions::fromConfig(['nym_model_dir' => '/srv/flat', 'nym_intra_threads' => 2]);
+    $both = GazeOptions::fromConfig([
+        'safety_net' => ['enabled' => true, 'nym' => ['model_dir' => '/srv/nested', 'intra_threads' => null]],
+        'nym_model_dir' => '/srv/flat',
+        'nym_intra_threads' => 2,
+    ]);
+
+    expect($flat->nymModelDir)->toBe('/srv/flat')
+        ->and($flat->nymIntraThreads)->toBe(2)
+        ->and($both->nymModelDir)->toBe('/srv/nested')
+        ->and($both->nymIntraThreads)->toBe(2);
+});
+
+it('defaults the nym knobs to null and treats empty env strings as unset', function () {
+    $options = GazeOptions::fromConfig(['safety_net' => ['nym' => ['model_dir' => '', 'intra_threads' => '']]]);
+
+    expect(GazeOptions::fromConfig([])->nymModelDir)->toBeNull()
+        ->and(GazeOptions::fromConfig([])->nymIntraThreads)->toBeNull()
+        ->and($options->nymModelDir)->toBeNull()
+        ->and($options->nymIntraThreads)->toBeNull();
+});
+
+it('selects nym only for an enabled net with the exact nym backend', function (bool $enabled, ?string $backend, bool $selected) {
+    expect((new GazeOptions(safetyNet: $enabled, safetyNetBackend: $backend))->nymSelected())->toBe($selected);
+})->with([
+    'enabled nym' => [true, 'nym', true],
+    'disabled nym' => [false, 'nym', false],
+    'enabled openai-filter' => [true, 'openai-filter', false],
+    'enabled default backend' => [true, null, false],
+    'mis-cased (upstream rejects it)' => [true, 'Nym', false],
+]);
+
+it('appends the nym properties after every existing constructor parameter (positional BC)', function () {
+    $parameters = array_map(
+        fn (ReflectionParameter $parameter): string => $parameter->getName(),
+        (new ReflectionMethod(GazeOptions::class, '__construct'))->getParameters(),
+    );
+
+    expect(array_slice($parameters, -3))->toBe(['nerThreshold', 'nymModelDir', 'nymIntraThreads']);
+});

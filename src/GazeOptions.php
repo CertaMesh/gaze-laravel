@@ -27,6 +27,9 @@ namespace CertaMesh\Gaze;
  * The Kiji DistilBERT knobs (`safety_net.kiji.*` / flat `kiji_*`) are no
  * longer read: upstream removed that backend in gaze 0.15.0, and a selected
  * `kiji-distilbert` backend fails closed in {@see SafetyNetBackendGuard}.
+ *
+ * New properties are appended at the END of the constructor so positional
+ * callers keep working (BC).
  */
 final readonly class GazeOptions
 {
@@ -56,7 +59,22 @@ final readonly class GazeOptions
         public ?string $restoreMode = null,
         public bool $restoreTelemetry = false,
         public ?float $nerThreshold = null,
+        public ?string $nymModelDir = null,
+        public ?int $nymIntraThreads = null,
     ) {}
+
+    /**
+     * True when the ENABLED safety net selects the Nym backend — the only
+     * state in which the `--nym-*` flags may be forwarded. gaze >= 0.15
+     * rejects them in every other state: with the net off it exits 3 with
+     * SafetyNetConfig ("safety-net backend options require
+     * --safety-net=<kind> activation"). Upstream parses the selector
+     * case-sensitively, so only the exact value `nym` counts.
+     */
+    public function nymSelected(): bool
+    {
+        return $this->safetyNet && $this->safetyNetBackend === SafetyNetBackendGuard::NYM;
+    }
 
     /**
      * Build options from the `config('gaze')` array.
@@ -78,6 +96,7 @@ final readonly class GazeOptions
         $safetyNetRoot = $config['safety_net'] ?? null;
         $group = is_array($safetyNetRoot) ? $safetyNetRoot : [];
         $opf = is_array($group['openai_filter'] ?? null) ? $group['openai_filter'] : [];
+        $nym = is_array($group['nym'] ?? null) ? $group['nym'] : [];
         $enabled = is_array($safetyNetRoot) ? ($group['enabled'] ?? false) : $safetyNetRoot;
 
         return new self(
@@ -102,6 +121,10 @@ final readonly class GazeOptions
             restoreMode: self::stringOrNull($config['restore_mode'] ?? null),
             restoreTelemetry: (bool) ($config['restore_telemetry'] ?? false),
             nerThreshold: self::floatOrNull($config['ner_threshold'] ?? null),
+            // Flat `nym_*` keys are not published: the provider back-fills
+            // them from the nested group before collapsing it at boot.
+            nymModelDir: self::stringOrNull($nym['model_dir'] ?? $config['nym_model_dir'] ?? null),
+            nymIntraThreads: self::intOrNull($nym['intra_threads'] ?? $config['nym_intra_threads'] ?? null),
         );
     }
 

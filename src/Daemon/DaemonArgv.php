@@ -39,7 +39,9 @@ final class DaemonArgv
      * @return list<string>
      *
      * @throws GazeSafetyNetConfigException when an enabled safety net
-     *                                      selects a backend upstream removed
+     *                                      selects a backend upstream removed,
+     *                                      or an enabled Nym net is given a
+     *                                      non-positive intra_threads
      */
     public static function flags(ConfigRepository $config, array $overrides = []): array
     {
@@ -69,6 +71,7 @@ final class DaemonArgv
         // Same fail-closed pre-flight as Gaze::clean(), so BOTH daemon spawn
         // paths refuse the backend upstream removed in gaze 0.15.0.
         SafetyNetBackendGuard::assertSupported($safetyNet, $backend);
+        SafetyNetBackendGuard::assertNymIntraThreads($options);
 
         if ($safetyNet) {
             $argv[] = '--safety-net=openai-filter';
@@ -113,6 +116,16 @@ final class DaemonArgv
         self::append($argv, 'safety-net-input-limit-bytes', self::numeric($config, 'gaze.safety_net_input_limit_bytes'));
         self::append($argv, 'safety-net-mode', self::string($config, 'gaze.safety_net_mode'));
         self::append($argv, 'safety-net-fallback', self::string($config, 'gaze.safety_net_fallback'));
+
+        // Nym bundle knobs (gaze >= 0.15) — `gaze.safety_net.nym.*`, shared
+        // with the one-shot path and read through GazeOptions. Forwarded ONLY
+        // while the enabled net selects nym: gaze rejects them otherwise with
+        // SafetyNetConfig ("safety-net backend options require
+        // --safety-net=<kind> activation"). Config-only.
+        if ($options->nymSelected()) {
+            self::append($argv, 'nym-model-dir', $options->nymModelDir);
+            self::append($argv, 'nym-intra-threads', $options->nymIntraThreads === null ? null : (string) $options->nymIntraThreads);
+        }
 
         return $argv;
     }

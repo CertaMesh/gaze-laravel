@@ -66,10 +66,13 @@ class Gaze implements AuditRunner, GazeContract
         // Fail closed before spawning: gaze >= 0.15 removed kiji-distilbert
         // and reports it only as a detail-less PolicyConfig.
         SafetyNetBackendGuard::assertSupported($this->options->safetyNet, $this->options->safetyNetBackend);
+        SafetyNetBackendGuard::assertNymIntraThreads($this->options);
 
         // Fail fast: gaze never exports an ephemeral session, so the binary
         // would answer with the Retryable Pipeline error on every call.
         SessionScopeGuard::assertExportable($this->options->sessionScope);
+
+        $nym = $this->options->nymSelected();
 
         $command = [
             $this->resolver->resolve(),
@@ -106,6 +109,12 @@ class Gaze implements AuditRunner, GazeContract
             // so a disabled net with a leftover backend must stay net-off.
             '--safety-net-backend' => $this->options->safetyNet ? $this->options->safetyNetBackend : null,
             '--safety-net-fallback' => $this->options->safetyNetFallback,
+            // Nym bundle knobs (gaze >= 0.15) — only while the enabled net
+            // selects nym: with the net off gaze exits 3 with SafetyNetConfig
+            // ("safety-net backend options require --safety-net=<kind>
+            // activation"), so a leftover GAZE_NYM_MODEL_DIR must stay inert.
+            '--nym-model-dir' => $nym ? $this->options->nymModelDir : null,
+            '--nym-intra-threads' => $nym ? $this->options->nymIntraThreads : null,
         ]);
 
         $result = $this->run($command, $text, 'clean');

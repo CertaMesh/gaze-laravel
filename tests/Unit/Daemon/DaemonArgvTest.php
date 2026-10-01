@@ -64,6 +64,8 @@ it('assembles the full daemon flag surface from config in pinned order, never em
             'safety_net_input_limit_bytes' => 2097152,
             'safety_net_mode' => 'strict',
             'safety_net_fallback' => 'redact',
+            'nym_model_dir' => '/srv/gaze/gaze/models/nym-small-int8',
+            'nym_intra_threads' => 2,
         ],
     );
 
@@ -87,6 +89,8 @@ it('assembles the full daemon flag surface from config in pinned order, never em
         '--safety-net-input-limit-bytes=2097152',
         '--safety-net-mode=strict',
         '--safety-net-fallback=redact',
+        '--nym-model-dir=/srv/gaze/gaze/models/nym-small-int8',
+        '--nym-intra-threads=2',
     ]);
 });
 
@@ -238,4 +242,48 @@ it('keeps a zero ner-threshold (numeric, not truthy) in the flag list', function
     $config = configRepoForArgv(topLevel: ['ner_threshold' => 0]);
 
     expect(DaemonArgv::flags($config))->toBe(['--ner-threshold=0']);
+});
+
+it('forwards the nym knobs only while the enabled net selects nym (gaze >= 0.15 rejects them otherwise)', function () {
+    // gaze 0.15.1 with the net off: exit 3 SafetyNetConfig "safety-net
+    // backend options require --safety-net=<kind> activation".
+    $flags = fn (array $topLevel): array => DaemonArgv::flags(configRepoForArgv(
+        topLevel: array_merge(['nym_model_dir' => '/srv/nym', 'nym_intra_threads' => '3'], $topLevel),
+    ));
+
+    expect($flags(['safety_net' => true, 'safety_net_backend' => 'nym']))
+        ->toBe(['--safety-net=openai-filter', '--safety-net-backend=nym', '--nym-model-dir=/srv/nym', '--nym-intra-threads=3'])
+        ->and($flags(['safety_net' => false, 'safety_net_backend' => 'nym']))->toBe([])
+        ->and($flags(['safety_net' => true, 'safety_net_backend' => 'openai-filter']))
+        ->toBe(['--safety-net=openai-filter', '--safety-net-backend=openai-filter'])
+        ->and($flags(['safety_net' => true]))->toBe(['--safety-net=openai-filter']);
+});
+
+it('reads the nym knobs from a nested safety_net group set at runtime', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => [
+            'enabled' => true,
+            'backend' => 'nym',
+            'nym' => ['model_dir' => '/srv/nym', 'intra_threads' => 2],
+        ]],
+    );
+
+    expect(DaemonArgv::flags($config))->toBe([
+        '--policy=/etc/gaze/policy.toml',
+        '--safety-net=openai-filter',
+        '--safety-net-backend=nym',
+        '--nym-model-dir=/srv/nym',
+        '--nym-intra-threads=2',
+    ]);
+});
+
+it('refuses a non-positive nym intra_threads on an enabled nym net before any argv is built', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => true, 'safety_net_backend' => 'nym', 'nym_intra_threads' => '0'],
+    );
+
+    expect(fn () => DaemonArgv::flags($config))
+        ->toThrow(GazeSafetyNetConfigException::class, 'gaze.safety_net.nym.intra_threads must be a positive integer, got 0 (pre-flight)');
 });

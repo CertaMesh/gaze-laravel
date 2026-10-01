@@ -23,6 +23,11 @@ use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
  * `gaze:doctor` reports the same message. `Gaze::restore()` never forwards a
  * safety-net flag and is deliberately NOT guarded, so sessions cleaned under
  * Kiji stay restorable.
+ *
+ * The same two spawn paths also refuse a non-positive
+ * `gaze.safety_net.nym.intra_threads` ({@see self::assertNymIntraThreads()}):
+ * upstream parses `--nym-intra-threads` as a non-zero integer and answers `0`
+ * with the same detail-less PolicyConfig.
  */
 final class SafetyNetBackendGuard
 {
@@ -32,6 +37,9 @@ final class SafetyNetBackendGuard
     public const KIJI_DISTILBERT_REMOVED = 'gaze.safety_net.backend=kiji-distilbert was removed upstream in gaze 0.15.0 (pre-flight). '
         .'Switch GAZE_SAFETY_NET_BACKEND to nym (fetch the bundle with `gaze setup --safety-net nym`) '
         .'or set GAZE_SAFETY_NET=false.';
+
+    /** The Nym backend selector (gaze >= 0.15.0); upstream matches it case-sensitively. */
+    public const NYM = 'nym';
 
     /**
      * Throw when an ENABLED safety net selects a removed backend. A disabled
@@ -47,6 +55,31 @@ final class SafetyNetBackendGuard
     {
         if ($enabled && self::isRemoved($backend)) {
             throw new GazeSafetyNetConfigException(self::KIJI_DISTILBERT_REMOVED, 2, null);
+        }
+    }
+
+    /**
+     * Throw when an enabled Nym net is given a non-positive ONNX Runtime
+     * thread count. Only checked while the flag would be forwarded
+     * ({@see GazeOptions::nymSelected()}); a value on a net that is off or
+     * on another backend is inert.
+     *
+     * Adapter-synthesized like {@see self::assertSupported()}: exit bucket 2,
+     * no stderr, no input text in the message.
+     *
+     * @throws GazeSafetyNetConfigException
+     */
+    public static function assertNymIntraThreads(GazeOptions $options): void
+    {
+        $threads = $options->nymIntraThreads;
+
+        if ($options->nymSelected() && $threads !== null && $threads < 1) {
+            throw new GazeSafetyNetConfigException(
+                "gaze.safety_net.nym.intra_threads must be a positive integer, got {$threads} (pre-flight). "
+                .'Unset GAZE_NYM_INTRA_THREADS to keep the upstream default of 1.',
+                2,
+                null,
+            );
         }
     }
 
