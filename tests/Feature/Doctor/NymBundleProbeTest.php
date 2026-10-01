@@ -48,7 +48,7 @@ it('fails with the setup command when no bundle directory is configured anywhere
             ."Set GAZE_NYM_MODEL_DIR (gaze.safety_net.nym.model_dir) or the policy's [safety_net.nym] model_dir."
         )
         ->expectsOutputToContain('sudo -u www-data env XDG_DATA_HOME=/srv/gaze /fake/gaze setup --safety-net nym --non-interactive')
-        ->expectsOutputToContain('--nym-model-dir=/srv/gaze/gaze/models/nym-small-int8')
+        ->expectsOutputToContain('Then: php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 --runtime-user=www-data')
         ->expectsOutputToContain('FAIL');
 });
 
@@ -136,7 +136,7 @@ it('fails a bundle directory whose mode is not 0700', function () {
     $this->artisan('gaze:doctor')
         ->assertExitCode(1)
         ->expectsOutputToContain('the directory mode is 0755; gaze requires exactly 0700')
-        ->expectsOutputToContain('sudo chown -R www-data '.$this->bundle.' && sudo chmod 700 '.$this->bundle)
+        ->expectsOutputToContain('Or hand it to that user: sudo chown -R www-data '.$this->bundle.' && sudo chmod -R go-w '.$this->bundle.' && sudo find '.$this->bundle.' -type d -exec chmod 700 {} +')
         ->expectsOutputToContain('FAIL');
 });
 
@@ -150,12 +150,23 @@ it('fails a bundle owned by another uid than the one doctor runs as', function (
     $this->artisan('gaze:doctor')
         ->assertExitCode(1)
         ->expectsOutputToContain('refused for uid '.$runtimeUid)
-        ->expectsOutputToContain('the directory is owned by '.NymBundle::userLabel((int) fileowner($this->bundle)).', but gaze would run as uid '.$runtimeUid)
+        ->expectsOutputToContain('the directory is owned by '.NymBundle::userLabel((int) fileowner($this->bundle)).', checked as uid '.$runtimeUid)
         ->expectsOutputToContain(
             "These checks ran as uid {$runtimeUid}. gaze enforces them for the user that runs it, "
             .'so run doctor as the PHP-FPM pool user, e.g. sudo -u www-data php artisan gaze:doctor.'
         )
         ->expectsOutputToContain('FAIL');
+});
+
+it('warns instead of saying OK when ext-posix is missing and the owner went unchecked', function () {
+    $this->app->instance(NymBundle::class, new NymBundle(posix: false));
+    $this->app['config']->set('gaze.nym_model_dir', $this->bundle);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('WARN owner not checked (ext-posix missing)')
+        ->expectsOutputToContain('check by hand: ls -lnaR')
+        ->doesntExpectOutputToContain('OK for');
 });
 
 it('probes only while the enabled net selects nym', function () {

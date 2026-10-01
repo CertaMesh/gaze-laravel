@@ -525,8 +525,9 @@ final class DoctorCommand extends Command
      * The ownership checks hold for the user running doctor, which is often
      * not the PHP-FPM pool / queue worker user that spawns gaze, so every
      * result names the uid it was judged against and a failure tells the
-     * adopter to run doctor as that user. The SHA-256 digests are left to
-     * the binary (`--deep` exercises them).
+     * adopter to run doctor as that user. Without ext-posix the owner checks
+     * cannot run, so the row WARNs instead of claiming OK. The SHA-256
+     * digests are left to the binary (`--deep` exercises them).
      */
     private function probeNymBundle(ConfigRepository $config, string $policyPath, string $binary): bool
     {
@@ -551,7 +552,7 @@ final class DoctorCommand extends Command
             // Own short lines so each command survives console width-wrapping.
             $this->warn('Fetch the bundle as the PHP-FPM pool / queue worker user (replace www-data):');
             $this->warn(NymBundle::setupCommand($binary));
-            $this->warn('Then: php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='.NymBundle::setupTarget());
+            $this->warn('Then: '.NymBundle::installCommand());
 
             return false;
         }
@@ -567,6 +568,17 @@ final class DoctorCommand extends Command
         }
 
         $problems = $bundle->problems($located['dir']);
+        if ($problems === [] && ! $bundle->ownerChecked()) {
+            // WARN, exit unchanged: every other check passed, but gaze
+            // refuses a bundle its user does not own and that went unchecked.
+            $this->components->twoColumnDetail('nym bundle', '<fg=yellow>WARN</> owner not checked (ext-posix missing)');
+            $this->warn(
+                'Without ext-posix doctor cannot tell who owns the bundle. gaze refuses one that the user running it '
+                .'does not own, so check by hand: ls -lnaR '.escapeshellarg($located['dir'])
+            );
+
+            return true;
+        }
         if ($problems === []) {
             $this->components->twoColumnDetail('nym bundle', "<fg=green>OK</> for {$user}");
 

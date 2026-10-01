@@ -68,26 +68,98 @@ it('does not touch .env when the bundle fails a check, and says how to fix it', 
     'directory missing' => [fn (string $dir) => gl_removeNymBundle($dir), 'does not exist'],
 ]);
 
-it('does not touch .env when the bundle belongs to another uid', function () {
-    // Seam: the real owner cannot be changed without root.
-    $runtimeUid = fileowner($this->bundle) + 4242;
-    $this->app->instance(NymBundle::class, new NymBundle(euid: $runtimeUid));
+it('refuses a bundle another user owns, and points at --runtime-user instead of looping on chown', function () {
+    // Seam: the installer runs as $processUid, the bundle belongs to someone
+    // else (the real owner cannot be changed without root).
+    $processUid = fileowner($this->bundle) + 4242;
+    $this->app->instance(NymBundle::class, new NymBundle(euid: $processUid));
 
     $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $this->bundle, '--no-interaction' => true])
         ->expectsOutputToContain('would be refused by gaze; .env was not changed')
         ->expectsOutputToContain('the directory is owned by uid '.fileowner($this->bundle))
-        ->expectsOutputToContain("(checked as uid {$runtimeUid}; gaze checks the user that runs it)")
-        ->expectsOutputToContain('sudo chown -R www-data '.$this->bundle.' && sudo chmod 700 '.$this->bundle)
+        ->expectsOutputToContain("(checked as uid {$processUid}; gaze checks the user that runs it)")
+        ->expectsOutputToContain('sudo chown -R www-data '.$this->bundle.' && sudo chmod -R go-w '.$this->bundle)
+        ->expectsOutputToContain('Then re-run as that user, or name it with --runtime-user. Whoever runs it must be able to write .env:')
+        ->expectsOutputToContain('--runtime-user=www-data')
         ->assertExitCode(1);
 
     expect(file_get_contents($this->env))->toBe("APP_ENV=testing\n");
 });
 
+it('judges the bundle for --runtime-user, by name or uid, instead of the user running the installer', function (string $as) {
+    // The installer runs as someone else (seam); the bundle is owned by the
+    // runtime user, which --runtime-user names.
+    $owner = (int) fileowner($this->bundle);
+    $this->app->instance(NymBundle::class, new NymBundle(euid: $owner + 4242));
+    $user = $as === 'name' ? gl_userName($owner) : (string) $owner;
+
+    $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $this->bundle, '--runtime-user' => $user, '--no-interaction' => true])
+        ->expectsOutputToContain('safety-net wired (nym)')
+        ->expectsOutputToContain('the bundle checks ran for '.NymBundle::userLabel($owner).' (--runtime-user)')
+        ->assertExitCode(0);
+
+    expect(file_get_contents($this->env))->toBe(
+        "APP_ENV=testing\nGAZE_SAFETY_NET=true\nGAZE_SAFETY_NET_BACKEND=nym\nGAZE_NYM_MODEL_DIR={$this->bundle}\n"
+    );
+})->with(['name', 'uid'])->skip(! function_exists('posix_getpwuid'), 'ext-posix not available');
+
+it('refuses a bundle the --runtime-user does not own, with hints for that user', function () {
+    $runtimeUid = (int) fileowner($this->bundle) + 4242;
+
+    $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $this->bundle, '--runtime-user' => (string) $runtimeUid, '--no-interaction' => true])
+        ->expectsOutputToContain(', checked as uid '.$runtimeUid)
+        ->expectsOutputToContain('Fetch the pinned bundle as the user PHP-FPM and your queue workers run as:')
+        ->expectsOutputToContain("sudo -u '#{$runtimeUid}' env XDG_DATA_HOME=/srv/gaze /fake/gaze setup --safety-net nym")
+        ->expectsOutputToContain("sudo chown -R {$runtimeUid} {$this->bundle}")
+        ->expectsOutputToContain("--runtime-user={$runtimeUid}")
+        ->assertExitCode(1);
+
+    expect(file_get_contents($this->env))->toBe("APP_ENV=testing\n");
+});
+
+it('rejects a --runtime-user that names no user, before touching .env', function () {
+    $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $this->bundle, '--runtime-user' => 'no-such-gaze-user', '--no-interaction' => true])
+        ->expectsOutputToContain('--runtime-user=no-such-gaze-user: no such user on this host.')
+        ->assertExitCode(2);
+
+    expect(file_get_contents($this->env))->toBe("APP_ENV=testing\n");
+})->skip(! function_exists('posix_getpwnam'), 'ext-posix not available');
+
+it('wires a bundle it cannot read when --runtime-user owns it, and defers the file checks to doctor', function () {
+    // A 0700 directory of another user stands in for the www-data bundle the
+    // deploy user cannot open.
+    $dir = gl_requireForeignPrivateDir();
+    $owner = (int) fileowner($dir);
+    $name = gl_userName($owner);
+
+    $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $dir, '--runtime-user' => $name, '--no-interaction' => true])
+        ->expectsOutputToContain('safety-net wired (nym)')
+        ->expectsOutputToContain('so only the directory itself was checked. Check its files as the runtime user: sudo -u '.$name.' php artisan gaze:doctor')
+        ->assertExitCode(0);
+
+    expect(file_get_contents($this->env))->toEndWith("GAZE_NYM_MODEL_DIR={$dir}\n");
+
+    // Without --runtime-user the same directory is refused: the owner differs.
+    file_put_contents($this->env, "APP_ENV=testing\n");
+    $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $dir, '--no-interaction' => true])
+        ->expectsOutputToContain('the directory is owned by '.NymBundle::userLabel($owner))
+        ->assertExitCode(1);
+    expect(file_get_contents($this->env))->toBe("APP_ENV=testing\n");
+})->skip(fn () => gl_foreignPrivateDir() === null, 'needs a 0700 directory of another user, e.g. /root on Linux');
+
+it('says the owner was not checked when ext-posix is missing', function () {
+    $this->app->instance(NymBundle::class, new NymBundle(posix: false));
+
+    $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $this->bundle, '--no-interaction' => true])
+        ->expectsOutputToContain('owner not checked (ext-posix missing)')
+        ->assertExitCode(0);
+});
+
 it('refuses non-interactively without any bundle dir and prints the gaze setup command', function () {
     $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--no-interaction' => true])
         ->expectsOutputToContain('the nym backend needs the bundle directory: pass --nym-model-dir, set GAZE_NYM_MODEL_DIR')
-        ->expectsOutputToContain('sudo -u www-data env XDG_DATA_HOME=/srv/gaze /fake/gaze setup --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml')
-        ->expectsOutputToContain('php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8')
+        ->expectsOutputToContain('sudo -u www-data env XDG_DATA_HOME=/srv/gaze /fake/gaze setup --safety-net nym --non-interactive --policy-out /srv/gaze/gaze-setup.toml --force')
+        ->expectsOutputToContain('php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 --runtime-user=www-data')
         ->assertExitCode(1);
 
     expect(file_get_contents($this->env))->toBe("APP_ENV=testing\n");

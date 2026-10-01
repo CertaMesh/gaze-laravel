@@ -50,13 +50,43 @@ it('fails a directory owned by another uid than the one gaze runs as', function 
     $problems = (new NymBundle(euid: $other))->problems($this->bundle);
 
     expect($problems[0])->toStartWith('the directory is owned by uid '.$owner)
-        ->toEndWith(', but gaze would run as uid '.$other)
-        ->and($problems[1])->toBe('not owned by uid '.$other.': '.implode(', ', nb_sortedRequired()));
+        ->toEndWith(', checked as uid '.$other)
+        ->and($problems[1])->toBe('not owned by uid '.$other.': '.implode(', ', nb_sortedRequired()))
+        ->and((new NymBundle)->forUid($other)->problems($this->bundle))->toBe($problems);
 });
 
 it('checks the owner against posix_geteuid() by default', function () {
-    expect((new NymBundle)->effectiveUid())->toBe(posix_geteuid());
+    expect((new NymBundle)->effectiveUid())->toBe(posix_geteuid())
+        ->and((new NymBundle)->processUid())->toBe(posix_geteuid())
+        ->and((new NymBundle)->forUid(4242)->effectiveUid())->toBe(4242)
+        ->and((new NymBundle)->forUid(4242)->processUid())->toBe(posix_geteuid())
+        ->and((new NymBundle)->ownerChecked())->toBeTrue();
 })->skip(! function_exists('posix_geteuid'), 'ext-posix not available');
+
+it('skips the owner checks without ext-posix, and says so', function () {
+    $owner = (int) fileowner($this->bundle);
+    $noPosix = new NymBundle(posix: false);
+
+    expect($noPosix->effectiveUid())->toBeNull()
+        ->and($noPosix->ownerChecked())->toBeFalse()
+        ->and($noPosix->problems($this->bundle))->toBe([])
+        // A named uid still checks the owner without ext-posix.
+        ->and($noPosix->forUid($owner + 4242)->ownerChecked())->toBeTrue()
+        ->and($noPosix->forUid($owner + 4242)->problems($this->bundle))->not->toBe([]);
+});
+
+it('reports a 0700 directory it cannot read apart from the problems, when judged for its owner', function () {
+    // The installer's --runtime-user case: a bundle owned by the runtime user
+    // is closed to the deploy user, so only the directory itself is checked.
+    $dir = gl_requireForeignPrivateDir();
+    $bundle = (new NymBundle)->forUid((int) fileowner($dir));
+
+    expect($bundle->inspect($dir))->toBe(['problems' => [], 'unread' => true])
+        ->and($bundle->problems($dir))->toBe([
+            'the directory is not readable by '.NymBundle::userLabel(posix_geteuid()).', so its files cannot be checked',
+        ])
+        ->and((new NymBundle)->inspect($dir)['problems'][0])->toStartWith('the directory is owned by uid '.fileowner($dir));
+})->skip(fn () => gl_foreignPrivateDir() === null, 'needs a 0700 directory of another user, e.g. /root on Linux');
 
 it('fails group- or world-writable files, symlinks and loose subdirectories', function () {
     chmod($this->bundle.'/config.json', 0620);
@@ -173,16 +203,52 @@ it('locates nothing when no source names a directory', function () {
 });
 
 it('prints the gaze setup command for the runtime user, deriving XDG_DATA_HOME from a standard bundle path', function () {
+    // The starter policy goes below the data home with --force, so a re-run
+    // does not fail late on a leftover file (gaze checks it after downloading).
     expect(NymBundle::setupCommand('/app/vendor/bin/gaze', '/var/lib/app/gaze/models/nym-small-int8'))
-        ->toBe('sudo -u www-data env XDG_DATA_HOME=/var/lib/app /app/vendor/bin/gaze setup --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml')
+        ->toBe('sudo -u www-data env XDG_DATA_HOME=/var/lib/app /app/vendor/bin/gaze setup --safety-net nym --non-interactive --policy-out /var/lib/app/gaze-setup.toml --force')
         ->and(NymBundle::setupTarget('/var/lib/app/gaze/models/nym-small-int8/'))->toBe('/var/lib/app/gaze/models/nym-small-int8')
         ->and(NymBundle::setupCommand('/app/vendor/bin/gaze'))
-        ->toBe('sudo -u www-data env XDG_DATA_HOME=/srv/gaze /app/vendor/bin/gaze setup --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml')
+        ->toBe('sudo -u www-data env XDG_DATA_HOME=/srv/gaze /app/vendor/bin/gaze setup --safety-net nym --non-interactive --policy-out /srv/gaze/gaze-setup.toml --force')
         ->and(NymBundle::setupTarget('/opt/custom-nym'))->toBe('/srv/gaze/gaze/models/nym-small-int8')
         ->and(NymBundle::setupCommand('/my apps/gaze', '/data home/gaze/models/nym-small-int8'))
-        ->toBe("sudo -u www-data env XDG_DATA_HOME='/data home' '/my apps/gaze' setup --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml")
-        ->and(NymBundle::chownCommand('/srv/gaze/gaze/models/nym-small-int8'))
-        ->toBe('sudo chown -R www-data /srv/gaze/gaze/models/nym-small-int8 && sudo chmod 700 /srv/gaze/gaze/models/nym-small-int8');
+        ->toBe("sudo -u www-data env XDG_DATA_HOME='/data home' '/my apps/gaze' setup --safety-net nym --non-interactive --policy-out '/data home/gaze-setup.toml' --force")
+        ->and(NymBundle::setupCommand('/app/vendor/bin/gaze', null, 'nginx'))
+        ->toStartWith('sudo -u nginx env ')
+        ->and(NymBundle::setupCommand('/app/vendor/bin/gaze', null, '33'))
+        ->toStartWith("sudo -u '#33' env ");
+});
+
+it('prints a chown that also clears group/world write and sets every directory to 0700', function () {
+    expect(NymBundle::chownCommand('/srv/gaze/gaze/models/nym-small-int8'))
+        ->toBe('sudo chown -R www-data /srv/gaze/gaze/models/nym-small-int8'
+            .' && sudo chmod -R go-w /srv/gaze/gaze/models/nym-small-int8'
+            .' && sudo find /srv/gaze/gaze/models/nym-small-int8 -type d -exec chmod 700 {} +')
+        ->and(NymBundle::chownCommand('/data home/nym', '33'))
+        ->toBe("sudo chown -R 33 '/data home/nym' && sudo chmod -R go-w '/data home/nym' && sudo find '/data home/nym' -type d -exec chmod 700 {} +");
+});
+
+it('fixes a loose bundle when the printed chown command is run', function () {
+    // The command run for real, minus sudo and with the current user as owner.
+    chmod($this->bundle.'/config.json', 0666);
+    mkdir($this->bundle.'/sub', 0755);
+    chmod($this->bundle.'/sub', 0775);
+    chmod($this->bundle, 0755);
+    $user = gl_userName(posix_geteuid());
+
+    exec(str_replace('sudo ', '', NymBundle::chownCommand($this->bundle, $user)), $output, $exit);
+
+    expect($exit)->toBe(0)
+        ->and((new NymBundle)->problems($this->bundle))->toBe([]);
+})->skip(! function_exists('posix_getpwuid'), 'ext-posix not available');
+
+it('prints the installer re-run and the doctor run for the runtime user', function () {
+    expect(NymBundle::installCommand())
+        ->toBe('php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 --runtime-user=www-data')
+        ->and(NymBundle::installCommand('/var/lib/app/gaze/models/nym-small-int8', 'nginx'))
+        ->toBe('php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/var/lib/app/gaze/models/nym-small-int8 --runtime-user=nginx')
+        ->and(NymBundle::doctorCommand())->toBe('sudo -u www-data php artisan gaze:doctor')
+        ->and(NymBundle::doctorCommand('33'))->toBe("sudo -u '#33' php artisan gaze:doctor");
 });
 
 /** @return list<string> */

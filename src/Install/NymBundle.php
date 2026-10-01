@@ -27,11 +27,13 @@ use Devium\Toml\Toml;
  * on each doctor run is the binary's job, and `gaze:doctor --deep` runs it. It
  * downloads nothing: `gaze setup --safety-net nym` owns the fetch.
  *
- * The owner checks compare against the uid of the PHP process running the
- * check. That process is often not the PHP-FPM pool or queue worker user that
- * spawns gaze in production, so callers tell the adopter to run the check as
- * that user. The constructor's `$euid` is a test seam; null reads
- * `posix_geteuid()`, and without ext-posix the owner checks are skipped.
+ * The owner checks compare against one uid: by default the uid of the PHP
+ * process running the check. That process is often not the PHP-FPM pool or
+ * queue worker user that spawns gaze in production, so callers either tell
+ * the adopter to run the check as that user or judge for a named uid
+ * ({@see self::forUid()}, the installer's `--runtime-user`). Without
+ * ext-posix and without a named uid the owner checks are skipped, and
+ * {@see self::ownerChecked()} says so.
  */
 final class NymBundle
 {
@@ -52,7 +54,31 @@ final class NymBundle
         .'the policy, and every clean fails with SafetyNetArtifactMissing. Remove the GAZE_NYM_MODEL_DIR= line '
         .'from .env (or the environment), or set it to the bundle directory.';
 
-    public function __construct(private readonly ?int $euid = null) {}
+    /** Runtime user named in hints when the adopter has not named one. */
+    public const EXAMPLE_USER = 'www-data';
+
+    /**
+     * Starter policy that `gaze setup` insists on writing, below the data
+     * home. The adapter never reads it.
+     */
+    public const SETUP_POLICY = 'gaze-setup.toml';
+
+    /**
+     * @param  int|null  $euid  uid the owner checks judge against; null means
+     *                          the uid of this process (`posix_geteuid()`)
+     * @param  bool|null  $posix  whether ext-posix is loaded; null detects it.
+     *                            A test seam for hosts without ext-posix.
+     */
+    public function __construct(
+        private readonly ?int $euid = null,
+        private readonly ?bool $posix = null,
+    ) {}
+
+    /** The same checks, judged for `$uid` (the installer's `--runtime-user`). */
+    public function forUid(int $uid): self
+    {
+        return new self($uid, $this->posix);
+    }
 
     /**
      * The bundle directory gaze will use, in upstream's precedence order:
@@ -131,29 +157,48 @@ final class NymBundle
     }
 
     /**
-     * Reasons the gaze binary would refuse `$dir`, judged as the current
-     * process user. An empty list means every check passed.
+     * Reasons the gaze binary would refuse `$dir`, judged for
+     * {@see self::effectiveUid()}. An empty list means every check passed.
+     * A directory this process cannot read is a problem here: doctor must
+     * see every file before it says OK.
      *
      * @return list<string>
      */
     public function problems(string $dir): array
     {
+        $report = $this->inspect($dir);
+
+        return $report['unread'] ? [...$report['problems'], $this->unreadMessage()] : $report['problems'];
+    }
+
+    /**
+     * Like {@see self::problems()}, but a directory this process cannot read
+     * is reported apart, as `unread`, instead of as a problem. That happens
+     * when the checks judge for another user (`--runtime-user`): a 0700
+     * bundle owned by that user is closed to everyone else, so only the
+     * directory itself could be checked. The caller decides whether to defer
+     * the rest to `gaze:doctor` run as that user.
+     *
+     * @return array{problems: list<string>, unread: bool}
+     */
+    public function inspect(string $dir): array
+    {
         clearstatcache();
 
         if ($dir === '') {
-            return ['the bundle path is empty'];
+            return ['problems' => ['the bundle path is empty'], 'unread' => false];
         }
         if (! str_starts_with($dir, '/')) {
-            return ["{$dir} is a relative path; gaze resolves it against the worker's working directory, so use an absolute path"];
+            return ['problems' => ["{$dir} is a relative path; gaze resolves it against the worker's working directory, so use an absolute path"], 'unread' => false];
         }
         if (is_link($dir)) {
-            return ["{$dir} is a symlink; gaze refuses symlinks, so point at the real directory"];
+            return ['problems' => ["{$dir} is a symlink; gaze refuses symlinks, so point at the real directory"], 'unread' => false];
         }
         if (! file_exists($dir)) {
-            return ["{$dir} does not exist"];
+            return ['problems' => ["{$dir} does not exist"], 'unread' => false];
         }
         if (! is_dir($dir)) {
-            return ["{$dir} is not a directory"];
+            return ['problems' => ["{$dir} is not a directory"], 'unread' => false];
         }
 
         $problems = [];
@@ -162,7 +207,7 @@ final class NymBundle
         $owner = fileowner($dir);
         if ($euid !== null && $owner !== $euid) {
             $problems[] = 'the directory is owned by '.self::userLabel($owner === false ? null : $owner)
-                .', but gaze would run as '.self::userLabel($euid);
+                .', checked as '.self::userLabel($euid);
         }
 
         $mode = fileperms($dir);
@@ -171,9 +216,7 @@ final class NymBundle
         }
 
         if (! is_readable($dir) || ! is_executable($dir)) {
-            $problems[] = 'the directory is not readable by '.self::userLabel($euid).', so its files cannot be checked';
-
-            return $problems;
+            return ['problems' => $problems, 'unread' => true];
         }
 
         $missing = array_values(array_filter(
@@ -184,7 +227,13 @@ final class NymBundle
             $problems[] = 'required files are missing: '.implode(', ', $missing);
         }
 
-        return [...$problems, ...$this->treeProblems($dir, $euid)];
+        return ['problems' => [...$problems, ...$this->treeProblems($dir, $euid)], 'unread' => false];
+    }
+
+    /** Why {@see self::inspect()} reported `unread`. */
+    public function unreadMessage(): string
+    {
+        return 'the directory is not readable by '.self::userLabel($this->processUid()).', so its files cannot be checked';
     }
 
     /**
@@ -193,21 +242,58 @@ final class NymBundle
      * `$XDG_DATA_HOME/gaze/models/nym-small-int8` (it has no flag for the Nym
      * directory), so the data home is derived from `$modelDir` when that path
      * ends in the standard layout.
+     *
+     * `setup` also writes a starter policy, and checks that path only after
+     * the downloads, so a fixed path that already exists fails a re-run late.
+     * It goes below the data home (which the runtime user owns) with
+     * `--force`, which in gaze 0.15 only lets that one file be overwritten.
+     *
+     * @param  string  $user  runtime user name, or a numeric uid
      */
-    public static function setupCommand(string $binary, ?string $modelDir = null): string
+    public static function setupCommand(string $binary, ?string $modelDir = null, string $user = self::EXAMPLE_USER): string
     {
         $dataHome = self::dataHomeFor($modelDir) ?? self::EXAMPLE_DATA_HOME;
 
-        return 'sudo -u www-data env XDG_DATA_HOME='.self::shellArg($dataHome).' '.self::shellArg($binary)
-            .' setup --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml';
+        return 'sudo -u '.self::sudoUser($user).' env XDG_DATA_HOME='.self::shellArg($dataHome).' '.self::shellArg($binary)
+            .' setup --safety-net nym --non-interactive --policy-out '.self::shellArg(self::setupPolicy($modelDir)).' --force';
     }
 
-    /** Hands an existing bundle to the runtime user, with the mode gaze requires. */
-    public static function chownCommand(string $modelDir): string
+    /** Where {@see self::setupCommand()} writes the starter policy the adapter does not use. */
+    public static function setupPolicy(?string $modelDir = null): string
+    {
+        return (self::dataHomeFor($modelDir) ?? self::EXAMPLE_DATA_HOME).'/'.self::SETUP_POLICY;
+    }
+
+    /**
+     * Hands an existing bundle to the runtime user with the modes gaze
+     * requires: no group- or world-writable path, every directory 0700.
+     *
+     * @param  string  $user  runtime user name, or a numeric uid
+     */
+    public static function chownCommand(string $modelDir, string $user = self::EXAMPLE_USER): string
     {
         $dir = self::shellArg($modelDir);
+        $owner = self::shellArg($user);
 
-        return "sudo chown -R www-data {$dir} && sudo chmod 700 {$dir}";
+        return "sudo chown -R {$owner} {$dir} && sudo chmod -R go-w {$dir} && sudo find {$dir} -type d -exec chmod 700 {} +";
+    }
+
+    /**
+     * The installer run that wires the bundle {@see self::setupCommand()}
+     * fetched, judged for the runtime user whoever runs it.
+     *
+     * @param  string  $user  runtime user name, or a numeric uid
+     */
+    public static function installCommand(?string $modelDir = null, string $user = self::EXAMPLE_USER): string
+    {
+        return 'php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='.self::shellArg(self::setupTarget($modelDir))
+            .' --runtime-user='.self::shellArg($user);
+    }
+
+    /** `sudo -u <user> php artisan gaze:doctor`: the check that holds for the runtime user. */
+    public static function doctorCommand(string $user = self::EXAMPLE_USER): string
+    {
+        return 'sudo -u '.self::sudoUser($user).' php artisan gaze:doctor';
     }
 
     /**
@@ -280,7 +366,7 @@ final class NymBundle
                 }
             }
         } catch (\UnexpectedValueException) {
-            return ['a subdirectory is not readable by '.self::userLabel($euid)];
+            return ['a subdirectory is not readable by '.self::userLabel($this->processUid())];
         }
 
         // Directory order is filesystem-dependent; sort for stable messages.
@@ -306,14 +392,25 @@ final class NymBundle
         return $problems;
     }
 
-    /** The uid the checks judge ownership against; null without ext-posix. */
+    /**
+     * The uid the checks judge ownership against: the named one, else this
+     * process's. Null without ext-posix and without a named uid.
+     */
     public function effectiveUid(): ?int
     {
-        if ($this->euid !== null) {
-            return $this->euid;
-        }
+        return $this->euid ?? $this->processUid();
+    }
 
-        return function_exists('posix_geteuid') ? posix_geteuid() : null;
+    /** False when the owner checks were skipped (no ext-posix, no named uid). */
+    public function ownerChecked(): bool
+    {
+        return $this->effectiveUid() !== null;
+    }
+
+    /** The effective uid of this PHP process; null without ext-posix. */
+    public function processUid(): ?int
+    {
+        return ($this->posix ?? function_exists('posix_geteuid')) ? posix_geteuid() : null;
     }
 
     /** `uid 33 (www-data)`, or `uid 33` without ext-posix. */
@@ -342,6 +439,12 @@ final class NymBundle
         }
 
         return substr($trimmed, 0, -strlen($suffix));
+    }
+
+    /** A numeric uid needs sudo's `#` prefix, quoted so the shell keeps it. */
+    private static function sudoUser(string $user): string
+    {
+        return self::shellArg(ctype_digit($user) ? '#'.$user : $user);
     }
 
     private static function shellArg(string $value): string

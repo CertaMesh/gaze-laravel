@@ -166,6 +166,39 @@ function gl_removeNymBundle(string $dir): void
 }
 
 /**
+ * A directory owned by another user, mode 0700, that this process cannot
+ * read — the shape of a www-data bundle seen by the deploy user: /root on
+ * Linux, /private/var/audit on macOS. Null when there is none (or the tests
+ * run as root).
+ */
+function gl_foreignPrivateDir(): ?string
+{
+    foreach (['/root', '/private/var/audit'] as $dir) {
+        clearstatcache();
+        if (is_dir($dir) && ! is_link($dir) && (fileperms($dir) & 0777) === 0700 && ! is_readable($dir)
+            && function_exists('posix_geteuid') && fileowner($dir) !== posix_geteuid()) {
+            return $dir;
+        }
+    }
+
+    return null;
+}
+
+/** {@see gl_foreignPrivateDir()} for a test already skipped without one. */
+function gl_requireForeignPrivateDir(): string
+{
+    return gl_foreignPrivateDir() ?? throw new RuntimeException('no 0700 directory of another user on this host');
+}
+
+/** The user name of `$uid`, via ext-posix. */
+function gl_userName(int $uid): string
+{
+    $entry = function_exists('posix_getpwuid') ? posix_getpwuid($uid) : false;
+
+    return is_array($entry) ? $entry['name'] : throw new RuntimeException("no user name for uid {$uid}");
+}
+
+/**
  * Unset GAZE_NYM_MODEL_DIR for a test that needs it absent (it may be exported
  * for the Nym integration suite) and return the previous state for
  * gl_restoreNymEnv(). Covers getenv(), $_ENV and $_SERVER: the adapter reads
