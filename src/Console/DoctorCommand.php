@@ -6,10 +6,12 @@ namespace CertaMesh\Gaze\Console;
 
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Console\Concerns\RunsHealthProbes;
+use CertaMesh\Gaze\Exceptions\GazeException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
+use CertaMesh\Gaze\SessionScopeGuard;
 use Devium\Toml\Toml;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -48,6 +50,11 @@ final class DoctorCommand extends Command
         $this->warnIfDeprecatedRulepack($config, $policy);
         $this->warnIfPolicyPreservesByDefault($policy);
         $this->warnIfRulepacksDropCore($config);
+        if (! $this->probeSessionScope($config, $policy)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
         $this->probeProxyFeature($binary, $config, $process);
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
@@ -71,8 +78,19 @@ final class DoctorCommand extends Command
         $this->components->twoColumnDetail('session_ttl_seconds', (string) ($config->get('gaze.session_ttl_seconds') ?? 86400));
 
         if ($this->option('deep')) {
-            $session = $gaze->clean('doctor@example.com');
-            $restored = $gaze->restore($session, $session->cleanText);
+            // A failing round-trip is a FAIL row, not an uncaught exception
+            // (e.g. a policy-level ephemeral scope answers clean with Pipeline).
+            // The exception message carries no input text.
+            try {
+                $session = $gaze->clean('doctor@example.com');
+                $restored = $gaze->restore($session, $session->cleanText);
+            } catch (GazeException $e) {
+                $this->components->twoColumnDetail('deep', '<fg=red>FAIL</>');
+                $this->line($e->getMessage());
+                $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+                return self::FAILURE;
+            }
 
             // Both directions: the probe value must leave clean() masked AND
             // come back from restore(). A round-trip alone passes vacuously when
@@ -202,15 +220,8 @@ final class DoctorCommand extends Command
      */
     private function warnIfPolicyPreservesByDefault(string $policyPath): void
     {
-        $body = @file_get_contents($policyPath);
-        if ($body === false) {
-            return;
-        }
-
-        try {
-            /** @var array<string, mixed> $parsed */
-            $parsed = Toml::decode($body, asArray: true);
-        } catch (\Throwable) {
+        $parsed = $this->decodePolicy($policyPath);
+        if ($parsed === null) {
             return;
         }
 
@@ -233,6 +244,75 @@ final class DoctorCommand extends Command
         );
         // Own short line so the fix survives console width-wrapping.
         $this->warn('Set the default rule to action = "tokenize" (UPGRADING.md, v0.14.0).');
+    }
+
+    /**
+     * `Gaze::clean()` cannot run under an ephemeral session scope: gaze clean
+     * must export the session blob, and gaze never exports an ephemeral
+     * session ({@see SessionScopeGuard}).
+     *
+     * FAILS when `gaze.session_scope` is ephemeral — the same pre-flight
+     * `Gaze::clean()` applies, surfaced here first. Returns false to flip
+     * doctor's exit.
+     *
+     * WARNS, never fails, when no override is set and the policy's
+     * `[session] scope` is ephemeral: the binary then fails every clean with
+     * the Retryable Pipeline error, which the adapter cannot pre-flight at
+     * runtime. A conversation / persistent override wins over the policy, so
+     * it silences the warning. The daemon never exports and is unaffected.
+     */
+    private function probeSessionScope(ConfigRepository $config, string $policyPath): bool
+    {
+        $override = $config->get('gaze.session_scope');
+        if (is_string($override) && $override !== '') {
+            if (! SessionScopeGuard::isEphemeral($override)) {
+                return true;
+            }
+
+            $this->components->twoColumnDetail('session_scope', '<fg=red>ephemeral (unsupported by clean)</>');
+            $this->error(SessionScopeGuard::EPHEMERAL_UNSUPPORTED);
+
+            return false;
+        }
+
+        $scope = ($this->decodePolicy($policyPath) ?? [])['session']['scope'] ?? null;
+        if ($scope !== SessionScopeGuard::EPHEMERAL) {
+            return true;
+        }
+
+        $this->components->twoColumnDetail('policy session scope', '<fg=yellow>ephemeral</>');
+        $this->warn(
+            'The policy\'s [session] scope = "ephemeral" fails every Gaze::clean() with GazePipelineException, '
+            .'which queue jobs retry: gaze clean cannot export an ephemeral session blob.'
+        );
+        // Own short line so the fix survives console width-wrapping.
+        $this->warn('Set scope = "conversation" or "persistent", or override it with GAZE_SESSION_SCOPE.');
+
+        return true;
+    }
+
+    /**
+     * Best-effort TOML decode of the policy for the probes above. Null when
+     * the file cannot be read or parsed; warnIfDeprecatedRulepack() already
+     * reports an unparseable policy.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function decodePolicy(string $policyPath): ?array
+    {
+        $body = @file_get_contents($policyPath);
+        if ($body === false) {
+            return null;
+        }
+
+        try {
+            /** @var array<string, mixed> $parsed */
+            $parsed = Toml::decode($body, asArray: true);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $parsed;
     }
 
     /**
@@ -282,10 +362,12 @@ final class DoctorCommand extends Command
         }
 
         $this->warn(
-            'gaze proxy not available — rebuild upstream binary with: '
-            .'cargo install gaze-cli --features proxy. '
-            .'Adapter v0.8.1 proxy artisan commands will error on invocation.'
+            'gaze proxy not available — this binary was built without the proxy feature '
+            .'(--no-default-features); the gaze:proxy:* commands will error until it has it.'
         );
+        // Own short lines so each fix survives console width-wrapping.
+        $this->warn('Rebuild with default features: cargo install gaze-cli (add --features safety-net-openai for opf).');
+        $this->warn('Or unset GAZE_BINARY and run: php artisan gaze:install:binary --force');
     }
 
     /**
@@ -336,10 +418,11 @@ final class DoctorCommand extends Command
         }
 
         $this->warn(
-            'gaze daemon not available — rebuild upstream binary with: '
-            .'cargo install gaze-cli --features daemon. '
-            .'Adapter v0.11.0 daemon artisan commands and Gaze::daemon() Facade will error on invocation.'
+            'gaze daemon not available — this binary predates gaze 0.9.0 (there is no daemon cargo '
+            .'feature); gaze:daemon:* and Gaze::daemon() will error until it is replaced.'
         );
+        // Own short line so the fix survives console width-wrapping.
+        $this->warn('Install the pinned binary: unset GAZE_BINARY if set, then php artisan gaze:install:binary --force');
     }
 
     /**

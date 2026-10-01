@@ -6,6 +6,49 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ### Fixed
 
+- **`gaze:proxy:serve --foreground-daemon` now starts the proxy** (#161). It
+  forwarded `--foreground-daemon`, but upstream only accepts its hidden
+  `--_foreground-daemon` re-exec flag (since 0.8.0), so every release binary
+  exited 2 with `PolicyConfig` and the systemd/launchd foreground contract
+  never ran. Verified against the 0.15.1 release binary: the underscore
+  spelling starts the proxy and writes its pidfile.
+- **Install hint and proxy docs no longer send adopters into a source build**
+  (#164). After every `gaze:install:binary` the adapter printed "gaze proxy is
+  opt-in … rebuild upstream with `cargo install gaze-cli --features proxy`",
+  and the proxy docs said the release binary lacks the feature. Upstream's
+  release build enables `document,proxy`, and both the 0.12.0 and 0.15.1
+  release binaries run `gaze proxy`. The hint now names the feature the release
+  binary really lacks (`safety-net-openai`, for the opf safety net). `proxy`
+  is a default cargo feature since gaze 0.8.1, so only a
+  `--no-default-features` build lacks it; the `gaze:doctor` hint now says so.
+  The daemon hint was wrong too: `cargo install gaze-cli --features daemon`
+  names a feature that never existed — `gaze daemon` ships unconditionally
+  since gaze 0.9.0, so doctor and `GazeDaemonFeatureUnsupportedException` now
+  point to installing the pinned binary.
+
+- **`GAZE_SESSION_SCOPE=ephemeral` no longer retries forever**
+  ([#163](https://github.com/CertaMesh/gaze-laravel/issues/163)). It was
+  documented as valid, but `gaze clean` must return the session blob that
+  `restore()` needs, and gaze never exports an ephemeral session by design
+  (`Session::export()` → `ExportForbidden`). The binary reports that as the
+  generic `{"error":"Pipeline","exit":3}`, so every `Gaze::clean()` / `mask()`
+  threw the *retryable* `GazePipelineException`. Same on gaze 0.12.0 and
+  0.15.1. The adapter now rejects `ephemeral` (any case, whitespace trimmed)
+  before spawning the binary, with a non-retryable
+  `GazePolicyConfigDetailException` (exit 2, `stderrHash` null). That is the
+  class an unknown scope value already raises. The guard lives in the new
+  internal `CertaMesh\Gaze\SessionScopeGuard`. The daemon path is unchanged: it
+  takes no `--session-scope` and never exports a blob.
+- **`gaze:doctor`** fails when `gaze.session_scope` is `ephemeral`. It warns,
+  without changing the exit code, when no override is set and the policy's
+  `[session] scope` is `"ephemeral"`: that fails every clean with the same
+  retryable Pipeline error, and the adapter cannot catch it before spawning.
+  `config/gaze.php` and the configuration reference no longer list `ephemeral`
+  as a valid value.
+- **`gaze:doctor --deep` reports a failing round-trip as `FAIL`** instead of
+  crashing with an uncaught exception (e.g. on a policy-level `ephemeral`
+  scope). The row prints the exception message, which carries no input text.
+
 - **Daemon error envelopes keep their upstream meaning** (#162).
   `DaemonErrorVariant` knew only `JsonMalformed` and `Pipeline`, so every other
   `error` name `gaze daemon` writes became `Unknown`. Two names were worse than
@@ -39,6 +82,7 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `GazeDaemonException` with the `Transport` variant, so a
   `catch (GazeDaemonTransportException)` missed them. The subclass extends the
   base class, so existing `catch (GazeDaemonException)` blocks still match.
+
 
 ## [0.14.0] - 2026-10-01
 

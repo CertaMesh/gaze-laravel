@@ -67,6 +67,10 @@ class Gaze implements AuditRunner, GazeContract
         // and reports it only as a detail-less PolicyConfig.
         SafetyNetBackendGuard::assertSupported($this->options->safetyNet, $this->options->safetyNetBackend);
 
+        // Fail fast: gaze never exports an ephemeral session, so the binary
+        // would answer with the Retryable Pipeline error on every call.
+        SessionScopeGuard::assertExportable($this->options->sessionScope);
+
         $command = [
             $this->resolver->resolve(),
             'clean',
