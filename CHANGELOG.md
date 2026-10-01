@@ -46,6 +46,20 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   end-to-end `BinaryDownloader` install. `gaze:doctor` warns on a stale
   `vendor/bin/gaze` with the `gaze:install --force` hint.
 
+- **Dev dependencies: lockfile refreshed, Pest 5 allowed (dev/CI only, no
+  runtime change).** `composer update` within the existing constraints clears
+  all 21 `composer audit --locked` advisories in the dev lockfile
+  (laravel/framework 13.18.0 → 13.34.0, guzzlehttp/guzzle 7.13 → 8.2,
+  league/commonmark 2.8.2 → 2.10.3, league/flysystem 3.35.1 → 3.36.0,
+  composer/composer 2.10.2 → 2.10.3) and moves phpstan to 2.2.16, pint to 1.32.1,
+  testbench to 11.3.0 and symfony/process / http-client to 8.1.7 / 8.1.8.
+  `pestphp/pest` and `pestphp/pest-plugin-laravel` now accept `^3.0|^4.0|^5.0`.
+  Composer picks Pest 3 on PHP 8.2, Pest 4 on PHP 8.3 and on Laravel 11/12, and
+  Pest 5 (PHPUnit 13) on PHP 8.4+ with Laravel 13. The suite runs unchanged on
+  all three. CI: the advisory-blocking override is now scoped to the Laravel 11
+  matrix legs (and the prefer-lowest job), so the 12/13 legs resolve with
+  advisory blocking on. GitHub Actions were already on their latest majors.
+
 ### Added
 
 - **`gaze daemon` now honours `GAZE_RULEPACKS` / `GAZE_RULEPACK_PATHS`**
