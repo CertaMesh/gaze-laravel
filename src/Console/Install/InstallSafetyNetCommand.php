@@ -318,12 +318,13 @@ final class InstallSafetyNetCommand extends Command
         // Own short lines so each command survives console width-wrapping.
         $this->line("Fetch the pinned bundle as the user PHP-FPM and your queue workers run as{$placeholder}:");
         $this->line('  '.NymBundle::setupCommand($binary, $modelDir, $user));
-        if ($modelDir !== null && is_dir($modelDir)) {
-            $this->line('Or hand the existing bundle to that user:');
-            $this->line('  '.NymBundle::chownCommand($modelDir, $user));
-        }
         $this->line('Then re-run as that user, or name it with --runtime-user. Whoever runs it must be able to write .env:');
         $this->line('  '.NymBundle::installCommand($modelDir, $user));
+        if ($modelDir !== null && is_dir($modelDir)) {
+            $this->line('Or hand the existing bundle to that user, then re-run with it:');
+            $this->line('  '.NymBundle::chownCommand($modelDir, $user));
+            $this->line('  '.NymBundle::installCommand($modelDir, $user, existing: true));
+        }
     }
 
     private function absolute(string $path): string

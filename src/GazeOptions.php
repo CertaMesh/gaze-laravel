@@ -66,6 +66,8 @@ final readonly class GazeOptions
          * but not an integer (`1.5`, `abc`), rendered for messages; then
          * {@see $nymIntraThreads} is null. {@see SafetyNetBackendGuard}
          * refuses it instead of truncating or dropping it.
+         *
+         * @internal set by {@see self::fromConfig()} only.
          */
         public ?string $invalidNymIntraThreads = null,
     ) {}

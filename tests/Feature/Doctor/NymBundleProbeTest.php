@@ -156,7 +156,7 @@ it('fails a bundle directory whose mode is not 0700', function () {
     $this->artisan('gaze:doctor')
         ->assertExitCode(1)
         ->expectsOutputToContain('the directory mode is 0755; gaze requires exactly 0700')
-        ->expectsOutputToContain('Or hand it to that user: sudo chown -R www-data '.$this->bundle.' && sudo chmod -R go-w '.$this->bundle.' && sudo find '.$this->bundle.' -type d -exec chmod 700 {} +')
+        ->expectsOutputToContain('Or hand it to that user: sudo chown -R www-data '.$this->bundle.' && sudo chmod -R u+rwX,go-w '.$this->bundle.' && sudo find '.$this->bundle.' -type d -exec chmod 700 {} +')
         ->expectsOutputToContain('FAIL');
 });
 

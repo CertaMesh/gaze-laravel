@@ -269,15 +269,16 @@ it('prints the gaze setup command for the runtime user, deriving XDG_DATA_HOME f
 it('prints a chown that also clears group/world write and sets every directory to 0700', function () {
     expect(NymBundle::chownCommand('/srv/gaze/gaze/models/nym-small-int8'))
         ->toBe('sudo chown -R www-data /srv/gaze/gaze/models/nym-small-int8'
-            .' && sudo chmod -R go-w /srv/gaze/gaze/models/nym-small-int8'
+            .' && sudo chmod -R u+rwX,go-w /srv/gaze/gaze/models/nym-small-int8'
             .' && sudo find /srv/gaze/gaze/models/nym-small-int8 -type d -exec chmod 700 {} +')
         ->and(NymBundle::chownCommand('/data home/nym', '33'))
-        ->toBe("sudo chown -R 33 '/data home/nym' && sudo chmod -R go-w '/data home/nym' && sudo find '/data home/nym' -type d -exec chmod 700 {} +");
+        ->toBe("sudo chown -R 33 '/data home/nym' && sudo chmod -R u+rwX,go-w '/data home/nym' && sudo find '/data home/nym' -type d -exec chmod 700 {} +");
 });
 
 it('fixes a loose bundle when the printed chown command is run', function () {
     // The command run for real, minus sudo and with the current user as owner.
     chmod($this->bundle.'/config.json', 0666);
+    chmod($this->bundle.'/SHA256SUMS', 0200);
     mkdir($this->bundle.'/sub', 0755);
     chmod($this->bundle.'/sub', 0775);
     chmod($this->bundle, 0755);
@@ -294,6 +295,9 @@ it('prints the installer re-run and the doctor run for the runtime user', functi
         ->toBe('php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 --runtime-user=www-data')
         ->and(NymBundle::installCommand('/var/lib/app/gaze/models/nym-small-int8', 'nginx'))
         ->toBe('php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/var/lib/app/gaze/models/nym-small-int8 --runtime-user=nginx')
+        // An existing bundle handed over with chownCommand() is named as is.
+        ->and(NymBundle::installCommand('/opt/custom nym', 'nginx', existing: true))
+        ->toBe("php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='/opt/custom nym' --runtime-user=nginx")
         ->and(NymBundle::doctorCommand())->toBe('sudo -u www-data php artisan gaze:doctor')
         ->and(NymBundle::doctorCommand('33'))->toBe("sudo -u '#33' php artisan gaze:doctor");
 });
@@ -306,3 +310,10 @@ function nb_sortedRequired(): array
 
     return $files;
 }
+
+it('names tree problems relative to the bundle with or without a trailing slash', function () {
+    chmod($this->bundle.'/config.json', 0666);
+
+    expect((new NymBundle)->problems($this->bundle.'/'))->toBe((new NymBundle)->problems($this->bundle))
+        ->and(implode("\n", (new NymBundle)->problems($this->bundle)))->toContain('config.json');
+});

@@ -78,8 +78,11 @@ it('refuses a bundle another user owns, and points at --runtime-user instead of 
         ->expectsOutputToContain('would be refused by gaze; .env was not changed')
         ->expectsOutputToContain('the directory is owned by uid '.fileowner($this->bundle))
         ->expectsOutputToContain("(checked as uid {$processUid}; gaze checks the user that runs it)")
-        ->expectsOutputToContain('sudo chown -R www-data '.$this->bundle.' && sudo chmod -R go-w '.$this->bundle)
+        ->expectsOutputToContain('sudo chown -R www-data '.$this->bundle.' && sudo chmod -R u+rwX,go-w '.$this->bundle)
         ->expectsOutputToContain('Then re-run as that user, or name it with --runtime-user. Whoever runs it must be able to write .env:')
+        // After the chown, the re-run names the existing directory as is.
+        // Listed first: each output line feeds the first expectation it matches.
+        ->expectsOutputToContain(NymBundle::installCommand($this->bundle, 'www-data', existing: true))
         ->expectsOutputToContain('--runtime-user=www-data')
         ->assertExitCode(1);
 

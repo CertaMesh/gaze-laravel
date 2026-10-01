@@ -168,7 +168,7 @@ hand an existing one over:
 
 ```bash
 sudo chown -R www-data /srv/gaze/gaze/models/nym-small-int8
-sudo chmod -R go-w /srv/gaze/gaze/models/nym-small-int8
+sudo chmod -R u+rwX,go-w /srv/gaze/gaze/models/nym-small-int8
 sudo find /srv/gaze/gaze/models/nym-small-int8 -type d -exec chmod 700 {} +
 ```
 

@@ -282,7 +282,8 @@ final class NymBundle
 
     /**
      * Hands an existing bundle to the runtime user with the modes gaze
-     * requires: no group- or world-writable path, every directory 0700.
+     * requires: owner-readable files, no group- or world-writable path,
+     * every directory 0700.
      *
      * @param  string  $user  runtime user name, or a numeric uid
      */
@@ -291,7 +292,7 @@ final class NymBundle
         $dir = self::shellArg($modelDir);
         $owner = self::shellArg($user);
 
-        return "sudo chown -R {$owner} {$dir} && sudo chmod -R go-w {$dir} && sudo find {$dir} -type d -exec chmod 700 {} +";
+        return "sudo chown -R {$owner} {$dir} && sudo chmod -R u+rwX,go-w {$dir} && sudo find {$dir} -type d -exec chmod 700 {} +";
     }
 
     /**
@@ -300,9 +301,13 @@ final class NymBundle
      *
      * @param  string  $user  runtime user name, or a numeric uid
      */
-    public static function installCommand(?string $modelDir = null, string $user = self::EXAMPLE_USER): string
+    public static function installCommand(?string $modelDir = null, string $user = self::EXAMPLE_USER, bool $existing = false): string
     {
-        return 'php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='.self::shellArg(self::setupTarget($modelDir))
+        // $existing: $modelDir already holds the bundle (handed over with
+        // chownCommand()), so name it as is, not where setup would fetch to.
+        $target = $existing && $modelDir !== null ? $modelDir : self::setupTarget($modelDir);
+
+        return 'php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='.self::shellArg($target)
             .' --runtime-user='.self::shellArg($user);
     }
 
@@ -350,6 +355,8 @@ final class NymBundle
      */
     private function treeProblems(string $dir, ?int $euid): array
     {
+        // A trailing slash would shift every relative name below by one byte.
+        $dir = rtrim($dir, '/') ?: '/';
         $symlinks = [];
         $special = [];
         $foreign = [];
