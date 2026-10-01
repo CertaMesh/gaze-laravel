@@ -12,8 +12,13 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   and the proxy docs said the release binary lacks the feature. Upstream's
   release build enables `document,proxy`, and both the 0.12.0 and 0.15.1
   release binaries run `gaze proxy`. The hint now names the feature the release
-  binary really lacks (`safety-net-openai`, for the opf safety net); the docs
-  and the `gaze:doctor` hint point to `gaze:install --force` first.
+  binary really lacks (`safety-net-openai`, for the opf safety net). `proxy`
+  is a default cargo feature since gaze 0.8.1, so only a
+  `--no-default-features` build lacks it; the `gaze:doctor` hint now says so.
+  The daemon hint was wrong too: `cargo install gaze-cli --features daemon`
+  names a feature that never existed — `gaze daemon` ships unconditionally
+  since gaze 0.9.0, so doctor and `GazeDaemonFeatureUnsupportedException` now
+  point to installing the pinned binary.
 
 ## [0.14.0] - 2026-10-01
 

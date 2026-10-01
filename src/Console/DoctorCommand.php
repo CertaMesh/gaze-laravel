@@ -282,10 +282,12 @@ final class DoctorCommand extends Command
         }
 
         $this->warn(
-            'gaze proxy not available — this binary was built without the proxy feature. '
-            .'Use the release binary (php artisan gaze:install --force) or rebuild with: '
-            .'cargo install gaze-cli --features proxy. The gaze:proxy:* commands will error until then.'
+            'gaze proxy not available — this binary was built without the proxy feature '
+            .'(--no-default-features); the gaze:proxy:* commands will error until it has it.'
         );
+        // Own short lines so each fix survives console width-wrapping.
+        $this->warn('Rebuild with default features: cargo install gaze-cli (add --features safety-net-openai for opf).');
+        $this->warn('Or unset GAZE_BINARY and run: php artisan gaze:install:binary --force');
     }
 
     /**
@@ -336,10 +338,11 @@ final class DoctorCommand extends Command
         }
 
         $this->warn(
-            'gaze daemon not available — rebuild upstream binary with: '
-            .'cargo install gaze-cli --features daemon. '
-            .'Adapter v0.11.0 daemon artisan commands and Gaze::daemon() Facade will error on invocation.'
+            'gaze daemon not available — this binary predates gaze 0.9.0 (there is no daemon cargo '
+            .'feature); gaze:daemon:* and Gaze::daemon() will error until it is replaced.'
         );
+        // Own short line so the fix survives console width-wrapping.
+        $this->warn('Install the pinned binary: unset GAZE_BINARY if set, then php artisan gaze:install:binary --force');
     }
 
     /**
