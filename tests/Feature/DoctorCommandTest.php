@@ -176,92 +176,87 @@ it('reports gaze proxy feature available when the binary supports proxy', functi
         ->expectsOutputToContain('gaze proxy feature available');
 });
 
-it('skips the Kiji probe when safety_net_backend is unset', function () {
+it('shows no Kiji row when no Kiji config is present', function () {
     $this->app->instance(
         BinaryResolver::class,
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set('gaze.safety_net', true);
+    $this->app['config']->set('gaze.safety_net_backend', 'nym');
 
     Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
 
     $this->artisan('gaze:doctor')
         ->assertExitCode(0)
-        ->doesntExpectOutputToContain('kiji_distilbert');
+        ->doesntExpectOutputToContain('kiji')
+        ->doesntExpectOutputToContain('Kiji')
+        ->expectsOutputToContain('OK');
 });
 
-it('fails fast when Kiji backend is selected but model_dir is missing', function () {
+it('fails when the enabled safety net still selects kiji-distilbert (removed upstream in gaze 0.15.0)', function (array $config) {
     $this->app->instance(
         BinaryResolver::class,
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
-    $this->app['config']->set('gaze.safety_net_backend', 'kiji-distilbert');
-    $this->app['config']->set('gaze.kiji_distilbert_model_dir', null);
+    $this->app['config']->set($config);
 
     Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
 
     $this->artisan('gaze:doctor')
         ->assertExitCode(1)
-        ->expectsOutputToContain('missing model_dir')
-        ->expectsOutputToContain('fetch-kiji-safetynet-model.sh');
-});
+        ->expectsOutputToContain('kiji-distilbert removed in gaze 0.15.0')
+        ->expectsOutputToContain('Switch GAZE_SAFETY_NET_BACKEND to nym')
+        ->expectsOutputToContain('FAIL');
+})->with([
+    'flat keys (provider-normalized)' => [['gaze.safety_net' => true, 'gaze.safety_net_backend' => 'kiji-distilbert']],
+    'nested group' => [['gaze.safety_net' => ['enabled' => true, 'backend' => 'kiji-distilbert']]],
+]);
 
-it('fails fast when the Kiji model_dir is missing required artifacts', function () {
-    $dir = sys_get_temp_dir().'/gaze-kiji-doctor-'.bin2hex(random_bytes(4));
-    mkdir($dir, 0700, true);
-    // Only one of the four required artifacts present.
-    file_put_contents($dir.'/labels.json', '{}');
-
+it('warns but passes on leftover Kiji config the adapter now ignores', function (string $key, mixed $value, string $reported) {
     $this->app->instance(
         BinaryResolver::class,
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
-    $this->app['config']->set('gaze.safety_net_backend', 'kiji-distilbert');
-    $this->app['config']->set('gaze.kiji_distilbert_model_dir', $dir);
+    $this->app['config']->set($key, $value);
 
     Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
 
-    try {
-        $this->artisan('gaze:doctor')
-            ->assertExitCode(1)
-            ->expectsOutputToContain('missing: SHA256SUMS, model.onnx, tokenizer.json')
-            ->expectsOutputToContain('fetch-kiji-safetynet-model.sh');
-    } finally {
-        @unlink($dir.'/labels.json');
-        @rmdir($dir);
-    }
-});
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('kiji config')
+        ->expectsOutputToContain("upstream removed the backend in gaze 0.15.0: {$reported}.")
+        ->expectsOutputToContain('switch to nym');
+})->with([
+    'pre-v0.13 flat key' => ['gaze.kiji_backend', 'ort', 'gaze.kiji_backend'],
+    'flat model dir' => ['gaze.kiji_distilbert_model_dir', '/var/lib/gaze/models/kiji', 'gaze.kiji_distilbert_model_dir'],
+    'daemon locales' => ['gaze.daemon.kiji_distilbert_locales', 'de,fr', 'gaze.daemon.kiji_distilbert_locales'],
+    'nested group' => ['gaze.safety_net', ['enabled' => false, 'kiji' => ['backend' => 'ort', 'distilbert_precision' => null]], 'gaze.safety_net.kiji.backend'],
+    'selector on a disabled net' => ['gaze.safety_net_backend', 'kiji-distilbert', 'gaze.safety_net.backend=kiji-distilbert (net disabled)'],
+]);
 
-it('reports OK when the Kiji model_dir carries all required artifacts', function () {
-    $dir = sys_get_temp_dir().'/gaze-kiji-doctor-ok-'.bin2hex(random_bytes(4));
-    mkdir($dir, 0700, true);
-    foreach (['SHA256SUMS', 'labels.json', 'model.onnx', 'tokenizer.json'] as $name) {
-        file_put_contents($dir.'/'.$name, '');
-        chmod($dir.'/'.$name, 0600);
-    }
-
+it('warns but passes on a leftover GAZE_KIJI_* env var', function () {
     $this->app->instance(
         BinaryResolver::class,
         new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
     );
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
-    $this->app['config']->set('gaze.safety_net_backend', 'kiji-distilbert');
-    $this->app['config']->set('gaze.kiji_distilbert_model_dir', $dir);
 
     Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    // A v0.13-shaped published config reads these env vars into the nested
+    // safety_net.kiji group, which the provider collapses at boot.
+    putenv('GAZE_KIJI_BACKEND=ort');
 
     try {
         $this->artisan('gaze:doctor')
             ->assertExitCode(0)
-            ->expectsOutputToContain('kiji_distilbert')
-            ->expectsOutputToContain('OK');
+            ->expectsOutputToContain('kiji config')
+            ->expectsOutputToContain('GAZE_KIJI_BACKEND');
     } finally {
-        foreach (['SHA256SUMS', 'labels.json', 'model.onnx', 'tokenizer.json'] as $name) {
-            @unlink($dir.'/'.$name);
-        }
-        @rmdir($dir);
+        putenv('GAZE_KIJI_BACKEND');
     }
 });
 

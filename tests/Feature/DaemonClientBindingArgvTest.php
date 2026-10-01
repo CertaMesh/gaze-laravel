@@ -6,6 +6,8 @@ use CertaMesh\Gaze\Daemon\Contracts\DaemonClientContract;
 use CertaMesh\Gaze\Daemon\DaemonArgv;
 use CertaMesh\Gaze\Daemon\DaemonClient;
 use CertaMesh\Gaze\Exceptions\GazeDaemonFeatureUnsupportedException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 
 /**
  * Pins the provider's scoped DaemonClient binding — the `Gaze::daemon()`
@@ -40,11 +42,12 @@ it('spawns the facade daemon client with config-set NER and safety-net flags', f
     config()->set('gaze.daemon.session_idle_timeout_s', 900);
     config()->set('gaze.daemon.session_cap', 500);
     config()->set('gaze.daemon.ner_model_dir', '/opt/gaze/ner-model');
+    // Leftover Kiji key (removed upstream in gaze 0.15.0): never forwarded.
     config()->set('gaze.daemon.kiji_distilbert_locales', 'de,fr');
     config()->set('gaze.locale', 'de,en');
     config()->set('gaze.ner_threshold', 0.75);
     config()->set('gaze.safety_net', true);
-    config()->set('gaze.safety_net_backend', 'kiji-distilbert');
+    config()->set('gaze.safety_net_backend', 'nym');
     config()->set('gaze.safety_net_mode', 'strict');
 
     $flags = spawnFlagsOf($this->app->make(DaemonClientContract::class));
@@ -54,11 +57,19 @@ it('spawns the facade daemon client with config-set NER and safety-net flags', f
         ->toContain('--session-idle-timeout=900')
         ->toContain('--session-cap=500')
         ->toContain('--ner-model-dir=/opt/gaze/ner-model')
-        ->toContain('--kiji-distilbert-locales=de,fr')
         ->toContain('--locale=de,en')
         ->toContain('--ner-threshold=0.75')
-        ->toContain('--safety-net-backend=kiji-distilbert')
-        ->toContain('--safety-net-mode=strict');
+        ->toContain('--safety-net-backend=nym')
+        ->toContain('--safety-net-mode=strict')
+        ->not->toContain('--kiji-distilbert-locales=de,fr');
+});
+
+it('refuses to build the facade daemon client when the enabled net selects kiji-distilbert', function () {
+    config()->set('gaze.safety_net', true);
+    config()->set('gaze.safety_net_backend', 'kiji-distilbert');
+
+    expect(fn () => $this->app->make(DaemonClientContract::class))
+        ->toThrow(GazeSafetyNetConfigException::class, SafetyNetBackendGuard::KIJI_DISTILBERT_REMOVED);
 });
 
 it('spawns the facade daemon client with exactly the shared DaemonArgv assembly', function () {

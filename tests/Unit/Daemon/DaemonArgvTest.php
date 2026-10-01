@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use CertaMesh\Gaze\Daemon\DaemonArgv;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Illuminate\Config\Repository as ConfigRepository;
 
 /**
@@ -33,7 +35,7 @@ it('omits flags whose config value is null so upstream defaults apply', function
     expect(DaemonArgv::flags($config))->toBe(['--policy=/etc/gaze/policy.toml']);
 });
 
-it('assembles the full daemon flag surface from config in pinned order', function () {
+it('assembles the full daemon flag surface from config in pinned order, never emitting --kiji-*', function () {
     $config = configRepoForArgv(
         daemon: [
             'policy_path' => '/etc/gaze/policy.toml',
@@ -43,11 +45,12 @@ it('assembles the full daemon flag surface from config in pinned order', functio
             'audit_db_path' => '/var/lib/gaze/audit.sqlite',
             'ner_model_dir' => '/opt/gaze/ner-model',
             'ner_locale' => 'de',
+            // Leftover Kiji keys (removed upstream in gaze 0.15.0): ignored.
             'kiji_distilbert_locales' => 'de,fr',
         ],
         topLevel: [
             'safety_net' => true,
-            'safety_net_backend' => 'kiji-distilbert',
+            'safety_net_backend' => 'nym',
             'locale' => 'de,en',
             'ner_threshold' => 0.75,
             'safety_net_device' => 'cpu',
@@ -67,7 +70,7 @@ it('assembles the full daemon flag surface from config in pinned order', functio
     expect(DaemonArgv::flags($config))->toBe([
         '--policy=/etc/gaze/policy.toml',
         '--safety-net=openai-filter',
-        '--safety-net-backend=kiji-distilbert',
+        '--safety-net-backend=nym',
         '--idle-timeout=1800',
         '--session-idle-timeout=3600',
         '--session-cap=500',
@@ -80,10 +83,6 @@ it('assembles the full daemon flag surface from config in pinned order', functio
         '--openai-filter-command=/usr/local/bin/opf',
         '--openai-filter-checkpoint=/opt/opf/checkpoint',
         '--openai-filter-operating-point=high-recall',
-        '--kiji-backend=ort',
-        '--kiji-distilbert-command=/usr/local/bin/kiji',
-        '--kiji-distilbert-model-dir=/opt/kiji/model',
-        '--kiji-distilbert-locales=de,fr',
         '--safety-net-timeout-ms=7500',
         '--safety-net-input-limit-bytes=2097152',
         '--safety-net-mode=strict',
@@ -114,6 +113,34 @@ it('omits --safety-net-backend when gaze.safety_net is false (gaze >= 0.15 rejec
         '--policy=/etc/gaze/policy.toml',
         '--safety-net-mode=strict',
     ]);
+});
+
+it('refuses an enabled kiji-distilbert backend before any argv is built', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => true, 'safety_net_backend' => 'kiji-distilbert'],
+    );
+
+    try {
+        DaemonArgv::flags($config);
+    } catch (GazeSafetyNetConfigException $e) {
+        expect($e->getMessage())->toBe(SafetyNetBackendGuard::KIJI_DISTILBERT_REMOVED)
+            ->and($e->exitCode)->toBe(2)
+            ->and($e->stderrHash)->toBeNull();
+
+        return;
+    }
+
+    $this->fail('Expected GazeSafetyNetConfigException to be thrown.');
+});
+
+it('ignores a leftover kiji-distilbert selector while the net is disabled', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: ['safety_net' => false, 'safety_net_backend' => 'kiji-distilbert'],
+    );
+
+    expect(DaemonArgv::flags($config))->toBe(['--policy=/etc/gaze/policy.toml']);
 });
 
 it('lets caller overrides win over config for the operational knobs', function () {

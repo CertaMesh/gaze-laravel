@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeServiceProvider;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Illuminate\Support\Facades\Process;
 
 it('Gaze resolved from container forwards OpenAI privacy-filter config on clean argv', function () {
@@ -15,8 +17,12 @@ it('Gaze resolved from container forwards OpenAI privacy-filter config on clean 
         'gaze.safety_net_timeout_ms' => 7500,
         'gaze.safety_net_input_limit_bytes' => 123456,
         'gaze.safety_net_mode' => 'tolerant',
+        // Leftover pre-v0.13 flat Kiji keys: removed upstream in gaze 0.15.0,
+        // so they must never reach the argv.
         'gaze.kiji_backend' => 'ort',
         'gaze.kiji_distilbert_precision' => 'int8',
+        'gaze.kiji_distilbert_command' => '/usr/local/bin/kiji',
+        'gaze.kiji_distilbert_model_dir' => '/var/lib/gaze/models/kiji',
     ]);
     $this->app->forgetInstance(Gaze::class);
 
@@ -37,9 +43,11 @@ it('Gaze resolved from container forwards OpenAI privacy-filter config on clean 
             ->toContain('--openai-filter-operating-point=high-precision')
             ->toContain('--safety-net-timeout-ms=7500')
             ->toContain('--safety-net-input-limit-bytes=123456')
-            ->toContain('--safety-net-mode=tolerant')
-            ->toContain('--kiji-backend=ort')
-            ->toContain('--kiji-distilbert-precision=int8');
+            ->toContain('--safety-net-mode=tolerant');
+
+        foreach ($process->command as $arg) {
+            expect($arg)->not->toStartWith('--kiji-');
+        }
 
         return true;
     });
@@ -96,11 +104,12 @@ it('back-fills deprecated flat keys from the nested safety_net group for legacy 
 
     (new GazeServiceProvider($this->app))->register();
 
+    // The removed Kiji group is no longer back-filled (gaze 0.15.0 dropped it).
     expect(config('gaze.safety_net'))->toBeTrue()
         ->and(config('gaze.safety_net_mode'))->toBe('strict')
         ->and(config('gaze.safety_net_timeout_ms'))->toBe('2500')
         ->and(config('gaze.openai_filter_command'))->toBe('/usr/local/bin/opf')
-        ->and(config('gaze.kiji_backend'))->toBe('ort');
+        ->and(config('gaze.kiji_backend'))->toBeNull();
 });
 
 it('does not let nested back-fill clobber an explicitly set flat key', function () {
@@ -127,7 +136,7 @@ it('Gaze resolved from container forwards the nested safety_net group on clean a
         'gaze.binary' => '/fake/gaze',
         'gaze.safety_net' => [
             'enabled' => true,
-            'backend' => 'kiji-distilbert',
+            'backend' => 'nym',
             'mode' => 'strict',
             'timeout_ms' => '2500',
             'openai_filter' => ['command' => '/usr/local/bin/opf'],
@@ -149,13 +158,30 @@ it('Gaze resolved from container forwards the nested safety_net group on clean a
     Process::assertRan(function ($process): bool {
         expect($process->command)
             ->toContain('--safety-net=openai-filter')
-            ->toContain('--safety-net-backend=kiji-distilbert')
+            ->toContain('--safety-net-backend=nym')
             ->toContain('--safety-net-mode=strict')
             ->toContain('--safety-net-timeout-ms=2500')
-            ->toContain('--openai-filter-command=/usr/local/bin/opf')
-            ->toContain('--kiji-backend=ort')
-            ->toContain('--kiji-distilbert-precision=int8');
+            ->toContain('--openai-filter-command=/usr/local/bin/opf');
+
+        foreach ($process->command as $arg) {
+            expect($arg)->not->toStartWith('--kiji-');
+        }
 
         return true;
     });
+});
+
+it('container-resolved Gaze refuses a nested kiji-distilbert backend before spawning', function () {
+    config([
+        'gaze.binary' => '/fake/gaze',
+        'gaze.safety_net' => ['enabled' => true, 'backend' => 'kiji-distilbert'],
+    ]);
+    $this->app->forgetInstance(Gaze::class);
+
+    Process::fake();
+
+    expect(fn () => $this->app->make(Gaze::class)->clean('Hello'))
+        ->toThrow(GazeSafetyNetConfigException::class, SafetyNetBackendGuard::KIJI_DISTILBERT_REMOVED);
+
+    Process::assertNothingRan();
 });

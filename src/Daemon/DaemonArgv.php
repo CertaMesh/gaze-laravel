@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace CertaMesh\Gaze\Daemon;
 
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 
 /**
@@ -17,7 +19,7 @@ use Illuminate\Contracts\Config\Repository as ConfigRepository;
  * Mapping rules (repo principle): a null / empty config key omits the
  * flag entirely so the upstream binary applies its own default. Daemon-
  * specific knobs live under `gaze.daemon.*`; the shared pipeline flags
- * (locale, ner-threshold, safety-net / OPF / Kiji family) source the SAME
+ * (locale, ner-threshold, safety-net / OPF family) source the SAME
  * top-level `gaze.*` keys the one-shot `Gaze::clean()` path forwards, so
  * a configured pipeline behaves identically in both runtimes.
  */
@@ -34,6 +36,9 @@ final class DaemonArgv
      *
      * @param  array<string, string>  $overrides
      * @return list<string>
+     *
+     * @throws GazeSafetyNetConfigException when an enabled safety net
+     *                                      selects a backend upstream removed
      */
     public static function flags(ConfigRepository $config, array $overrides = []): array
     {
@@ -49,9 +54,16 @@ final class DaemonArgv
         // when both are present. The selector is forwarded ONLY with the
         // enable switch — gaze >= 0.15 rejects a lone backend selector with
         // SafetyNetUsage, where 0.12 silently ignored it (net off).
-        if ((bool) $config->get('gaze.safety_net', false)) {
+        $safetyNet = (bool) $config->get('gaze.safety_net', false);
+        $backend = self::string($config, 'gaze.safety_net_backend');
+
+        // Same fail-closed pre-flight as Gaze::clean(), so BOTH daemon spawn
+        // paths refuse the backend upstream removed in gaze 0.15.0.
+        SafetyNetBackendGuard::assertSupported($safetyNet, $backend);
+
+        if ($safetyNet) {
             $argv[] = '--safety-net=openai-filter';
-            self::append($argv, 'safety-net-backend', self::string($config, 'gaze.safety_net_backend'));
+            self::append($argv, 'safety-net-backend', $backend);
         }
 
         self::append($argv, 'idle-timeout', $overrides['idle-timeout'] ?? self::numeric($config, 'gaze.daemon.idle_timeout_s'));
@@ -73,13 +85,6 @@ final class DaemonArgv
         self::append($argv, 'openai-filter-command', self::string($config, 'gaze.openai_filter_command'));
         self::append($argv, 'openai-filter-checkpoint', self::string($config, 'gaze.openai_filter_checkpoint'));
         self::append($argv, 'openai-filter-operating-point', self::string($config, 'gaze.openai_filter_operating_point'));
-
-        // Kiji DistilBERT (Tier 2.5) backend knobs. `--kiji-distilbert-locales`
-        // has no top-level one-shot key, so it lives under gaze.daemon.*.
-        self::append($argv, 'kiji-backend', self::string($config, 'gaze.kiji_backend'));
-        self::append($argv, 'kiji-distilbert-command', self::string($config, 'gaze.kiji_distilbert_command'));
-        self::append($argv, 'kiji-distilbert-model-dir', self::string($config, 'gaze.kiji_distilbert_model_dir'));
-        self::append($argv, 'kiji-distilbert-locales', self::string($config, 'gaze.daemon.kiji_distilbert_locales'));
 
         // Safety-net envelope limits + leak handling — top-level `gaze.*`
         // keys shared with the one-shot path. Config-only.

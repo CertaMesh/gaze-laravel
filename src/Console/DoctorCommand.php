@@ -7,8 +7,9 @@ namespace CertaMesh\Gaze\Console;
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Console\Concerns\RunsHealthProbes;
 use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
-use CertaMesh\Gaze\Install\KijiArtifacts;
+use CertaMesh\Gaze\SafetyNetBackendGuard;
 use Devium\Toml\Toml;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -48,7 +49,7 @@ final class DoctorCommand extends Command
         $this->probeProxyFeature($binary, $config, $process);
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
-        if (! $this->probeKijiArtifacts($config)) {
+        if (! $this->probeKijiRemoval($config)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
@@ -270,58 +271,72 @@ final class DoctorCommand extends Command
     }
 
     /**
-     * Axis-1 fail-closed pre-flight for the Kiji DistilBERT backend.
+     * Upstream removed the Kiji DistilBERT safety net (and every `--kiji-*`
+     * flag) in gaze 0.15.0.
      *
-     * Skipped silently unless `gaze.safety_net_backend === 'kiji-distilbert'`
-     * — the openai-filter backend ships its own pre-flight upstream and the
-     * default null backend selector means "let upstream choose" so we have
-     * no Kiji-specific contract to enforce.
+     * FAILS when an ENABLED safety net still selects `kiji-distilbert` — the
+     * same fail-closed guard `Gaze::clean()` and both daemon spawn paths
+     * apply before spawning ({@see SafetyNetBackendGuard}), surfaced here
+     * first (P7 doctor-before-failure). Returns false to flip doctor's exit.
      *
-     * When the adopter HAS opted into Kiji, surface the same artifact
-     * requirements upstream enforces (`SHA256SUMS`, `labels.json`,
-     * `model.onnx`, `tokenizer.json`) before the binary fails the first
-     * `gaze clean` with a `SafetyNetArtifactMissing` envelope. Returns true
-     * on pass; false signals doctor should exit FAILURE.
+     * WARNS, never fails, on leftover Kiji config the adapter now ignores: a
+     * `kiji-distilbert` selector on a disabled net, the published config's
+     * nested `safety_net.kiji.*` group or pre-v0.13 flat `kiji_*` keys,
+     * `daemon.kiji_distilbert_locales`, and the `GAZE_KIJI_*` env vars that
+     * fed them. The env vars are checked directly because the provider
+     * collapses the nested `safety_net` group at boot, so a v0.13-shaped
+     * published config's Kiji values never reach the runtime config.
      */
-    private function probeKijiArtifacts(ConfigRepository $config): bool
+    private function probeKijiRemoval(ConfigRepository $config): bool
     {
-        $backend = $config->get('gaze.safety_net_backend');
-        if ($backend !== 'kiji-distilbert') {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        $kijiSelected = $options->safetyNetBackend === SafetyNetBackendGuard::KIJI_DISTILBERT;
+
+        if ($kijiSelected && $options->safetyNet) {
+            $this->components->twoColumnDetail('safety_net_backend', '<fg=red>kiji-distilbert removed in gaze 0.15.0</>');
+            $this->error(SafetyNetBackendGuard::KIJI_DISTILBERT_REMOVED);
+
+            return false;
+        }
+
+        $leftovers = $kijiSelected ? ['gaze.safety_net.backend=kiji-distilbert (net disabled)'] : [];
+
+        $nested = $config->get('gaze.safety_net');
+        if (is_array($nested) && is_array($nested['kiji'] ?? null)) {
+            foreach ($nested['kiji'] as $key => $value) {
+                if ($value !== null && $value !== '') {
+                    $leftovers[] = "gaze.safety_net.kiji.{$key}";
+                }
+            }
+        }
+
+        foreach (['gaze.kiji_backend', 'gaze.kiji_distilbert_precision', 'gaze.kiji_distilbert_command', 'gaze.kiji_distilbert_model_dir', 'gaze.daemon.kiji_distilbert_locales'] as $key) {
+            $value = $config->get($key);
+            if ($value !== null && $value !== '') {
+                $leftovers[] = $key;
+            }
+        }
+
+        foreach (['GAZE_KIJI_BACKEND', 'GAZE_KIJI_DISTILBERT_PRECISION', 'GAZE_KIJI_DISTILBERT_COMMAND', 'GAZE_KIJI_DISTILBERT_MODEL_DIR', 'GAZE_DAEMON_KIJI_DISTILBERT_LOCALES'] as $env) {
+            $value = getenv($env);
+            if ($value !== false && $value !== '') {
+                $leftovers[] = $env;
+            }
+        }
+
+        if ($leftovers === []) {
             return true;
         }
 
-        $dir = $config->get('gaze.kiji_distilbert_model_dir');
-        if (! is_string($dir) || $dir === '') {
-            $this->components->twoColumnDetail('kiji_distilbert', '<fg=red>missing model_dir</>');
-            $this->warn(
-                'gaze.safety_net_backend=kiji-distilbert requires gaze.kiji_distilbert_model_dir '
-                .'(or GAZE_KIJI_DISTILBERT_MODEL_DIR) to point at the pinned model directory. '
-                .'Fetch it with upstream scripts/fetch-kiji-safetynet-model.sh.'
-            );
-
-            return false;
-        }
-
-        // Single source of truth shared with gaze:install:safety-net (CB4): the
-        // pre-write gate and this post-write probe validate the same artifacts.
-        $missing = KijiArtifacts::missing($dir);
-
-        if ($missing !== []) {
-            $this->components->twoColumnDetail(
-                'kiji_distilbert',
-                '<fg=red>missing: '.implode(', ', $missing).'</>'
-            );
-            $this->warn(
-                'gaze.kiji_distilbert_model_dir is missing required artifacts ('
-                .implode(', ', $missing).'). Re-fetch with upstream '
-                .'scripts/fetch-kiji-safetynet-model.sh; the dir must carry 0o700 '
-                .'permissions and each file 0o600.'
-            );
-
-            return false;
-        }
-
-        $this->components->twoColumnDetail('kiji_distilbert', '<fg=green>OK</>');
+        $this->components->twoColumnDetail('kiji config', '<fg=yellow>ignored</>');
+        $this->warn(
+            'Kiji DistilBERT config is ignored — upstream removed the backend in gaze 0.15.0: '
+            .implode(', ', array_unique($leftovers)).'.'
+        );
+        // Own short line so the hint survives console width-wrapping.
+        $this->warn('Remove it (see UPGRADING.md); for a safety net, switch to nym.');
 
         return true;
     }

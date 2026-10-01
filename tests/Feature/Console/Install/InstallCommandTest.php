@@ -189,3 +189,23 @@ it('prints a per-step summary table', function () {
         ic_cleanPublished();
     }
 });
+
+it('rejects --safety-net=kiji up front, before any step runs or .env is touched', function () {
+    Process::fake();
+    $env = ic_bindEnv("APP_ENV=testing\n");
+    ic_cleanPublished();
+
+    try {
+        $this->artisan('gaze:install --no-interaction --skip-ner --safety-net=kiji')
+            ->expectsOutputToContain('removed upstream in gaze 0.15.0')
+            ->assertExitCode(1);
+
+        expect(file_get_contents($env))->toBe("APP_ENV=testing\n")
+            ->and(is_file($env.'.backup'))->toBeFalse()
+            ->and(is_file(config_path('gaze.php')))->toBeFalse(); // config publish never ran
+        Process::assertNothingRan(); // no doctor gate either
+    } finally {
+        ic_rmEnv($env);
+        ic_cleanPublished();
+    }
+});

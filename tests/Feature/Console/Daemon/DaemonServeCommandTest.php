@@ -59,11 +59,12 @@ it('forwards session-tuning, locale, NER, and safety-net config to gaze daemon',
     config()->set('gaze.daemon.session_cap', 250);
     config()->set('gaze.daemon.ner_model_dir', '/opt/gaze/ner');
     config()->set('gaze.daemon.ner_locale', 'de');
-    config()->set('gaze.daemon.kiji_distilbert_locales', 'de,fr');
     config()->set('gaze.locale', 'de,en');
     config()->set('gaze.ner_threshold', 0.8);
     config()->set('gaze.safety_net', true);
-    config()->set('gaze.safety_net_backend', 'kiji-distilbert');
+    config()->set('gaze.safety_net_backend', 'nym');
+    // Leftover Kiji keys (removed upstream in gaze 0.15.0): never forwarded.
+    config()->set('gaze.daemon.kiji_distilbert_locales', 'de,fr');
     config()->set('gaze.kiji_backend', 'ort');
     config()->set('gaze.kiji_distilbert_model_dir', '/opt/kiji/model');
     config()->set('gaze.safety_net_mode', 'strict');
@@ -76,17 +77,31 @@ it('forwards session-tuning, locale, NER, and safety-net config to gaze daemon',
             ->toContain('--session-cap=250')
             ->toContain('--ner-model-dir=/opt/gaze/ner')
             ->toContain('--ner-locale=de')
-            ->toContain('--kiji-distilbert-locales=de,fr')
             ->toContain('--locale=de,en')
             ->toContain('--ner-threshold=0.8')
             ->toContain('--safety-net=openai-filter')
-            ->toContain('--safety-net-backend=kiji-distilbert')
-            ->toContain('--kiji-backend=ort')
-            ->toContain('--kiji-distilbert-model-dir=/opt/kiji/model')
+            ->toContain('--safety-net-backend=nym')
             ->toContain('--safety-net-mode=strict');
+
+        foreach ($process->command as $arg) {
+            expect($arg)->not->toStartWith('--kiji-');
+        }
 
         return true;
     });
+});
+
+it('fails before spawning when the enabled safety net selects kiji-distilbert', function () {
+    Process::fake();
+
+    config()->set('gaze.safety_net', true);
+    config()->set('gaze.safety_net_backend', 'kiji-distilbert');
+
+    $this->artisan('gaze:daemon:serve')
+        ->expectsOutputToContain('removed upstream in gaze 0.15.0')
+        ->assertExitCode(1);
+
+    Process::assertNothingRan();
 });
 
 it('lets the new artisan options override session-tuning and pipeline config', function () {
