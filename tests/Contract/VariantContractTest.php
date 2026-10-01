@@ -31,7 +31,7 @@ const UPSTREAM_VARIANTS = [
     'SafetyNetConfig' => ['SafetyNetConfig', 3, ['error' => 'SafetyNetConfig', 'exit' => 3, 'detail' => 'openai filter config missing']],
     'SafetyNetUsage' => ['SafetyNetUsage', 2, ['error' => 'SafetyNetUsage', 'exit' => 2, 'detail' => '--safety-net-backend requires exactly one --safety-net value']],
     'SafetyNet' => ['SafetyNet', 3, ['error' => 'SafetyNet', 'exit' => 3, 'variant' => 'Timeout']],
-    'SafetyNetArtifactMissing' => ['SafetyNetArtifactMissing', 2, ['error' => 'SafetyNetArtifactMissing', 'exit' => 2, 'backend' => 'nym', 'path' => '/var/lib/gaze/models/nym (install via gaze setup --safety-net nym)']],
+    'SafetyNetArtifactMissing' => ['SafetyNetArtifactMissing', 2, ['error' => 'SafetyNetArtifactMissing', 'exit' => 2, 'backend' => 'nym', 'path' => '<missing:SHA256SUMS> (install via gaze setup --safety-net nym)']],
     'AuditPurgeIso8601' => ['AuditPurgeIso8601', 2, ['error' => 'AuditPurgeIso8601', 'exit' => 2, 'input' => 'not-a-date']],
     'UnknownToken' => ['UnknownToken', 3, ['error' => 'UnknownToken', 'exit' => 3, 'token' => 'gz1_abc']],
     'InvalidSignature' => ['InvalidSignature', 3, ['error' => 'InvalidSignature', 'exit' => 3]],
@@ -50,6 +50,18 @@ const UPSTREAM_VARIANTS = [
  *     clean path ever emitted it, and the adapter always passes --policy.
  */
 const RETIRED_UPSTREAM_VARIANTS = ['UnsupportedSessionScope'];
+
+/*
+ * Upstream wire names deliberately NOT mapped, because no command the adapter
+ * runs (clean, restore, audit, daemon, proxy) can emit them:
+ *   - Setup (exit 2): `gaze setup` only.
+ *   - IndexNerModelMissing (exit 2): `gaze index` only.
+ *   - Document (5) / Mcp (6) / Proxy (7): feature-gated `document`, `mcp`
+ *     and proxy-control errors; the proxy artisans pass the binary's output
+ *     through verbatim instead of parsing it.
+ * Should one ever surface on a mapped path, Variant::unknownFor() still
+ * classifies it by exit code.
+ */
 
 it('upstream variant exists as a PHP enum case', function (string $name, int $exit, array $wirePayload) {
     $cases = array_map(fn (Variant $v) => $v->name, Variant::cases());

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\EncryptedBlob;
+use CertaMesh\Gaze\GazeServiceProvider;
 use CertaMesh\Gaze\GazeSession;
 use CertaMesh\Gaze\Install\BinaryDownloader;
 use Illuminate\Support\Facades\Process;
@@ -176,6 +177,37 @@ it('reports gaze proxy feature available when the binary supports proxy', functi
         ->expectsOutputToContain('gaze proxy feature available');
 });
 
+it('warns when the policy falls through to preserve, and stays silent on the shipped policy', function (?string $defaultRule, bool $warns) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+
+    $policy = __DIR__.'/../../resources/policy.toml';
+    if ($defaultRule !== null) {
+        $policy = tempnam(sys_get_temp_dir(), 'gaze-policy-').'.toml';
+        $body = "[policy.rulepacks]\nbundled = [\"core\"]\n\n[[rule]]\nkind = \"class\"\nclass = \"email\"\naction = \"tokenize\"\n";
+        file_put_contents($policy, $body.$defaultRule);
+    }
+    $this->app['config']->set('gaze.policy_path', $policy);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $command = $this->artisan('gaze:doctor')->assertExitCode(0);
+
+    if ($warns) {
+        $command->expectsOutputToContain('policy default')
+            ->expectsOutputToContain('reaches the model raw')
+            ->expectsOutputToContain('action = "tokenize"');
+    } else {
+        $command->doesntExpectOutputToContain('policy default');
+    }
+})->with([
+    'shipped policy (tokenize)' => [null, false],
+    'explicit preserve default' => ["\n[[rule]]\nkind = \"default\"\naction = \"preserve\"\n", true],
+    'no default rule' => ['', true],
+]);
+
 it('shows no Kiji row when no Kiji config is present', function () {
     $this->app->instance(
         BinaryResolver::class,
@@ -236,6 +268,45 @@ it('warns but passes on leftover Kiji config the adapter now ignores', function 
     'nested group' => ['gaze.safety_net', ['enabled' => false, 'kiji' => ['backend' => 'ort', 'distilbert_precision' => null]], 'gaze.safety_net.kiji.backend'],
     'selector on a disabled net' => ['gaze.safety_net_backend', 'kiji-distilbert', 'gaze.safety_net.backend=kiji-distilbert (net disabled)'],
 ]);
+
+it('warns on a published nested kiji group after the provider collapsed it at boot', function () {
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    // A v0.13-shaped published config carrying a literal Kiji value, normalized
+    // the way a real boot does it: the group collapses to the bool switch, so
+    // only the provider's legacy back-fill keeps the value visible to doctor.
+    $this->app['config']->set('gaze.safety_net', ['enabled' => false, 'kiji' => ['backend' => 'ort']]);
+    (new GazeServiceProvider($this->app))->register();
+    // Bind the fake resolver AFTER re-registering: register() rebinds the real
+    // one, which would make the test depend on a gaze binary being installed.
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+
+    expect($this->app['config']->get('gaze.safety_net'))->toBeFalse();
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(0)
+        ->expectsOutputToContain('kiji config')
+        ->expectsOutputToContain('gaze.kiji_backend');
+});
+
+it('fails on kiji-distilbert regardless of case and whitespace', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+    $this->app['config']->set(['gaze.safety_net' => true, 'gaze.safety_net_backend' => ' Kiji-Distilbert']);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(1)
+        ->expectsOutputToContain('kiji-distilbert removed in gaze 0.15.0');
+});
 
 it('warns but passes on a leftover GAZE_KIJI_* env var', function () {
     $this->app->instance(

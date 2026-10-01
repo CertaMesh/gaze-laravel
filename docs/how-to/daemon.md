@@ -142,8 +142,8 @@ GAZE_DAEMON_SESSION_CAP=500 \
 GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S=900 \
 GAZE_SAFETY_NET=true \
 GAZE_SAFETY_NET_BACKEND=nym \
-GAZE_NYM_MODEL_DIR=/var/lib/gaze/nym \
 php artisan gaze:daemon:serve
+# The Nym bundle directory lives in the policy: [safety_net.nym] model_dir.
 
 # Ad-hoc override of the operational knobs (timeouts, caps, locale,
 # NER threshold). CLI options win over config.

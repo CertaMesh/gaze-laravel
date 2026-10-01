@@ -77,10 +77,14 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   (upstream #641) that the adapter never surfaces, because it discards stderr
   on success. Upstream classifies a `preserve` default as a leak and switched
   its own `gaze setup` policy to `tokenize` (upstream #635). The explicit class
-  rules stay. Expect more tokens — notably whole URLs now come back as
-  `Custom:url` tokens and restore exactly. New integration tests pin both the
-  tokenize default and the absence of the upstream warning. **Published
-  policies do not update themselves — see UPGRADING.md.**
+  rules stay. Expect more tokens — notably URLs now come back as `Custom:url`
+  tokens and restore exactly. Upstream's URL token runs to the next whitespace,
+  so in minified JSON it also covers the fields after a URL (restore stays
+  exact; UPGRADING.md shows the explicit-preserve opt-out and its trade-off).
+  New integration tests pin both the tokenize default and the absence of the
+  upstream warning. **Every existing install runs its own `policy.toml` copy,
+  which does not update itself — see UPGRADING.md.** `gaze:doctor` now warns
+  while the configured policy's fall-through rule is `preserve` (or missing).
 
 ### Deprecated
 
@@ -143,10 +147,12 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `kiji-distilbert` selector on a disabled net, `safety_net.kiji.*` or flat
   `kiji_*` keys, `daemon.kiji_distilbert_locales`, or the Kiji env vars.
 - **Migration:** turn the safety net off, or move to Nym (compiled into the
-  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`,
-  `GAZE_NYM_MODEL_DIR` set in the PHP worker's real process environment (not
-  only `.env` — `php artisan config:cache` stops `.env` from loading), bundle
-  fetched with `gaze setup --safety-net nym`. See
+  release binary): `GAZE_SAFETY_NET=true`, `GAZE_SAFETY_NET_BACKEND=nym`, the
+  bundle fetched with `gaze setup --safety-net nym` as the user that runs gaze,
+  and its directory named in the policy's `[safety_net.nym] model_dir` (or in
+  `GAZE_NYM_MODEL_DIR` in the worker's real process environment — `.env` alone
+  vanishes under `config:cache`). Code that constructs `GazeOptions`
+  positionally must switch to named arguments. See
   [UPGRADING.md](UPGRADING.md#kiji-safety-net-removed-breaking).
 
 ### Fixed

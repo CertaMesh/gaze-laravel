@@ -30,9 +30,10 @@ upcoming release in full; per-minor guides for earlier versions live in
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
    gaze >= 0.15.0.
-5. **Published-policy leak fix — action required if you published the
-   policy.** The shipped policy's default rule now tokenizes instead of
-   preserving. Change the last rule of your copy; see
+5. **Policy leak fix — action required on every existing install.** The
+   shipped policy's default rule now tokenizes instead of preserving, but your
+   app runs its own copy of `policy.toml`, which the upgrade does not touch.
+   Change its last rule (`gaze:doctor` warns until you do); see
    [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
 
 ### Binary pin 0.12.0 → 0.15.1: what changes for you
@@ -117,6 +118,10 @@ Both stay until 1.0.
 
 ### Kiji safety net removed (BREAKING)
 
+> If you construct `GazeOptions` yourself: four parameters were removed from
+> the middle of its constructor. Pass arguments **by name** — positional
+> arguments after `safetyNetBackend` would shift silently.
+
 Upstream gaze 0.15.0 deleted the Kiji DistilBERT safety net and every
 `--kiji-*` flag ([CertaMesh/gaze#612](https://github.com/CertaMesh/gaze/pull/612)).
 A 0.15 binary rejects them with a bare `PolicyConfig` error, so v0.14.0:
@@ -150,12 +155,22 @@ Migration:
      1. As the user that runs gaze (PHP-FPM / queue worker), fetch the bundle
         with the adapter's binary: `vendor/bin/gaze setup --safety-net nym`.
      2. Set `GAZE_SAFETY_NET=true` and `GAZE_SAFETY_NET_BACKEND=nym`.
-     3. Set `GAZE_NYM_MODEL_DIR` to the bundle directory in the **real process
-        environment** of the PHP worker — systemd `Environment=`, supervisord
-        `environment=`, the container's `ENV`, or PHP-FPM `env[...]`. The gaze
-        subprocess inherits it; the adapter has no config key for it. A `.env`
-        entry alone is not enough: `php artisan config:cache` stops `.env`
-        from being loaded, so the inherited variable would vanish.
+     3. Name the bundle directory in your published policy — the
+        `[safety_net.nym]` table `gaze setup` writes into its starter
+        `gaze.toml`:
+
+        ```toml
+        [safety_net.nym]
+        model_dir = "/srv/gaze/gaze/models/nym-small-int8"
+        ```
+
+        The adapter always passes `--policy`, so this survives
+        `php artisan config:cache`. Alternatively set `GAZE_NYM_MODEL_DIR` in
+        the worker's **real process environment** (systemd `Environment=`,
+        supervisord `environment=`, container `ENV`, PHP-FPM `env[...]`); a
+        `.env` entry alone vanishes under `config:cache`. A policy
+        `[safety_net] backend = "nym"` table would turn Nym on even with
+        `GAZE_SAFETY_NET=false` — keep the switch in one place.
 
      First-class Nym config and installer support is tracked in
      [#157](https://github.com/CertaMesh/gaze-laravel/issues/157).
@@ -187,8 +202,12 @@ kind = "default"
 action = "tokenize"
 ```
 
-If you published the policy into your app (`vendor:publish` or
-`gaze:install`), make the same change in your copy:
+**Every existing install needs this change.** `gaze:install` and
+`vendor:publish` copy the policy into your app (`base_path('policy.toml')` by
+default, or wherever `GAZE_POLICY_PATH` points), and that copy is what runs —
+upgrading the package does not touch it, and `gaze:install --force` keeps it.
+`php artisan gaze:doctor` now warns (`policy default … preserve`) while your
+copy still falls through to `preserve`. Make the same change in your copy:
 
 ```diff
  [[rule]]
@@ -198,15 +217,38 @@ If you published the policy into your app (`vendor:publish` or
 ```
 
 To keep a class readable on purpose, add an explicit class rule with
-`action = "preserve"` **above** the default. Check your copy directly against
-the pinned binary — no output means nothing is left raw:
+`action = "preserve"` **above** the default. Check your copy against the
+binary you run. It must be gaze ≥ 0.15.0 — older binaries never print the
+warning, so silence would prove nothing:
 
 ```bash
-echo probe | vendor/bin/gaze clean --policy=policy.toml --format=json 2>&1 >/dev/null | grep 'policy preserves'
+vendor/bin/gaze --version   # must report 0.15.0 or newer
+echo probe | vendor/bin/gaze clean --policy=/absolute/path/from/GAZE_POLICY_PATH --format=json 2>&1 >/dev/null
 ```
 
-Expect more tokens after the change: whole URLs become `Custom:url` tokens
-(they restore exactly), and the ID/date-of-birth classes above are tokenized.
+A `warning: policy preserves …` line means classes still leave raw. An
+`{"error":…}` line (e.g. `PolicyOpen` for a wrong path) means the probe did not
+run. No output means the policy sends no detected class through raw.
+
+Expect more tokens after the change: URLs become `Custom:url` tokens, and the
+ID/date-of-birth classes above are tokenized. Everything restores exactly. One
+side effect of upstream's URL recognizer: a URL token runs to the next
+whitespace, so in **minified JSON** (`json_encode()` without
+`JSON_PRETTY_PRINT`) it also swallows the JSON syntax and the fields after the
+URL up to the next space — the model no longer sees them, though restore is
+still exact. Pretty-print JSON the model has to read. If you would rather keep
+URLs readable, add an explicit rule above the default:
+
+```toml
+[[rule]]
+kind = "class"
+class = "custom:url"
+action = "preserve"
+```
+
+PII that other recognizers find inside a preserved URL (emails, IPs, …) is
+still tokenized on gaze ≥ 0.15, but anything only the URL recognizer would have
+covered (e.g. a name in a URL path) then reaches the model raw.
 
 ## v0.12.0 → v0.13.0
 
