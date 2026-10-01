@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazePolicyConfigDetailException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeServiceProvider;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
+use CertaMesh\Gaze\SessionScopeGuard;
 use Illuminate\Support\Facades\Process;
 
 it('Gaze resolved from container forwards OpenAI privacy-filter config on clean argv', function () {
@@ -184,6 +186,21 @@ it('container-resolved Gaze refuses a nested kiji-distilbert backend before spaw
 
     expect(fn () => $this->app->make(Gaze::class)->clean('Hello'))
         ->toThrow(GazeSafetyNetConfigException::class, SafetyNetBackendGuard::KIJI_DISTILBERT_REMOVED);
+
+    Process::assertNothingRan();
+});
+
+it('container-resolved Gaze refuses GAZE_SESSION_SCOPE=ephemeral before spawning', function () {
+    config([
+        'gaze.binary' => '/fake/gaze',
+        'gaze.session_scope' => 'ephemeral',
+    ]);
+    $this->app->forgetInstance(Gaze::class);
+
+    Process::fake();
+
+    expect(fn () => $this->app->make(Gaze::class)->clean('Hello'))
+        ->toThrow(GazePolicyConfigDetailException::class, SessionScopeGuard::EPHEMERAL_UNSUPPORTED);
 
     Process::assertNothingRan();
 });
