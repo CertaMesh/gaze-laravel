@@ -27,7 +27,7 @@ interface DaemonClientContract
      * Throws `GazeDaemonException` (or a subclass) on any pipeline / transport
      * / timeout / feature-gate failure. Never returns null.
      */
-    public function request(string $sessionId, string $text): CleanResponse;
+    public function request(#[\SensitiveParameter] string $sessionId, #[\SensitiveParameter] string $text): CleanResponse;
 
     /**
      * Spawn the upstream daemon process if not already running. Idempotent.

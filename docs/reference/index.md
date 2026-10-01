@@ -8,6 +8,6 @@ task walkthroughs see the [how-to guides](../how-to/index.md), and for design ra
 - [Configuration reference](./configuration.md) — every config and environment key with its default.
 - [Exception reference](./exceptions.md) — the typed exception hierarchy and exit-bucket taxonomy.
 - [Upstream coverage](./upstream-coverage.md) — the living parity matrix mapping upstream flags to Laravel surfaces.
-- [Diagnostics](./diagnostics.md) — the latency baseline and diagnostic command surface.
+- [Diagnostics](./diagnostics.md) — the latency baseline, the diagnostic command surface, and the upstream policy warnings `gaze:doctor` shows.
 
 ← Back to [documentation index](../README.md).

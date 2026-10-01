@@ -22,6 +22,9 @@ it('skips the daemon probe entirely when gaze.daemon.policy_path is null', funct
         '*--version*' => Process::result(output: 'gaze 0.9.0', exitCode: 0),
         '*proxy*' => Process::result(output: 'usage: gaze proxy', exitCode: 0),
         '*daemon*' => Process::result(output: 'should-not-run', exitCode: 0),
+        // The upstream-warning probe's `gaze clean`; without a fake it would
+        // spawn the nonexistent /fake/gaze.
+        '*clean*' => Process::result(output: '{}', exitCode: 0),
     ]);
 
     $output = $this->artisan('gaze:doctor');

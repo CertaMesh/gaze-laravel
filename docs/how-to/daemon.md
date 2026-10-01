@@ -298,14 +298,51 @@ try {
 ```
 
 `GazeDaemonException::toLogContext()` returns
-`{daemon_variant, session_id, raw}` so structured logs carry the full
-envelope without leaking `stderr_sha256` (daemon errors are stdout
-envelopes — there is no stderr to hash).
+`{daemon_variant, session_id_sha256, raw}` so structured logs carry the
+envelope diagnostics (daemon errors are stdout envelopes, so there is no
+`stderr_sha256`).
 
-The daemon exception family does **NOT** implement `Retryable`. Queue
-retry policy is the adopter's responsibility — daemon failures map to
-adopter-defined back-pressure (different surfaces have different
-retry-vs-fail-fast semantics).
+### Logging and session ids
+
+Session ids are yours to choose, so the adapter treats them like input:
+exception messages and `toLogContext()` never contain one raw (#181).
+They carry `session_id_sha256` instead, the first 12 hex characters of
+the id's SHA-256 (`null` when the exception has no id). The digest is
+stable, so every log line for one session carries the same value. To
+find a known session in the logs, compute it the same way:
+
+```php
+$digest = substr(hash('sha256', $sessionId), 0, 12);
+```
+
+The `raw` envelope in the log context is digested too: its `session_id`
+becomes `session_id_sha256`, and `clean_text` / `raw_line` become
+`clean_text_sha256` / `raw_line_sha256` (full SHA-256). A
+mismatched-session_id envelope carries another request's clean text, and
+a malformed line can carry the id and text. The mismatch message shows
+the two digests (`session_id_sha256 sent=…, got=…`).
+
+`$e->sessionId()` and `$e->raw()` still return the raw values for code
+that needs them. Nothing in the adapter logs them; if you do, you log the
+raw id.
+
+The digest is a correlation label, not anonymisation: anyone who can
+guess the id (a short customer number, a known email) can hash the guess
+and match it. Keep session ids opaque, for example a conversation
+primary key or a random id you map to the user yourself, rather than
+user data.
+
+The daemon exception family implements none of the static markers
+(`Retryable`, `NonRetryable`, …). Since v0.16.0 it implements
+`HasRetryDisposition`: the `SafetyNet*` variants get the same queue lane as
+the one-shot safety-net variant of the same name (`SafetyNetTimeout` and
+`SafetyNetRuntime` release with backoff, `SafetyNetSuspectedLeak` releases
+with an alert, the rest fail — see the
+[exception reference](../reference/exceptions.md#safety-net-and-session-scope-exceptions)).
+`DaemonErrorVariant::safetyNetVariant()` returns that one-shot name. Every
+other variant answers `RetryAction::Throw`, so `GazeRetryPolicy::dispatch()`
+re-throws it: retry for transport faults, timeouts and pipeline errors stays
+the adopter's call — daemon failures map to adopter-defined back-pressure.
 
 ## Octane / Swoole / Concurrency
 

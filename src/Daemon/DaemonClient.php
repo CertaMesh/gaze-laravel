@@ -9,6 +9,7 @@ use CertaMesh\Gaze\Exceptions\GazeDaemonException;
 use CertaMesh\Gaze\Exceptions\GazeDaemonFeatureUnsupportedException;
 use CertaMesh\Gaze\Exceptions\GazeDaemonTimeoutException;
 use CertaMesh\Gaze\Exceptions\GazeDaemonTransportException;
+use CertaMesh\Gaze\Exceptions\GazeInvalidEncodingException;
 
 /**
  * Long-lived JSONL stdio client for `gaze daemon`.
@@ -131,7 +132,7 @@ final class DaemonClient implements DaemonClientContract
         ];
     }
 
-    public function request(string $sessionId, string $text): CleanResponse
+    public function request(#[\SensitiveParameter] string $sessionId, #[\SensitiveParameter] string $text): CleanResponse
     {
         if ($this->busy) {
             throw new GazeDaemonTransportException(
@@ -148,10 +149,16 @@ final class DaemonClient implements DaemonClientContract
                 throw new GazeDaemonTransportException('daemon stdio not available', $sessionId);
             }
 
-            $payload = json_encode(
+            // No JSON_THROW_ON_ERROR: json_encode()'s own exception would record
+            // the session id and text as its argument (#195).
+            $encoded = json_encode(
                 ['session_id' => $sessionId, 'text' => $text],
-                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
-            )."\n";
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+            );
+            if ($encoded === false) {
+                throw new GazeInvalidEncodingException('gaze daemon input could not be encoded as JSON', 1, null);
+            }
+            $payload = $encoded."\n";
 
             $this->writeRequest($payload, $sessionId);
 
@@ -166,8 +173,13 @@ final class DaemonClient implements DaemonClientContract
             $response = $parsed;
 
             if ($response->sessionId !== $sessionId) {
+                // Digests only: both ids are adopter-chosen and may carry
+                // user data, and this message lands in logs (#181).
+                $sent = SessionIdDigest::of($sessionId);
+                $got = SessionIdDigest::of($response->sessionId);
+
                 throw new GazeDaemonTransportException(
-                    "daemon echoed mismatched session_id (sent={$sessionId}, got={$response->sessionId})",
+                    "daemon echoed mismatched session_id (session_id_sha256 sent={$sent}, got={$got})",
                     $sessionId,
                     $response->raw,
                 );
@@ -244,7 +256,7 @@ final class DaemonClient implements DaemonClientContract
      * closed with GazeDaemonTimeoutException. Exceptions never carry
      * payload text (PII discipline).
      */
-    private function writeRequest(string $payload, string $sessionId): void
+    private function writeRequest(#[\SensitiveParameter] string $payload, #[\SensitiveParameter] string $sessionId): void
     {
         $stdin = $this->stdin;
         if (! is_resource($stdin)) {
@@ -316,7 +328,7 @@ final class DaemonClient implements DaemonClientContract
      * Read one newline-terminated JSON line, honouring the per-request
      * millisecond deadline. Throws on EOF (fail-closed) or timeout.
      */
-    private function readLine(string $sessionId): string
+    private function readLine(#[\SensitiveParameter] string $sessionId): string
     {
         $stdout = $this->stdout;
         if (! is_resource($stdout)) {

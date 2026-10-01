@@ -63,22 +63,83 @@ class Gaze implements AuditRunner, GazeContract
         $this->restoreTelemetry = $options->restoreTelemetry;
     }
 
-    public function clean(string $text, ?float $threshold = null): GazeSession
+    public function clean(#[\SensitiveParameter] string $text, ?float $threshold = null): GazeSession
     {
         $this->assertInput($text);
 
+        $result = $this->run($this->cleanCommand($threshold), $text, 'clean');
+
+        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>,leak_report?:array<string,mixed>} $decoded */
+        $decoded = $this->decodeResponse($result->output(), 'clean');
+
+        return new GazeSession(
+            cleanText: $decoded['clean_text'],
+            ciphertext: EncryptedBlob::wrap($decoded['session_blob'], $this->encrypter),
+            detections: (int) ($decoded['stats']['detections'] ?? 0),
+            entries: $this->mapEntries($decoded['entries'] ?? null),
+            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null, $decoded['clean_text']),
+        );
+    }
+
+    /**
+     * @internal gaze:doctor's upstream-warning probe (#159). Not a generic
+     * command runner: one real `gaze clean` of $text with the argv clean()
+     * builds — same binary, policy, pre-flight guards and pipeline flags —
+     * minus `--audit-db`, so a doctor run writes no audit row.
+     *
+     * gaze >= 0.15 prints its policy diagnostics on stderr only when a clean
+     * SUCCEEDS, and clean() discards that stderr. This returns the lines
+     * upstream prefixes with `warning:` / `notice:`; every other stderr byte
+     * stays here. Upstream builds those lines from class, family and rulepack
+     * names only, never from the input text. Its failures name the stage
+     * `clean probe`, so logs tell them apart from real cleans.
+     *
+     * @return list<string>
+     *
+     * @throws GazeException when the clean fails or times out
+     */
+    public function probeCleanWarnings(string $text): array
+    {
+        $this->assertInput($text);
+
+        $result = $this->run($this->cleanCommand(null, auditSink: false), $text, 'clean probe');
+
+        $warnings = [];
+        foreach (preg_split('/\R/', $result->errorOutput()) ?: [] as $line) {
+            $line = trim($line);
+            if (str_starts_with($line, 'warning:') || str_starts_with($line, 'notice:')) {
+                $warnings[] = $line;
+            }
+        }
+
+        return $warnings;
+    }
+
+    /**
+     * Build the `gaze clean` argv, after the fail-closed pre-flight guards.
+     * Shared by clean() and probeCleanWarnings() so the probe can never drift
+     * from what clean() really runs. $auditSink=false drops `--audit-db` only.
+     *
+     * @return list<string>
+     */
+    private function cleanCommand(?float $threshold, bool $auditSink = true): array
+    {
         // Fail closed before spawning: gaze >= 0.15 removed kiji-distilbert
         // and reports it only as a detail-less PolicyConfig.
         SafetyNetBackendGuard::assertSupported($this->options->safetyNet, $this->options->safetyNetBackend);
 
         // Fail fast: gaze never exports an ephemeral session, so the binary
-        // would answer with the Retryable Pipeline error on every call.
+        // would answer with the Retryable Pipeline error on every call. The
+        // override wins over the policy, as --session-scope does upstream.
         SessionScopeGuard::assertExportable($this->options->sessionScope);
+        $binary = $this->resolver->resolve();
+        $policyPath = $this->resolvedPolicyPath();
+        SessionScopeGuard::assertPolicyExportable($this->options->sessionScope, $policyPath);
 
         $command = [
-            $this->resolver->resolve(),
+            $binary,
             'clean',
-            '--policy='.$this->resolvedPolicyPath(),
+            '--policy='.$policyPath,
             '--format=json',
         ];
 
@@ -91,7 +152,7 @@ class Gaze implements AuditRunner, GazeContract
             '--max-bytes' => $this->options->maxBytes,
             '--session-ttl' => $this->options->sessionTtlSeconds,
             '--session-scope' => $this->options->sessionScope,
-            '--audit-db' => $this->options->auditDbPath,
+            '--audit-db' => $auditSink ? $this->options->auditDbPath : null,
             '--locale' => $this->options->locale,
             '--rulepack-bundled' => $this->options->rulepacks,
             '--rulepack-path' => $this->options->rulepackPaths,
@@ -112,18 +173,7 @@ class Gaze implements AuditRunner, GazeContract
             '--safety-net-fallback' => $this->options->safetyNetFallback,
         ]);
 
-        $result = $this->run($command, $text, 'clean');
-
-        /** @var array{clean_text:string,session_blob:string,stats?:array{detections?:int},entries?:list<array<string,mixed>>,leak_report?:array<string,mixed>} $decoded */
-        $decoded = $this->decodeResponse($result->output(), 'clean');
-
-        return new GazeSession(
-            cleanText: $decoded['clean_text'],
-            ciphertext: EncryptedBlob::wrap($decoded['session_blob'], $this->encrypter),
-            detections: (int) ($decoded['stats']['detections'] ?? 0),
-            entries: $this->mapEntries($decoded['entries'] ?? null),
-            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null, $decoded['clean_text']),
-        );
+        return $command;
     }
 
     /**
@@ -155,7 +205,7 @@ class Gaze implements AuditRunner, GazeContract
      * a null report degrades the session's trust state to Unverified rather than
      * silently asserting Verified. Never throws on shape drift.
      */
-    private function mapLeakReport(mixed $raw, string $cleanText): ?LeakReport
+    private function mapLeakReport(mixed $raw, #[\SensitiveParameter] string $cleanText): ?LeakReport
     {
         return is_array($raw)
             ? LeakReport::fromArray($raw, $this->safetyNetActsOnSuspects($cleanText))
@@ -189,7 +239,7 @@ class Gaze implements AuditRunner, GazeContract
      * its fallback refuses instead (exit 3, `Pipeline`), so a returned clean
      * never ran it.
      */
-    private function safetyNetActsOnSuspects(string $cleanText): bool
+    private function safetyNetActsOnSuspects(#[\SensitiveParameter] string $cleanText): bool
     {
         $mode = $this->options->safetyNetMode ?? 'resolve';
         $fallback = $this->options->safetyNetFallback ?? 'redact';
@@ -224,7 +274,7 @@ class Gaze implements AuditRunner, GazeContract
      *
      * @param  (callable(Entry): string)|null  $replace
      */
-    public function mask(string $text, ?callable $replace = null): string
+    public function mask(#[\SensitiveParameter] string $text, ?callable $replace = null): string
     {
         $session = $this->clean($text);
 
@@ -265,7 +315,7 @@ class Gaze implements AuditRunner, GazeContract
      *
      * @return list<Entry>
      */
-    private function mapEntries(mixed $raw): array
+    private function mapEntries(#[\SensitiveParameter] mixed $raw): array
     {
         if (! is_array($raw)) {
             return [];
@@ -281,7 +331,7 @@ class Gaze implements AuditRunner, GazeContract
         return $entries;
     }
 
-    public function restore(GazeSession $session, string $text): string
+    public function restore(GazeSession $session, #[\SensitiveParameter] string $text): string
     {
         $this->assertInput($text);
 
@@ -299,10 +349,17 @@ class Gaze implements AuditRunner, GazeContract
             throw $exception;
         }
 
+        // No JSON_THROW_ON_ERROR: json_encode()'s own exception would record
+        // the raw text as its argument, and a built-in cannot be marked
+        // #[\SensitiveParameter] (#195).
         $payload = json_encode([
             'session_blob' => $sessionBlob,
             'text' => $text,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE);
+
+        if ($payload === false) {
+            throw new GazeInvalidEncodingException('gaze restore input could not be encoded as JSON', 1, null);
+        }
 
         $this->assertInputSize($payload);
 
@@ -416,17 +473,20 @@ class Gaze implements AuditRunner, GazeContract
     /**
      * @return array<string, mixed>
      */
-    private function decodeResponse(string $output, string $stage): array
+    private function decodeResponse(#[\SensitiveParameter] string $output, string $stage): array
     {
-        try {
-            /** @var array<string, mixed> $decoded */
-            $decoded = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
+        // No JSON_THROW_ON_ERROR: the JsonException's own trace would record
+        // the raw response (entries[].raw, restored text) as json_decode()'s
+        // argument, and a built-in cannot be marked #[\SensitiveParameter]
+        // (#195). The chained cause is built here instead, with no input.
+        /** @var mixed $decoded */
+        $decoded = json_decode($output, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
             $exception = new GazeResponseDecodeException(
                 "gaze {$stage} response was not valid JSON (exit=-1, stderr_sha256=none)",
                 exitCode: -1,
                 stderrHash: null,
-                previous: $e,
+                previous: new \JsonException(json_last_error_msg(), json_last_error()),
             );
             Log::notice("gaze {$stage} failed", $exception->toLogContext());
 
@@ -450,7 +510,7 @@ class Gaze implements AuditRunner, GazeContract
     /**
      * @param  list<string>  $command
      */
-    private function run(array $command, string $input, string $stage): ProcessResult
+    private function run(array $command, #[\SensitiveParameter] string $input, string $stage): ProcessResult
     {
         try {
             $result = $this->process
@@ -477,7 +537,7 @@ class Gaze implements AuditRunner, GazeContract
         throw $this->buildException($stage, $result);
     }
 
-    private function assertInput(string $text): void
+    private function assertInput(#[\SensitiveParameter] string $text): void
     {
         if (! mb_check_encoding($text, 'UTF-8')) {
             throw new GazeInvalidEncodingException('gaze input is not valid UTF-8', 1, null);
@@ -490,7 +550,7 @@ class Gaze implements AuditRunner, GazeContract
         }
     }
 
-    private function assertInputSize(string $input): void
+    private function assertInputSize(#[\SensitiveParameter] string $input): void
     {
         if (strlen($input) > ($this->maxBytes ?? self::DEFAULT_MAX_BYTES)) {
             throw new GazeInputTooLargeException('gaze input exceeds max_bytes pre-flight', 1, null);

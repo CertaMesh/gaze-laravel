@@ -47,8 +47,8 @@ return [
      * `ephemeral` is rejected before the binary runs (non-retryable
      * GazePolicyConfigDetailException): gaze clean must return an exported
      * session blob for restore(), and gaze never exports an ephemeral
-     * session. A policy `[session] scope = "ephemeral"` fails every clean the
-     * same way; `gaze:doctor` warns about it.
+     * session. With this unset, a policy `[session] scope = "ephemeral"` is
+     * refused before spawning the same way; `gaze:doctor` warns about it.
      */
     'session_scope' => env('GAZE_SESSION_SCOPE'),
 

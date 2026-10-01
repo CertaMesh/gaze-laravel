@@ -71,7 +71,7 @@ The `Install\Ner*` family lives under the `CertaMesh\Gaze\Install` namespace. Th
 | `GazeStdinParseException` | 1 | `NonRetryable` → fail | No | Binary could not parse the JSON sent on stdin |
 | `GazeOpsConfigException` | 2 | `NonRetryable` → fail | No | Abstract base for configuration-error subclasses |
 | `GazePolicyConfigException` | 2 | `NonRetryable` → fail | No | TOML policy file is syntactically invalid |
-| `GazePolicyConfigDetailException` | 2 | `NonRetryable` → fail | No | TOML policy file has a semantic validation error; exposes `detail(): ?string`. The adapter also throws it itself (exit 2, `stderrHash` null, binary never spawned) for `gaze.session_scope=ephemeral`, which `gaze clean` cannot export |
+| `GazePolicyConfigDetailException` | 2 | `NonRetryable` → fail | No | TOML policy file has a semantic validation error; exposes `detail(): ?string`. The adapter also throws it itself (exit 2, `stderrHash` null, binary never spawned) for `gaze.session_scope=ephemeral`, or a policy `[session] scope = "ephemeral"` with no override, which `gaze clean` cannot export |
 | `GazePolicySchemaUnsupportedException` | 2 | `NonRetryable` → fail | No | `policy.toml`'s `schema_version` major.minor prefix is outside the binary's supported range; exposes `found(): string` + `supported(): string` |
 | `GazeAuditPurgeIso8601Exception` | 2 | `NonRetryable` → fail | No | `--before` timestamp is not valid ISO 8601 UTC |
 | `GazeAuditDbNotConfiguredException` | N/A | `NonRetryable` → fail | No | `gaze.audit_db_path` is null and no per-call override given |
@@ -155,23 +155,34 @@ the full `major.minor.patch` form: since gaze 0.15.0 (#576) a two-part
 
 `GazeSafetyNetFailureException::safetyNetVariant()` returns the upstream sidecar variant. Because the retry lane depends on that runtime value, the class implements none of the static marker interfaces; it implements `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition`, and `retryDisposition(): RetryAction` (consulted first by `GazeRetryPolicy::classify()`) maps the variants as:
 
-| Safety-net variant | `retryDisposition()` |
-|---|---|
-| `Timeout` | `ReleaseWithBackoff` → release |
-| `InputTooLarge` | `Fail` |
-| `Unsupported` | `Fail` |
-| `WeightsMissing` | `Fail` |
-| `SuspectedLeak` | `ReleaseWithAlert` → release + alert |
-| `Other` | `ReleaseWithBackoff` → release |
-| any unknown variant | `Fail` (fail closed) |
+| Safety-net variant (gaze 0.15.1) | `retryDisposition()` | Why |
+|---|---|---|
+| `Timeout` | `ReleaseWithBackoff` → release | Backend exceeded `gaze.safety_net.timeout_ms`; load-dependent |
+| `Runtime` | `ReleaseWithBackoff` → release | Backend process crashed, exited non-zero, or its inference failed; usually transient. Was `Fail` before v0.16.0 |
+| `SuspectedLeak` | `ReleaseWithAlert` → release + alert | Strict mode flagged an uncovered span; a human should look |
+| `Unavailable` | `Fail` | Backend not configured (env var unset, empty opf command, no model for the locale) |
+| `WeightsMissing` | `Fail` | A model weight or checkpoint file is missing |
+| `ModelUnavailable` | `Fail` | Model or opf command could not be loaded, spawned or verified |
+| `ModelIntegrityMismatch` | `Fail` | A model file failed its SHA-256 pin |
+| `InputTooLarge` | `Fail` | Input exceeds `gaze.safety_net.input_limit_bytes` |
+| `InvalidOutput` | `Fail` | Backend output did not parse; points at a model/command mismatch |
+| `TolerantModeDisabled` | `Fail` | `tolerant` mode or fallback without `GAZE_ALLOW_TOLERANT` |
+| `Unknown` | `Fail` | Upstream's own label for a variant its CLI does not map yet |
+| `Other` *(legacy)* | `ReleaseWithBackoff` → release | No gaze release emits it; the adapter's label for a missing `variant` sidecar. Kept for BC until 1.0 |
+| `Unsupported` *(legacy)* | `Fail` | No gaze release emits it. Kept for BC until 1.0 |
+| any other variant | `Fail` (fail closed) | |
 
-Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for this exception — it matches none of them. Use `GazeRetryPolicy::classify($e)` or `$e->retryDisposition()`.
+`tests/Contract/SafetyNetRetryMapContractTest.php` pins this list as of gaze 0.15.1. Re-check it on every binary pin bump, so a new upstream variant gets an explicit decision instead of the fail-closed fallback.
+
+Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for this exception — it matches none of them. Use `GazeRetryPolicy::classify($e)` or `$e->retryDisposition()`. `isNonRetryable()` is `true` only for a variant listed above with `Fail`; an unknown variant still fails, but answers `false` there.
+
+**Daemon parity (v0.16.0).** `Gaze::daemon()` reports the same safety-net failures as `GazeDaemonException` with a `DaemonErrorVariant::SafetyNet*` case (`SafetyNetTimeout`, `SafetyNetRuntime`, …). `GazeDaemonException` implements `HasRetryDisposition` too and gives those cases the disposition of the same-named variant above; `DaemonErrorVariant::safetyNetVariant()` returns that name (`SafetyNetTimeout` → `Timeout`). Every other daemon variant, and the `GazeDaemonTransportException` / `GazeDaemonTimeoutException` / `GazeDaemonFeatureUnsupportedException` subclasses, return `RetryAction::Throw` as before.
 
 `GazeSafetyNetConfigException` and `GazeSafetyNetUsageException` extend `GazePolicyConfigException`, so existing catch blocks for policy/config failures keep working. `GazeSafetyNetUsageException` (gaze >= 0.15.0) means the argv itself is wrong — fix the safety-net config, don't retry.
 
 `GazeUnsupportedSessionScopeException` is deprecated and never thrown: upstream only emitted `UnsupportedSessionScope` on the no-policy `gaze clean` path (the adapter always passes `--policy`) and removed the variant in gaze 0.15.0. Catch `GazePolicyConfigDetailException` for an invalid `--session-scope`. `attemptedScope()` still returns the `variant` sidecar if an older binary ever emits it.
 
-`GAZE_SESSION_SCOPE=ephemeral` also surfaces as `GazePolicyConfigDetailException`, thrown by the adapter before spawning. Without that pre-flight the binary answers with the retryable `GazePipelineException`, because gaze never exports an ephemeral session. A policy `[session] scope = "ephemeral"` still reaches the binary and fails with `GazePipelineException`; `gaze:doctor` warns about it. See [configuration](configuration.md#gazesession_scope).
+`GAZE_SESSION_SCOPE=ephemeral` also surfaces as `GazePolicyConfigDetailException`, thrown by the adapter before spawning. Without that pre-flight the binary answers with the retryable `GazePipelineException`, because gaze never exports an ephemeral session. A policy `[session] scope = "ephemeral"` with no `GAZE_SESSION_SCOPE` override is refused the same way, before spawning; `gaze:doctor` warns about it. A policy the adapter cannot read or parse is left to the binary, which reports `GazePolicyOpenException` / `GazePolicyConfigException` as before. See [configuration](configuration.md#gazesession_scope).
 
 ### `GazeInvalidBlobVersionException` + `GazeBlobExpiredException` (fresh clean required)
 
@@ -228,3 +239,19 @@ The log level for each exception family:
 ```
 
 `stderrHash` is the SHA-256 of the raw stderr string when a subprocess stderr stream existed — including the hash of the empty string when the process ran but emitted nothing (a forensic fact worth recording). It is `null` when no stderr stream ever existed: pre-flight validation failures, timeouts, stdout decode failures, daemon envelope errors, and the `Install\Ner*` family. Exception messages render the null case as `stderr_sha256=none`. Either way it never contains PII — the raw stderr itself is never logged.
+
+The daemon family (`GazeDaemonException` and its subclasses) overrides `toLogContext()` with a different shape. Daemon errors are stdout envelopes, and the session id is adopter-chosen, so it appears only as a digest:
+
+```php
+[
+    'daemon_variant'    => $e->daemonVariant()->value, // e.g. "Pipeline", "Transport"
+    'session_id_sha256' => '3f2a9c0d41b7',             // first 12 hex of sha256($e->sessionId()), or null
+    'raw'               => [                           // the envelope, digested:
+        'session_id_sha256' => '3f2a9c0d41b7',         //   session_id        → 12-hex digest
+        'error'             => 'Pipeline',             //   clean_text        → clean_text_sha256 (full SHA-256)
+        'detail'            => 'gaze daemon request failed closed', // raw_line → raw_line_sha256 (full SHA-256)
+    ],
+]
+```
+
+Before v0.16.0 the keys were `session_id` (raw) and the unmodified `raw` envelope (#181). `$e->sessionId()` and `$e->raw()` still return the raw values; the adapter never logs them. See [daemon logging](../how-to/daemon.md#logging-and-session-ids).
