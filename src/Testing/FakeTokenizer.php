@@ -63,7 +63,7 @@ final class FakeTokenizer
         return '/'.implode('|', self::TOKEN_BRANCHES).'/';
     }
 
-    public static function mask(string $text): string
+    public static function mask(#[\SensitiveParameter] string $text): string
     {
         $cleanText = preg_replace_callback(
             self::pattern(),

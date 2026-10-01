@@ -22,5 +22,5 @@ interface DaemonSession
     /**
      * Clean $text within this session.
      */
-    public function clean(string $text): CleanResponse;
+    public function clean(#[\SensitiveParameter] string $text): CleanResponse;
 }

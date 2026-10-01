@@ -6,6 +6,33 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.15.0 → v0.16.0 (Unreleased)
+
+### TL;DR
+
+1. **Safety-net failures get a queue lane per real upstream variant, on clean
+   and on the daemon** (#183). If your jobs call `GazeRetryPolicy::dispatch()`
+   or `classify()`, a one-shot `Runtime` failure now releases with backoff
+   instead of failing. Daemon safety-net errors are no longer re-thrown:
+   `SafetyNetTimeout` / `SafetyNetRuntime` release with backoff,
+   `SafetyNetSuspectedLeak` releases and fires `GazeInfraAlert`, and the
+   configuration, model and input variants (`SafetyNetWeightsMissing`,
+   `SafetyNetInputTooLarge`, …) fail the job at once. Before, `dispatch()`
+   re-threw all of them and the worker retried until `$tries` ran out. Other
+   daemon errors still re-throw. If you caught those daemon errors yourself
+   before calling `dispatch()`, check that branch; the full table is in the
+   [exception reference](docs/reference/exceptions.md#safety-net-and-session-scope-exceptions).
+2. **Daemon exceptions log a session-id digest, not the raw id** (#181).
+   `GazeDaemonException::toLogContext()` replaces the `session_id` key with
+   `session_id_sha256`: the first 12 hex characters of the id's SHA-256. Its
+   `raw` envelope swaps `session_id` the same way, and `clean_text` /
+   `raw_line` for `clean_text_sha256` / `raw_line_sha256` (full SHA-256). The
+   mismatched-session_id message shows the two digests instead of the ids.
+   If a log query, dashboard or alert reads `session_id` from daemon log
+   context, switch it to `session_id_sha256`, and look an id up with
+   `substr(hash('sha256', $id), 0, 12)`. `$e->sessionId()` and `$e->raw()`
+   still return the raw values for code.
+
 ## v0.14.0 → v0.15.0
 
 > Bug-fix wave on the same gaze 0.15.1 pin. No re-install and no policy edit.
