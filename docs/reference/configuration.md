@@ -26,7 +26,7 @@ GAZE_MAX_BYTES=
 # Optional session blob TTL forwarded to the binary.
 GAZE_SESSION_TTL=
 
-# Optional clean session isolation scope: ephemeral, conversation, or persistent.
+# Optional clean session isolation scope: conversation or persistent (not ephemeral).
 GAZE_SESSION_SCOPE=
 
 # Optional dedicated encryption key for session blobs.
@@ -179,9 +179,9 @@ GAZE_SESSION_TTL=7200
 | **PHP type** | `string\|null` |
 | **Default** | `null` (binary default) |
 
-Optional session isolation scope forwarded to `gaze clean` as `--session-scope=<value>`. Valid upstream values are `ephemeral`, `conversation`, and `persistent`.
+Optional session isolation scope forwarded to `gaze clean` as `--session-scope=<value>`. Supported values are `conversation` and `persistent`. Null omits the flag and uses the policy's `[session] scope` (the shipped policy sets `persistent`).
 
-**When to set:** Use `ephemeral` for one-off clean/restore flows, `conversation` when multiple turns share a short-lived context, and `persistent` only when durable token/session behavior is intentional.
+**When to set:** Use `conversation` when multiple turns share a short-lived context, and `persistent` when durable token/session behavior is intentional.
 
 **Example:**
 
@@ -189,7 +189,11 @@ Optional session isolation scope forwarded to `gaze clean` as `--session-scope=<
 GAZE_SESSION_SCOPE=conversation
 ```
 
-**Caveat:** Unsupported values are rejected by the binary and surface as `GazePolicyConfigDetailException` (`detail()`: `session.scope must be one of ephemeral, conversation, persistent, got …`).
+**`ephemeral` is not supported through `Gaze::clean()`.** Upstream accepts the value, but `gaze clean` must return the session blob that `restore()` needs, and gaze never exports an ephemeral session by design (`Session::export()` returns `ExportForbidden`). The binary reports that as the generic `{"error":"Pipeline","exit":3}`, which maps to the *retryable* `GazePipelineException`, so a queue job would retry forever. The adapter therefore rejects `ephemeral` (any case, surrounding whitespace ignored) before spawning the binary with a non-retryable `GazePolicyConfigDetailException` (exit 2, `stderrHash` null). `gaze:doctor` fails on it too.
+
+A policy file with `[session] scope = "ephemeral"` fails every clean the same way, as a `GazePipelineException`. The adapter does not parse the policy at runtime, so it cannot catch this before spawning; `gaze:doctor` warns about it. Set `scope = "conversation"` or `"persistent"` in the policy, or set `GAZE_SESSION_SCOPE` to one of them: the override wins over the policy. The daemon (`Gaze::daemon()`) is not affected: it takes no `--session-scope`, never exports a blob, and runs fine with an ephemeral policy.
+
+**Caveat:** Unknown values are rejected by the binary and surface as `GazePolicyConfigDetailException` (`detail()`: `session.scope must be one of ephemeral, conversation, persistent, got …`). Upstream matches case-sensitively, so `Conversation` is rejected too.
 
 ---
 
