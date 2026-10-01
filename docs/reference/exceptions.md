@@ -155,17 +155,28 @@ the full `major.minor.patch` form: since gaze 0.15.0 (#576) a two-part
 
 `GazeSafetyNetFailureException::safetyNetVariant()` returns the upstream sidecar variant. Because the retry lane depends on that runtime value, the class implements none of the static marker interfaces; it implements `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition`, and `retryDisposition(): RetryAction` (consulted first by `GazeRetryPolicy::classify()`) maps the variants as:
 
-| Safety-net variant | `retryDisposition()` |
-|---|---|
-| `Timeout` | `ReleaseWithBackoff` → release |
-| `InputTooLarge` | `Fail` |
-| `Unsupported` | `Fail` |
-| `WeightsMissing` | `Fail` |
-| `SuspectedLeak` | `ReleaseWithAlert` → release + alert |
-| `Other` | `ReleaseWithBackoff` → release |
-| any unknown variant | `Fail` (fail closed) |
+| Safety-net variant (gaze 0.15.1) | `retryDisposition()` | Why |
+|---|---|---|
+| `Timeout` | `ReleaseWithBackoff` → release | Backend exceeded `gaze.safety_net.timeout_ms`; load-dependent |
+| `Runtime` | `ReleaseWithBackoff` → release | Backend process crashed, exited non-zero, or its inference failed; usually transient. Was `Fail` before v0.16.0 |
+| `SuspectedLeak` | `ReleaseWithAlert` → release + alert | Strict mode flagged an uncovered span; a human should look |
+| `Unavailable` | `Fail` | Backend not configured (env var unset, empty opf command, no model for the locale) |
+| `WeightsMissing` | `Fail` | A model weight or checkpoint file is missing |
+| `ModelUnavailable` | `Fail` | Model or opf command could not be loaded, spawned or verified |
+| `ModelIntegrityMismatch` | `Fail` | A model file failed its SHA-256 pin |
+| `InputTooLarge` | `Fail` | Input exceeds `gaze.safety_net.input_limit_bytes` |
+| `InvalidOutput` | `Fail` | Backend output did not parse; points at a model/command mismatch |
+| `TolerantModeDisabled` | `Fail` | `tolerant` mode or fallback without `GAZE_ALLOW_TOLERANT` |
+| `Unknown` | `Fail` | Upstream's own label for a variant its CLI does not map yet |
+| `Other` *(legacy)* | `ReleaseWithBackoff` → release | No gaze release emits it; the adapter's label for a missing `variant` sidecar. Kept for BC until 1.0 |
+| `Unsupported` *(legacy)* | `Fail` | No gaze release emits it. Kept for BC until 1.0 |
+| any other variant | `Fail` (fail closed) | |
 
-Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for this exception — it matches none of them. Use `GazeRetryPolicy::classify($e)` or `$e->retryDisposition()`.
+`tests/Contract/SafetyNetRetryMapContractTest.php` pins this list as of gaze 0.15.1. Re-check it on every binary pin bump, so a new upstream variant gets an explicit decision instead of the fail-closed fallback.
+
+Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for this exception — it matches none of them. Use `GazeRetryPolicy::classify($e)` or `$e->retryDisposition()`. `isNonRetryable()` is `true` only for a variant listed above with `Fail`; an unknown variant still fails, but answers `false` there.
+
+**Daemon parity (v0.16.0).** `Gaze::daemon()` reports the same safety-net failures as `GazeDaemonException` with a `DaemonErrorVariant::SafetyNet*` case (`SafetyNetTimeout`, `SafetyNetRuntime`, …). `GazeDaemonException` implements `HasRetryDisposition` too and gives those cases the disposition of the same-named variant above; `DaemonErrorVariant::safetyNetVariant()` returns that name (`SafetyNetTimeout` → `Timeout`). Every other daemon variant, and the `GazeDaemonTransportException` / `GazeDaemonTimeoutException` / `GazeDaemonFeatureUnsupportedException` subclasses, return `RetryAction::Throw` as before.
 
 `GazeSafetyNetConfigException` and `GazeSafetyNetUsageException` extend `GazePolicyConfigException`, so existing catch blocks for policy/config failures keep working. `GazeSafetyNetUsageException` (gaze >= 0.15.0) means the argv itself is wrong — fix the safety-net config, don't retry.
 

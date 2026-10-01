@@ -155,7 +155,11 @@ enum Variant: string
                 $message,
                 $exitCode,
                 $stderrHash,
-                self::stderrStringField($stderr, 'variant') ?? 'Other',
+                // A SafetyNet envelope without its `variant` sidecar is
+                // unexpected (every gaze release emits one): label it
+                // upstream's own `Unknown`, which fails closed, instead of
+                // the legacy `Other`, which retried (#183 review).
+                self::stderrStringField($stderr, 'variant') ?? 'Unknown',
             ),
             self::SafetyNetArtifactMissing => new GazeSafetyNetArtifactMissingException(
                 $message,
