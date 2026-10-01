@@ -4,7 +4,66 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tests: the legacy `gaze:install-ner` alias test no longer hits GitHub**
+  (#186). It resolved the provider's default `NerManifest`, which downloads
+  `SHA256SUMS.ner` from the release on every run, so it failed during a GitHub
+  outage. It now binds the manifest fixture and a spy `NerFetcher` and still
+  proves the alias dispatches into the installer. A full run with outbound
+  network blocked passes; the live download stays behind
+  `GAZE_LIVE_NER_SMOKE=1`.
+
+- **A policy-level `[session] scope = "ephemeral"` no longer retries forever**
+  ([#182](https://github.com/CertaMesh/gaze-laravel/issues/182)). v0.15.0
+  refused only the `GAZE_SESSION_SCOPE=ephemeral` override; with no override,
+  an ephemeral policy scope still reached the binary, which answers every clean
+  with the *retryable* `GazePipelineException`. `Gaze::clean()` / `mask()` now
+  read the policy's `[session] scope` and throw the non-retryable
+  `GazePolicyConfigDetailException` (exit 2, `stderrHash` null) before
+  spawning. The read is cached per process by policy path and file fingerprint
+  (mtime, ctime, size, inode, device): one `stat()` per clean in long-lived
+  workers, which pick up an edit without a restart. Under PHP-FPM the first
+  clean of a request reads the file and parses it only if it contains
+  `ephemeral`. Read or parse failures are never cached. A
+  `conversation` / `persistent` override still wins over the policy, as
+  `--session-scope` does upstream. An unreadable or unparseable policy is left
+  to the binary, which reports `PolicyOpen` / `PolicyConfig` as before. The
+  daemon is unaffected. `gaze:doctor` still warns, now with the new exception
+  name.
+
+### Documentation
+
+- **MCP strict protection and the proxy dashboard re-adjudicated: both stay
+  deferred** (#165, #166). Neither the `mcp` nor the `dashboard` cargo feature
+  is in the release binaries the adapter installs, MCP server lifecycle is a
+  NORTH_STAR non-goal, and strict protection is a Rust embedding API rather than
+  a CLI contract. `docs/reference/upstream-coverage.md` records the reasoning and
+  the concrete promotion triggers.
+
+- **Proxy safety nets and the `422` refusal contract** (#167). New section in
+  `docs/how-to/proxy-daemon.md`: nets come from the proxy's policy (there is no
+  `--safety-net` flag), the three request steps (primary, Resolve, admission;
+  upstream #585, #593, #660), the `422 Refused` / `ProtectionRefused` bodies and
+  how to handle them (content refusal, do not retry unchanged; `SafetyNet` =
+  operations problem). Refusal lines go to the proxy's stderr
+  (`proxy-stderr.log`), which `gaze:proxy:logs` does not read. Also corrects
+  the pidfile and log paths, which pointed at a `gaze-proxy/` directory that
+  upstream never used.
+
 ### Added
+
+- **Tests: opt-in upstream error-name drift check** (#184). With
+  `GAZE_UPSTREAM_SRC` set to a gaze checkout, `UpstreamErrorDriftTest` reads
+  `error.rs`, `commands/daemon.rs` and `pipeline/run.rs` at the pinned tag and
+  fails on any error name that is neither mapped by `Variant` /
+  `DaemonErrorVariant` nor listed as deliberately unmapped. Before, a new
+  upstream name silently became `Unknown` until someone updated the hand-copied
+  lists. It also fails when a mapped case's name is no longer found, so a
+  refactor that shrinks the extraction cannot hide one. The unmapped, retired
+  and adapter-made lists (`SigPipe` is the adapter's, not upstream's) move to
+  `tests/Fixtures/UpstreamErrorNames.php`, shared with the contract tests. The check is skipped when the variable is
+  unset and runs during the pin-bump audit, not in regular CI.
 
 - **`gaze:doctor` shows gaze's own policy warnings** (#159). gaze 0.15 and
   later print them on stderr only when a clean succeeds, and `Gaze::clean()`
@@ -20,6 +79,71 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   these lines replace the static preserve-default and missing-`core` checks,
   which stay as the fallback. See
   [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
+
+### Changed
+
+- **Safety-net retry lanes follow the real upstream variants, on clean and on
+  the daemon** ([#183](https://github.com/CertaMesh/gaze-laravel/issues/183)).
+  The one-shot map knew `Other` and `Unsupported`, names no gaze release
+  emits, so most gaze 0.15.1 variants fell through to `Fail`. One map
+  (`Queue\SafetyNetRetryMap`, internal) now gives every variant gaze 0.15.1
+  `clean` can emit an explicit lane, pinned by a contract test. What
+  `GazeRetryPolicy::classify()` returns, old → new:
+  - `GazeSafetyNetFailureException`: `Runtime` `Fail` → `ReleaseWithBackoff`.
+    `Unavailable`, `ModelUnavailable`, `ModelIntegrityMismatch`,
+    `InvalidOutput`, `TolerantModeDisabled` and `Unknown` stay `Fail`, but
+    now by decision, so `isNonRetryable()` turns `true` for them. `Timeout`
+    (`ReleaseWithBackoff`), `SuspectedLeak` (`ReleaseWithAlert`),
+    `WeightsMissing` and `InputTooLarge` (`Fail`) are unchanged; so are the
+    legacy `Other` and `Unsupported`. Unknown variants still fail closed, and
+    so does a `SafetyNet` envelope missing its `variant` sidecar (labelled
+    `Unknown` now; it was `Other`, which retried).
+  - `GazeDaemonException` now implements `HasRetryDisposition`:
+    `SafetyNetTimeout` and `SafetyNetRuntime` `Throw` → `ReleaseWithBackoff`;
+    `SafetyNetSuspectedLeak` `Throw` → `ReleaseWithAlert`;
+    `SafetyNetUnavailable`, `SafetyNetWeightsMissing`,
+    `SafetyNetModelUnavailable`, `SafetyNetModelIntegrityMismatch`,
+    `SafetyNetInputTooLarge` and `SafetyNetInvalidOutput` `Throw` → `Fail`.
+    Every other daemon variant and the transport / timeout /
+    feature-unsupported subclasses stay `Throw`. New
+    `DaemonErrorVariant::safetyNetVariant()` returns the one-shot name behind
+    a `SafetyNet*` case (`SafetyNetTimeout` → `Timeout`).
+
+- **Daemon exceptions no longer write adopter session ids raw into messages
+  or log context** ([#181](https://github.com/CertaMesh/gaze-laravel/issues/181)).
+  Adopters choose the ids they pass to `Gaze::daemon()->session($id)`, and an
+  id built from user data (an email, a customer number) reached logs and error
+  trackers verbatim. `GazeDaemonException::toLogContext()` now returns
+  `{daemon_variant, session_id_sha256, raw}`: `session_id_sha256` is the first
+  12 hex characters of the id's SHA-256 (null when there is no id), stable
+  across processes so log lines still correlate. In the log-context `raw`
+  envelope, `session_id` becomes `session_id_sha256`, and `clean_text` /
+  `raw_line` become `clean_text_sha256` / `raw_line_sha256` (full SHA-256): a
+  mismatched-session_id envelope carries another request's clean text, and a
+  malformed line can carry the id and text. The
+  `daemon echoed mismatched session_id` message shows the two digests
+  instead of the ids. Applies to every daemon exception class (transport,
+  timeout, feature-unsupported and envelope errors). `sessionId()` and `raw()`
+  still return the raw values for code. **Migration:** log queries that read
+  `session_id` from daemon log context switch to `session_id_sha256`; see
+  [UPGRADING.md](UPGRADING.md).
+
+### Security
+
+- **Raw input no longer leaks into exception stack traces** (#195). With
+  `zend.exception_ignore_args=Off` (PHP's development default), every Gaze
+  exception thrown from `clean()` / `mask()` / `restore()` or the daemon path
+  recorded the start of the raw input text — and of response lines holding
+  `entries[].raw`, plaintext session blobs and adopter session ids — as call
+  arguments, which `getTraceAsString()`, Laravel's log and error trackers
+  print. Those parameters are now `#[\SensitiveParameter]` (PHP 8.2+), so PHP
+  records `SensitiveParameterValue` instead. The `Gaze` Facade's
+  `__callStatic()` is overridden with a marked argument array, and the JSON
+  encode/decode paths no longer chain a `JsonException` from the built-in
+  (whose own trace would hold the raw response). A reflection test pins every
+  marked parameter; behaviour tests prove the trace of a failing clean, a
+  Facade call, a malformed clean response and a malformed daemon line carries
+  neither the text nor the session id.
 
 ## [0.15.0] - 2026-10-01
 

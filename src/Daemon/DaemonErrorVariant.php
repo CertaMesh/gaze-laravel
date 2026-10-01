@@ -68,4 +68,16 @@ enum DaemonErrorVariant: string
             default => self::Unknown,
         };
     }
+
+    /**
+     * The upstream safety-net variant behind a `SafetyNet*` case — the wire
+     * `error` name, the same string one-shot `clean` writes as `variant`
+     * (`SafetyNetTimeout` → `Timeout`). Null for every other case.
+     */
+    public function safetyNetVariant(): ?string
+    {
+        return str_starts_with($this->value, 'SafetyNet')
+            ? substr($this->value, strlen('SafetyNet'))
+            : null;
+    }
 }

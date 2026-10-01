@@ -27,7 +27,7 @@ interface Gaze
      * Run the reversible clean pipeline and return the pseudonymized
      * session (clean text + encrypted restore blob + detection inventory).
      */
-    public function clean(string $text, ?float $threshold = null): GazeSession;
+    public function clean(#[\SensitiveParameter] string $text, ?float $threshold = null): GazeSession;
 
     /**
      * One-way redaction helper: clean() detection, then replace every
@@ -36,12 +36,12 @@ interface Gaze
      *
      * @param  (callable(Entry): string)|null  $replace
      */
-    public function mask(string $text, ?callable $replace = null): string;
+    public function mask(#[\SensitiveParameter] string $text, ?callable $replace = null): string;
 
     /**
      * Re-identify a previously cleaned text using the session's encrypted blob.
      */
-    public function restore(GazeSession $session, string $text): string;
+    public function restore(GazeSession $session, #[\SensitiveParameter] string $text): string;
 
     /**
      * Resolve the audit verbs service, optionally overriding the configured
