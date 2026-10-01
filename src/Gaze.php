@@ -267,9 +267,10 @@ class Gaze implements AuditRunner, GazeContract
         // audit sink is configured (telemetry with no audit-db still forwards
         // --telemetry so the binary uses its own default sink).
         //
-        // CAVEAT: restore_fresh_pii_count / restore_manifest_bypass_count are
-        // ALWAYS 0 through the stock gaze CLI — run_restore never enables the
-        // Phase-B DLP builder. This is a restore-decision audit trail, not
+        // CAVEAT: restore_fresh_pii_count is ALWAYS 0 through the stock gaze
+        // CLI — run_restore never enables the Phase-B DLP builder — and
+        // restore_manifest_bypass_count only counts identifier-shaped literals
+        // restore passed through. This is a restore-decision audit trail, not
         // outbound-DLP fresh-PII detection.
         if ($this->restoreTelemetry) {
             $command[] = '--telemetry';

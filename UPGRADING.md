@@ -50,14 +50,25 @@ upcoming release in full; per-minor guides for earlier versions live in
    behind (upstream #584) — fixed. The upstream `--rulepack-path` no-policy leak
    (#545) and the prefix-cache leak (#579) are fixed in the binary too; the
    adapter never reached them (it always passes `--policy`).
-3. **Model ownership.** gaze checks that safety-net model files belong to the
-   **effective user that runs `gaze`**: Nym bundles must be owned by that user
-   and sit in a `0700` directory, and OPF checkpoints are owner-checked against
-   the effective uid since 0.13. Under PHP-FPM that user is the **pool user**
-   (often `www-data`), not the deploy user who ran `artisan`; queue workers
-   and `gaze:daemon:serve` run as their own users. Install or `chown -R` the
-   model directory as the user that runs gaze, e.g.
-   `sudo -u www-data gaze setup --safety-net nym --model-dir <private-dir>`.
+3. **Model ownership.** gaze checks safety-net model bundles against the
+   **effective user that runs `gaze`**. For Nym and OPF bundles alike, every file
+   and directory must be owned by that user, directories must be mode `0700`,
+   files must not be group- or world-writable, and symlinks are refused (OPF
+   since 0.13, upstream #422; Nym since 0.15). Under PHP-FPM that user is the
+   **pool user** (often `www-data`), not the deploy user who ran `artisan`;
+   queue workers and `gaze:daemon:serve` run as their own users. Install the
+   bundle as the user that runs gaze. `gaze setup` puts Nym in
+   `$XDG_DATA_HOME/gaze/models/nym-small-int8` (its `--model-dir` flag is the
+   NER directory, not Nym's) and writes a starter policy whose
+   `[safety_net.nym]` table names that directory:
+
+   ```bash
+   sudo -u www-data env XDG_DATA_HOME=/srv/gaze vendor/bin/gaze setup \
+       --safety-net nym --non-interactive --policy-out /tmp/gaze-setup.toml
+   # bundle: /srv/gaze/gaze/models/nym-small-int8 — copy the [safety_net.nym]
+   # table from /tmp/gaze-setup.toml into your policy
+   ```
+
    `gaze setup` refuses a foreign-owned bundle and only repairs modes on
    bundles the current user owns. The NER model `gaze:install:ner` writes is
    not owner-checked by `gaze clean` at this pin, but run the installer as the
@@ -69,7 +80,7 @@ upcoming release in full; per-minor guides for earlier versions live in
    - A corrupt or truncated NER model now fails `clean()` with
      `GazePipelineException` instead of silently skipping names (#474).
    - `GAZE_LOCALE` no longer hides format-based identifiers: a US-format phone
-     number is tokenized under `de-DE` too (#423/#424). To exclude a
+     number is tokenized under `de-DE` too (#423). To exclude a
      recognizer, disable it in an adopter rulepack.
    - Token streams change: one token per entity (e.g. one IBAN token where
      there were two), and `entries` / `detections` count replacements (#628).

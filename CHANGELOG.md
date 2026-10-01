@@ -23,20 +23,21 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   shipped in the binary but were not reachable through the adapter, because it
   always passes `--policy` and never enables the prefix cache: the
   `--rulepack-path` no-policy leak (#545) and the stale prefix-cache leak
-  (#579). **Model ownership:** gaze verifies that safety-net model bundles
-  (Nym, OPF checkpoints) are owned by the effective user running `gaze`, and
-  Nym bundles must sit in a `0700` directory. `gaze setup` refuses foreign-owned
-  bundles. Under PHP-FPM that user is the pool user, not the deploy user who ran
+  (#579). **Model ownership:** gaze verifies safety-net model bundles (Nym, OPF
+  checkpoints) recursively against the effective user running `gaze`: every
+  file and directory owned by that user, directories `0700`, no group- or
+  world-writable files, no symlinks (OPF since 0.13 #422, Nym since 0.15).
+  `gaze setup` refuses foreign-owned bundles. Under PHP-FPM that user is the pool user, not the deploy user who ran
   `artisan`. The `[ner]` model directory installed by `gaze:install:ner` is not
   owner-checked by `gaze clean` at this pin.
   Behaviour changes adopters can observe without touching config:
   strict restore no longer throws `GazeUnknownTokenException` on
   identifier-shaped literals (#473); a corrupt NER model now fails `clean` with
   `GazePipelineException` instead of silently skipping names (#474);
-  `GAZE_LOCALE` no longer suppresses format-based identifiers (#423/#424);
+  `GAZE_LOCALE` no longer suppresses format-based identifiers (#423);
   token streams change (one token per entity, #628); `gaze:proxy:start`
   now actually applies `gaze.proxy.policy_path` / `rulepack` / `upstream.*`
-  (#437/#441); audit DBs gain a nullable `restore_trap_shape_count` column on
+  (#441); audit DBs gain a nullable `restore_trap_shape_count` column on
   the first 0.15 write (even `audit purge --dry-run` migrates them — rolling
   back to 0.12.0 stays safe) and `export()` rows now carry the `restore_*`
   fields (#555); a policy with `schema_version = "0.1"` no longer loads — use

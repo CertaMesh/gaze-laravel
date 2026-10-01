@@ -92,8 +92,8 @@ Upstream v0.8.0 introduces 10 locale-gated entities across the new
 `locale-{br,fr,nl,in,uk}` packs plus extensions to the existing US/UK
 packs. All entities are additive. At v0.8.0 deployments saw no behaviour
 change unless `gaze.locale` / `GAZE_LOCALE` was set to a matching BCP47
-locale; since upstream v0.13.0 (#423/#424) the locale chain no longer
-suppresses format-based identifiers, so validator-backed (Tier 2) entities fire
+locale; since upstream v0.13.0 (#423) the locale chain no longer suppresses
+them: every entity in this table, cue-gated Tier 3 ones included, fires
 regardless of locale. Under the shipped policy's `tokenize` default every
 detected entity is tokenized.
 
@@ -265,7 +265,8 @@ The upstream binary pin is now **v0.15.1**. The daemon request/response JSONL
 shapes are unchanged since v0.11.x. v0.13.0 added eight daemon flags (#446) —
 the rulepack pair is not forwarded yet (#158), see
 [Upstream v0.12.0 → v0.13.0 deltas](#upstream-v0120--v0130-deltas); v0.15.0
-removed the Kiji flags (#612) and reports failed eviction audit writes on
+removed the Kiji flags (#612), added `--nym-model-dir` / `--nym-intra-threads`
+(not forwarded, #157), and reports failed eviction audit writes on
 stderr (#570). Earlier pins: [v0.9.1 → v0.11.1](#upstream-v091--v0111-deltas),
 [v0.11.1 → v0.11.2](#upstream-v0111--v0112-deltas),
 [v0.11.2 → v0.11.3](#upstream-v0112--v0113-deltas).
@@ -392,7 +393,7 @@ verdict vocabulary as above.
 | A payment card with touching digits (CVV/expiry after it, an order/year number before it, normalization-glued digits) is tokenized on the forward path (upstream #658) | passthrough | PATCH | **The reason the pin is 0.15.1, not 0.15.0.** `Karte 4111 1111 1111 1111 123` reaches the model raw on 0.12.0 *and* 0.15.0 through the shipped policy; tokenized on 0.15.1. Pinned by `PublishedPolicyTest` ("closes the leaks the 0.12.0 pin shipped raw"). About 7 % of IBANs now settle to `custom:iban` instead of the family class — the shipped policy tokenizes both, so only token labels and audit rows change. |
 | Restore-boundary DLP scans the whole digit run (#658) | n/a | none | Proxy/MCP only; `gaze restore` never enables Phase-B DLP. |
 | `gaze proxy` tokenizes safety-net findings instead of refusing; refusals become `422 Refused` / `ProtectionRefused` (#660) | passthrough | none | Reachable only with a Nym policy at `GAZE_PROXY_POLICY_PATH`. The artisan wrappers manage the process and never parse proxy HTTP responses. Docs follow-up: #167. |
-| `DirectProxyError` no longer `Copy`; docs batch A (#659) | n/a | none | Rust API / docs only. |
+| `DirectProxyError` no longer `Copy` (#660); docs batch A (#659) | n/a | none | Rust API / docs only. |
 
 ## Upstream v0.14.0 → v0.15.0 deltas
 
@@ -408,7 +409,7 @@ verdict vocabulary as above.
 | CLI error contract: `SafetyNetUsage` added (exit 2); `SafetyNetConfig` also emitted at exit 2 (Nym setup); `UnsupportedSessionScope` removed (#618); `IndexNerModelMissing` (index only); `PolicySchemaUnsupported.supported` reads `"0.1."` | passthrough | PATCH | See [Exception Variants](#exception-variants); fixture re-pinned to v0.15.1. |
 | Nym-small safety net: `--safety-net nym`, `--nym-model-dir`, `--nym-intra-threads`, policy `[safety_net] backend = "nym"` (#609/#636); `gaze setup` turns it on by default (#642) | **defer** | none | Compiled into the stock binary (OPF is not). Reachable today through `GAZE_SAFETY_NET=true` + `GAZE_SAFETY_NET_BACKEND=nym` + a `GAZE_NYM_MODEL_DIR` in the worker's real environment, or through a policy `[safety_net]` table. Bundle must be owned by the effective uid, directory mode `0700`. First-class wrap: #157. |
 | Policy fall-through warnings on stderr (#641); `gaze setup` policies tokenize by default (#635) | passthrough | MINOR | The shipped policy's `preserve` default triggered the warning for 19 classes (national IDs, `custom:family:government-id`, dates of birth, URLs, …) — a real leak the adapter never surfaced (stderr is discarded on success). Fixed by the "tokenize by default" PR of this train; doctor surfacing tracked in #159. |
-| Credential recognizers move from `core` to the opt-in `secrets` pack; `username.field` removed (#607) | passthrough | none | No change through the shipped policy: credentials it detected at 0.12.0 were `preserve`d. Opt in with `GAZE_RULEPACKS=core,secrets` — never `secrets` alone, the flag replaces the policy's `bundled` list. See [configuration](configuration.md#gazerulepacks). |
+| Credential recognizers move from `core` to the opt-in `secrets` pack; `username.field` removed (#607) | passthrough | none | No change versus the 0.12.0 pin: its `core` had no credential recognizers (0.13 added `security_token.anchored`; 0.15 moved it to `secrets`). Opt in with `GAZE_RULEPACKS=core,secrets` — never `secrets` alone, the flag replaces the policy's `bundled` list. Caveat: after a cue word (`Bearer eyJ…`) only the JWT header is tokenized, payload and signature stay raw (upstream recognizer, #175). See [configuration](configuration.md#gazerulepacks). |
 | `gaze clean` without `--policy` runs `core` (#618); `--rulepack-path` without a policy dropped custom classes (#545) | passthrough | none | Leak fixes, **not reachable through the adapter**: `Gaze::clean()`, doctor, canary and bench always pass `--policy`, `gaze daemon` requires one, and the proxy without a policy already ran `core`. Fixed in the binary adopters run anyway (matters for direct `vendor/bin/gaze` use). |
 | Stale prefix-cache decision could return raw PII (#579) | n/a | none | Leak fix, **not reachable**: the prefix cache is a library opt-in; `gaze-cli` (clean, daemon) and the proxy never enable it. |
 | Terminal residual scan after a Resolve+Redact fallback (#584, #586, #591, #599) | passthrough | PATCH | **Reason to upgrade for safety-net users.** A fallback deletion could leave newly detectable raw text behind (v0.8.1–v0.14.0), reachable through `clean` and the daemon whenever a net was on (Kiji shipped in the 0.12.0 stock binary). Named refusals surface as `Pipeline` exit 3 → `GazePipelineException`. |
@@ -420,7 +421,7 @@ verdict vocabulary as above.
 | Audit JSONL export carries the restore telemetry fields (#555) | passthrough | PATCH | `export()` rows gain `restore_*` keys; see [Restore telemetry](#restore-telemetry-v011x). |
 | Daemon reports failed eviction audit writes on stderr (#570) | passthrough | none | `{"error":"AuditWriteFailed",…}` lines on the daemon's stderr (`gaze.daemon.stderr_path`); stdout and exit code unchanged. |
 | OPF: offsets read as characters (#608), stock `opf` CLI analyses the whole text (#611), verbose stderr no longer aborts (#580) | passthrough | PATCH | Requires an adopter-built `safety-net-openai` binary. A custom `GAZE_OPENAI_FILTER_COMMAND` wrapper must accept `--no-print-color-coded-text --text-file <path>`. |
-| Other detection changes: per-span locale fall-through (#614), GB/CA/IE postal (#598), AT/CH postal (#613), `birth_date.cue` (#589), IPv6 (#625, #631), NER once per document (#653), dictionary boundaries (#567, #568) | passthrough | PATCH | Expect more tokens (e.g. `London SW1A 2AA`). |
+| Other detection changes: per-span locale fall-through (#614), GB/CA/IE postal (#598), AT/CH postal (#613), `birth_date.cue` (#589), IPv6 (#625, #631), NER once per document (#653), case-insensitive regex exclusions (#567), hyphenated dictionary boundaries (#568) | passthrough | PATCH | Expect more tokens (e.g. `London SW1A 2AA`). |
 | Proxy runs configured nets at admission (#585), fails closed after a fallback deletion (#593), proxy fixes (#544, #548, #549, #572, #652, #656) | passthrough | none | No adapter surface; #167. |
 | `gaze index` core floor (#620), MCP/bridge/rmcp 2.x (#546, #557, #571, #578, #582, #590, #616), dashboard (#547, #550, #551, #592), document/TokenBridge (#553, #556, #565, #569, #634, #650) | defer | none | Not wrapped; see [Deferred](#deferred), #165, #166. |
 | Bench/scorecard, docs, refactors, tests (#594, #601–#606, #615, #621, #630, #633, #643, #645, #648, #649, #651, #654, #655, #657, …) | n/a | none | Upstream internals. |
@@ -445,10 +446,10 @@ the stderr error envelope are unchanged.
 | New `core` recognizers: `custom:url`, `custom:security_token`, `ssn.de_cue`, tax-number / driver-licence / national-ID / passport cues, the `custom:family:government-id` collision family | passthrough | PATCH | Detected-but-preserved under the old shipped policy (raw). On 0.13/0.14 the URL span also swallowed emails/IPs inside URLs the 0.12.0 policy had tokenized — skipped by this pin (0.15 #628 re-protects them, and the tokenize default tokenizes the whole URL). |
 | `--locale` no longer suppresses bundled format-based identifiers (#423, #424) | passthrough | PATCH | With `GAZE_LOCALE` set, identifiers outside the chain's locales are now detected (e.g. US-format phones under `de-DE`). To exclude a recognizer, disable it in an adopter rulepack instead of relying on locale mismatch. |
 | `gaze daemon` gains `--rulepack-bundled`, `--rulepack-path`, `--kiji-distilbert-precision`, and the registry family (#446) | **defer** | none | `DaemonArgv` does not forward `gaze.rulepacks` / `gaze.rulepack_paths` yet, so a configured rulepack override differs between one-shot and daemon — tracked in #158 (pre-existing gap: the flags did not exist at 0.12.0). Kiji precision is moot after #612. |
-| Kiji/OPF artifact owner check uses the effective uid, not the CWD owner (#366–#368); `gaze setup` model-bundle owner/mode enforcement | passthrough | none | Runs on every `clean`/daemon call with a net on. Models must be owned by the user that executes gaze (under PHP-FPM: the pool user). The `[ner]` model directory the adapter installs is **not** owner/mode-checked by `clean` (0.12.0–0.15.1); Nym bundles are (owner == euid, dir `0700`). |
-| Proxy: detached `start`/`restart` apply `--policy`, `--rulepack`, `--upstream-*` (#441, #437); `start` fails with `DaemonExitedEarly` | passthrough | PATCH | Before 0.13 the background child ignored `gaze.proxy.policy_path` / `rulepack` / `upstream.*` even though `status` showed them. Now enforced. |
+| Kiji/OPF artifact owner check uses the effective uid, not the CWD owner (OPF: #422); `gaze setup` model-bundle owner/mode enforcement (#366–#368) | passthrough | none | Runs on every `clean`/daemon call with a net on, recursively: every file and directory owned by the effective uid, directories `0700`, no group/world-writable files, no symlinks. Models must be owned by the user that executes gaze (under PHP-FPM: the pool user). The `[ner]` model directory the adapter installs is **not** owner/mode-checked by `clean` (0.12.0–0.15.1); Nym bundles (0.15) are. |
+| Proxy: detached `start`/`restart` apply `--policy`, `--rulepack`, `--upstream-*` (#441; shared policy loader #437); `start` fails with `DaemonExitedEarly` | passthrough | PATCH | Before 0.13 the background child ignored `gaze.proxy.policy_path` / `rulepack` / `upstream.*` even though `status` showed them. Now enforced. |
 | Safety-net fixes (residual merge, RESOLVE verification, Kiji LOC/ORG label swap #425) | passthrough | PATCH | `leak_report` shape unchanged. Kiji audit rows written before 0.13 have LOC/ORG `raw_label`/`mapped_class` swapped. |
-| ORT NER decoder receives the document text, not its provenance label (upstream audit S07-F1, solo todo #2902) | passthrough | PATCH | More name spans for short values; shipped policy tokenizes them. |
+| ORT NER decoder receives the document text, not its provenance label (#424; upstream audit S07-F1) | passthrough | PATCH | More name spans for short values; shipped policy tokenizes them. |
 | Audit `decided_by` names the deciding tier; `structured_containment` value; canonical enum strings | passthrough | PATCH | Values flow through `QueryBuilder`/`export()` unchanged. |
 | `FallbackReason` JSON is snake_case | n/a | none | Not on any surface the adapter parses: audit rows already stored snake_case at 0.12.0; clean/daemon JSON do not carry it. |
 | MCP strict protection (#452), dashboard (#397), index schema v2 (#432), Rust APIs | defer | none | Not wrapped; #165, #166. |
@@ -508,7 +509,7 @@ JSONL export of earlier binaries dropped them:
 | `restore_manifest_bypass_count` | Identifier-shaped literals restore let through. Not a DLP signal (see caveat). |
 | `restore_fresh_pii_count` | Fresh-PII count. **Always `0`** through the stock gaze CLI (see caveat). |
 | `restore_phase_mask` | Bitmask of restore phases that executed. |
-| `restore_trap_shape_count` | Upstream v0.14.0 (#473), nullable: identifier-shaped literals strict restore no longer rejects. |
+| `restore_trap_shape_count` | Upstream v0.14.0 (#473), nullable: every unprefixed identifier-shaped string in the restored text, restored values included. |
 
 > **Caveat —** `restore_fresh_pii_count` is ALWAYS `0` through the stock gaze
 > CLI — gaze-cli's `run_restore` never enables the Phase-B DLP builder.

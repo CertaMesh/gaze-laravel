@@ -237,11 +237,12 @@ return [
      * false = upstream default (telemetry off); this surface adds no detection
      * logic — it only forwards the upstream flag.
      *
-     * CAVEAT: two of the upstream audit columns — restore_fresh_pii_count and
-     * restore_manifest_bypass_count — are ALWAYS 0 through the stock gaze CLI,
-     * because gaze-cli's run_restore never enables the Phase-B DLP builder. This
-     * surface ships for restore-decision and unknown-token audit trails, NOT for
-     * outbound-DLP fresh-PII detection. Do not rely on it for DLP.
+     * CAVEAT: restore_fresh_pii_count is ALWAYS 0 through the stock gaze CLI,
+     * because gaze-cli's run_restore never enables the Phase-B DLP builder, and
+     * restore_manifest_bypass_count only counts identifier-shaped literals
+     * restore passed through. This surface ships for restore-decision and
+     * unknown-token audit trails, NOT for outbound-DLP fresh-PII detection. Do
+     * not rely on it for DLP.
      */
     'restore_telemetry' => env('GAZE_RESTORE_TELEMETRY'),
 
