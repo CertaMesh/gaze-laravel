@@ -239,16 +239,18 @@ it('warns but passes on leftover Kiji config the adapter now ignores', function 
 ]);
 
 it('warns on a published nested kiji group after the provider collapsed it at boot', function () {
-    $this->app->instance(
-        BinaryResolver::class,
-        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
-    );
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
     // A v0.13-shaped published config carrying a literal Kiji value, normalized
     // the way a real boot does it: the group collapses to the bool switch, so
     // only the provider's legacy back-fill keeps the value visible to doctor.
     $this->app['config']->set('gaze.safety_net', ['enabled' => false, 'kiji' => ['backend' => 'ort']]);
     (new GazeServiceProvider($this->app))->register();
+    // Bind the fake resolver AFTER re-registering: register() rebinds the real
+    // one, which would make the test depend on a gaze binary being installed.
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
 
     expect($this->app['config']->get('gaze.safety_net'))->toBeFalse();
 
