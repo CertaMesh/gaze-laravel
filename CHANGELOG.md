@@ -76,6 +76,25 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
     `DaemonErrorVariant::safetyNetVariant()` returns the one-shot name behind
     a `SafetyNet*` case (`SafetyNetTimeout` → `Timeout`).
 
+- **Daemon exceptions no longer write adopter session ids raw into messages
+  or log context** ([#181](https://github.com/CertaMesh/gaze-laravel/issues/181)).
+  Adopters choose the ids they pass to `Gaze::daemon()->session($id)`, and an
+  id built from user data (an email, a customer number) reached logs and error
+  trackers verbatim. `GazeDaemonException::toLogContext()` now returns
+  `{daemon_variant, session_id_sha256, raw}`: `session_id_sha256` is the first
+  12 hex characters of the id's SHA-256 (null when there is no id), stable
+  across processes so log lines still correlate. In the log-context `raw`
+  envelope, `session_id` becomes `session_id_sha256`, and `clean_text` /
+  `raw_line` become `clean_text_sha256` / `raw_line_sha256` (full SHA-256): a
+  mismatched-session_id envelope carries another request's clean text, and a
+  malformed line can carry the id and text. The
+  `daemon echoed mismatched session_id` message shows the two digests
+  instead of the ids. Applies to every daemon exception class (transport,
+  timeout, feature-unsupported and envelope errors). `sessionId()` and `raw()`
+  still return the raw values for code. **Migration:** log queries that read
+  `session_id` from daemon log context switch to `session_id_sha256`; see
+  [UPGRADING.md](UPGRADING.md).
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
