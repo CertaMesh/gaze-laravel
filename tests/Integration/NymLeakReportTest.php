@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\CoverageState;
+use CertaMesh\Gaze\Exceptions\GazePipelineException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
 use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Queue\Contracts\Retryable;
 
 /*
  * #160: the trust state against the real binary and the real Nym net. The
@@ -17,6 +19,11 @@ use CertaMesh\Gaze\Gaze;
  */
 
 const NYM_TEST_INPUT = 'Invoice date 1971-05-30, plate B-MW 1234';
+
+// Drives the default `resolve` decision into its `redact` fallback on the
+// 0.15.1 release binary: two resolve rounds tokenize `1971AB12` and `CDE`, the
+// fallback marks `root930 May`. Synthetic.
+const NYM_FALLBACK_INPUT = 'admin_root930 May 1971AB12 CDE';
 
 beforeEach(function () {
     $binary = getenv('GAZE_BINARY');
@@ -100,5 +107,43 @@ it('keeps red for observe decisions: tolerant ships the spans raw, strict refuse
         $this->fail('strict mode returned a session for a flagged span');
     } catch (GazeSafetyNetFailureException $e) {
         expect($e->safetyNetVariant())->toBe('SuspectedLeak');
+    }
+});
+
+it('reads a resolve + redact fallback run as Suspect: its final scan may ship a finding raw', function () {
+    $session = nymGaze(null)->clean(NYM_FALLBACK_INPUT);
+
+    if (! str_contains($session->cleanText, '[REDACTED:')) {
+        throw new RuntimeException('NYM_FALLBACK_INPUT no longer drives the redact fallback on this binary and bundle; pick a new input.');
+    }
+
+    // After the fallback, upstream scans once more and ships what it flags
+    // raw, in the same report and without a telemetry row. Here every span
+    // happens to be protected, so the red is a false one — the safe way to be
+    // wrong: the report cannot tell this run from one that shipped raw.
+    expect($session->leakReport?->suspectCount)->toBeGreaterThan(0)
+        ->and($session->leakReport?->unactionableSubwordCount)->toBe(0)
+        ->and($session->leakReport?->actsOnSuspects)->toBeFalse()
+        ->and($session->hasSuspectedLeak())->toBeTrue()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeFalse()
+        ->and($session->coverageState())->toBe(CoverageState::Suspect);
+
+    // `redact` writes the same kind of marker by design and never rescans: amber.
+    $redacted = nymGaze('redact')->clean(NYM_FALLBACK_INPUT);
+
+    expect($redacted->cleanText)->toContain('[REDACTED:')
+        ->and($redacted->leakReport?->actsOnSuspects)->toBeTrue()
+        ->and($redacted->leakReport?->hasResolvedSuspects())->toBeTrue()
+        ->and($redacted->coverageState())->toBe(CoverageState::Unverified);
+
+    // `resolve` + `strict`: the same residual makes the strict fallback refuse
+    // the document — exit 3 with a Pipeline envelope, not SafetyNet.
+    try {
+        nymGaze('resolve', 'strict')->clean(NYM_FALLBACK_INPUT);
+
+        throw new RuntimeException('resolve + strict returned a session for a residual the resolve pass could not protect');
+    } catch (GazePipelineException $e) {
+        expect($e->exitCode)->toBe(3)
+            ->and($e)->toBeInstanceOf(Retryable::class);
     }
 });
