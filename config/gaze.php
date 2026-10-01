@@ -133,9 +133,10 @@ return [
          * `openai-filter` (Tier 2 OpenAI privacy-filter subprocess) and
          * `kiji-distilbert` (Tier 2.5 DistilBERT NER backend). Forwarded
          * as `--safety-net-backend=<value>` which wins over the legacy
-         * `--safety-net=<kind>` flag when both are set. Null omits the flag and
-         * lets upstream keep the v0.6/v0.7 single-backend default of
-         * `openai-filter`.
+         * `--safety-net=<kind>` flag when both are set — and ONLY while
+         * `enabled` is true, so a disabled net with a leftover backend stays
+         * off. Null omits the flag and lets upstream keep the v0.6/v0.7
+         * single-backend default of `openai-filter`.
          */
         'backend' => env('GAZE_SAFETY_NET_BACKEND'),
 

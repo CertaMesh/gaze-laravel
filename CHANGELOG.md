@@ -33,6 +33,19 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   promised the session-scope exception and is corrected. The case and class stay
   until 1.0 so referencing code keeps compiling.
 
+### Fixed
+
+- **`--safety-net-backend` is forwarded only when the safety net is enabled**,
+  on both `Gaze::clean()` and the daemon spawn paths (`DaemonArgv`: the
+  `Gaze::daemon()` binding and `gaze:daemon:serve`). With
+  `GAZE_SAFETY_NET=false` and a leftover `GAZE_SAFETY_NET_BACKEND` — the
+  natural "turn the net off" state, since `gaze:install:safety-net` writes both
+  keys — the adapter still forwarded the lone selector. gaze 0.12.0 silently
+  ignored it (net off); gaze >= 0.15.0 rejects it with `SafetyNetUsage`
+  (`--safety-net-backend requires exactly one --safety-net value`), so every
+  clean and daemon spawn would fail after the pin bump. Dropping the flag keeps
+  the 0.12 semantics exactly. The other safety-net sub-options are unchanged.
+
 ## [0.13.0] - 2026-07-06
 
 ### Changed (BREAKING)

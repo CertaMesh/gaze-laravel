@@ -16,6 +16,11 @@ upcoming release in full; per-minor guides for earlier versions live in
 
 1. **New `GazeSafetyNetUsageException`; `GazeUnsupportedSessionScopeException`
    deprecated.** See [Error variants](#error-variants-safetynetusage-added-unsupportedsessionscope-deprecated).
+2. **`--safety-net-backend` is forwarded only when the safety net is enabled.**
+   No action needed: `GAZE_SAFETY_NET=false` with a leftover
+   `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
+   instead of failing every clean / daemon spawn with `SafetyNetUsage` on
+   gaze >= 0.15.0.
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
 

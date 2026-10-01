@@ -46,12 +46,13 @@ final class DaemonArgv
         // so a configured pipeline behaves identically in both runtimes.
         // Mirrors clean(): a truthy gaze.safety_net emits the legacy
         // `--safety-net=openai-filter`; `--safety-net-backend` wins upstream
-        // when both are present.
+        // when both are present. The selector is forwarded ONLY with the
+        // enable switch — gaze >= 0.15 rejects a lone backend selector with
+        // SafetyNetUsage, where 0.12 silently ignored it (net off).
         if ((bool) $config->get('gaze.safety_net', false)) {
             $argv[] = '--safety-net=openai-filter';
+            self::append($argv, 'safety-net-backend', self::string($config, 'gaze.safety_net_backend'));
         }
-
-        self::append($argv, 'safety-net-backend', self::string($config, 'gaze.safety_net_backend'));
 
         self::append($argv, 'idle-timeout', $overrides['idle-timeout'] ?? self::numeric($config, 'gaze.daemon.idle_timeout_s'));
         self::append($argv, 'session-idle-timeout', $overrides['session-idle-timeout'] ?? self::numeric($config, 'gaze.daemon.session_idle_timeout_s'));

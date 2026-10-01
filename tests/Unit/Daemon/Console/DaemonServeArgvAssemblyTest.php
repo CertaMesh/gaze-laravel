@@ -181,10 +181,10 @@ it('forwards the safety-net flag family from top-level gaze config, mirroring th
     ]);
 });
 
-it('omits --safety-net when gaze.safety_net is false', function () {
+it('omits --safety-net and --safety-net-backend when gaze.safety_net is false', function () {
     $config = configRepoForServe(
         daemon: ['policy_path' => '/etc/gaze/policy.toml'],
-        topLevel: ['safety_net' => false],
+        topLevel: ['safety_net' => false, 'safety_net_backend' => 'openai-filter'],
     );
 
     $resolver = new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none');

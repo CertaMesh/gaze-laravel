@@ -100,6 +100,22 @@ it('omits --safety-net when gaze.safety_net is false', function () {
     expect(DaemonArgv::flags($config))->toBe(['--policy=/etc/gaze/policy.toml']);
 });
 
+it('omits --safety-net-backend when gaze.safety_net is false (gaze >= 0.15 rejects a lone selector)', function () {
+    $config = configRepoForArgv(
+        daemon: ['policy_path' => '/etc/gaze/policy.toml'],
+        topLevel: [
+            'safety_net' => false,
+            'safety_net_backend' => 'openai-filter',
+            'safety_net_mode' => 'strict',
+        ],
+    );
+
+    expect(DaemonArgv::flags($config))->toBe([
+        '--policy=/etc/gaze/policy.toml',
+        '--safety-net-mode=strict',
+    ]);
+});
+
 it('lets caller overrides win over config for the operational knobs', function () {
     $config = configRepoForArgv(
         daemon: [

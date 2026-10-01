@@ -43,6 +43,7 @@ it('spawns the facade daemon client with config-set NER and safety-net flags', f
     config()->set('gaze.daemon.kiji_distilbert_locales', 'de,fr');
     config()->set('gaze.locale', 'de,en');
     config()->set('gaze.ner_threshold', 0.75);
+    config()->set('gaze.safety_net', true);
     config()->set('gaze.safety_net_backend', 'kiji-distilbert');
     config()->set('gaze.safety_net_mode', 'strict');
 
