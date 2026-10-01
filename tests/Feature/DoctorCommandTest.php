@@ -177,6 +177,37 @@ it('reports gaze proxy feature available when the binary supports proxy', functi
         ->expectsOutputToContain('gaze proxy feature available');
 });
 
+it('warns when the policy falls through to preserve, and stays silent on the shipped policy', function (?string $defaultRule, bool $warns) {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+
+    $policy = __DIR__.'/../../resources/policy.toml';
+    if ($defaultRule !== null) {
+        $policy = tempnam(sys_get_temp_dir(), 'gaze-policy-').'.toml';
+        $body = "[policy.rulepacks]\nbundled = [\"core\"]\n\n[[rule]]\nkind = \"class\"\nclass = \"email\"\naction = \"tokenize\"\n";
+        file_put_contents($policy, $body.$defaultRule);
+    }
+    $this->app['config']->set('gaze.policy_path', $policy);
+
+    Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
+
+    $command = $this->artisan('gaze:doctor')->assertExitCode(0);
+
+    if ($warns) {
+        $command->expectsOutputToContain('policy default')
+            ->expectsOutputToContain('reaches the model raw')
+            ->expectsOutputToContain('action = "tokenize"');
+    } else {
+        $command->doesntExpectOutputToContain('policy default');
+    }
+})->with([
+    'shipped policy (tokenize)' => [null, false],
+    'explicit preserve default' => ["\n[[rule]]\nkind = \"default\"\naction = \"preserve\"\n", true],
+    'no default rule' => ['', true],
+]);
+
 it('shows no Kiji row when no Kiji config is present', function () {
     $this->app->instance(
         BinaryResolver::class,

@@ -47,6 +47,9 @@ it('publishes a v0.4 multi-class policy with bundled rulepacks', function () {
         ->toContain('scope = "persistent"')
         ->toContain('ttl_secs = 86400');
 
-    // Default rule must preserve.
-    expect($body)->toMatch('/kind\s*=\s*"default"\s*\n\s*action\s*=\s*"preserve"/');
+    // Default rule must tokenize: a `preserve` default ships every detected
+    // class without an explicit rule to the model raw (upstream #635/#641).
+    expect($body)
+        ->toMatch('/kind\s*=\s*"default"\s*\n\s*action\s*=\s*"tokenize"/')
+        ->not->toMatch('/kind\s*=\s*"default"\s*\n\s*action\s*=\s*"preserve"/');
 });

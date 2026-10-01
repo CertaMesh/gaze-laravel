@@ -123,9 +123,10 @@ action = "tokenize"
 
 # Upstream (>= v0.11.x) emits IBAN/credit-card spans whose collision cannot be
 # resolved (e.g. no locale anchor cue loaded) under this fail-closed family
-# class instead of custom:iban / custom:credit_card. Without this rule the
-# default `preserve` would let IBANs through unredacted — never-leak violation
-# (see CertaMesh/gaze#360).
+# class instead of custom:iban / custom:credit_card. Under the old `preserve`
+# default this rule was the only thing keeping IBANs out of the model — a
+# never-leak violation (see CertaMesh/gaze#360). The `tokenize` default below
+# now covers it too; the explicit rule stays as the documented #141 fix.
 [[rule]]
 kind = "class"
 class = "custom:family:payment-card-or-iban"
@@ -151,9 +152,17 @@ kind = "class"
 class = "custom:reference_number"
 action = "tokenize"
 
+# Default: tokenize every detected class no rule above names. The bundled
+# `core` pack keeps adding classes (gaze 0.13-0.15 detect SSN, Steuer-ID,
+# tax/VAT numbers, passports, driver licences, national IDs and the
+# `custom:family:government-id` collision family, dates of birth, URLs, crypto
+# addresses, ...). A `preserve` default sends every one of them to the model
+# raw: upstream classifies that as a leak (CertaMesh/gaze#635) and `gaze clean`
+# warns about it on stderr since 0.15.0 (#641). Keep `preserve` only as an
+# explicit per-class rule for a class you have decided is not sensitive.
 [[rule]]
 kind = "default"
-action = "preserve"
+action = "tokenize"
 
 # [ner]
 # Uncomment after running `php artisan gaze:install-ner` or pass --update-policy.
