@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
 use CertaMesh\Gaze\CoverageState;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
 use CertaMesh\Gaze\Gaze;
@@ -55,10 +56,13 @@ function nymGaze(?string $mode, ?string $fallback = null): Gaze
         'fallback' => $fallback,
     ]);
 
+    // Gaze is a singleton built from config: drop it so the new mode applies.
+    app()->forgetInstance(GazeContract::class);
+
     return app(Gaze::class);
 }
 
-it('reports protected Nym suspects as Unverified, not Suspect (#160)', function (?string $mode, ?string $fallback, string $marker) {
+it('reports protected Nym suspects as Unverified, not Suspect (#160)', function (?string $mode, ?string $fallback, string $marker, string $restored) {
     $gaze = nymGaze($mode, $fallback);
     $session = $gaze->clean(NYM_TEST_INPUT);
 
@@ -70,21 +74,16 @@ it('reports protected Nym suspects as Unverified, not Suspect (#160)', function 
         ->and($session->leakReport?->actsOnSuspects)->toBeTrue()
         ->and($session->hasSuspectedLeak())->toBeFalse()
         ->and($session->leakReport?->hasResolvedSuspects())->toBeTrue()
-        ->and($session->coverageState())->toBe(CoverageState::Unverified);
+        ->and($session->coverageState())->toBe(CoverageState::Unverified)
+        // resolve tokens round-trip; redact markers are one-way and restore verbatim.
+        ->and($gaze->restore($session, $session->cleanText))->toBe($restored);
 })->with([
-    'default (resolve + redact)' => [null, null, ':Custom:date_1>'],
-    'resolve + strict fallback' => ['resolve', 'strict', ':Custom:license_plate_1>'],
-    'redact' => ['redact', null, '[REDACTED:custom:date]'],
+    'default (resolve + redact)' => [null, null, ':Custom:date_1>', NYM_TEST_INPUT],
+    'resolve + strict fallback' => ['resolve', 'strict', ':Custom:license_plate_1>', NYM_TEST_INPUT],
+    'redact' => ['redact', null, '[REDACTED:custom:date]', 'Invoice date [REDACTED:custom:date], plate [REDACTED:custom:license-plate]'],
 ]);
 
-it('restores the spans the default resolve decision tokenized', function () {
-    $gaze = nymGaze(null);
-    $session = $gaze->clean(NYM_TEST_INPUT);
-
-    expect($gaze->restore($session, $session->cleanText))->toBe(NYM_TEST_INPUT);
-});
-
-it('reports Suspect when tolerant ships the flagged spans raw', function () {
+it('keeps red for observe decisions: tolerant ships the spans raw, strict refuses them', function () {
     $_ENV['GAZE_ALLOW_TOLERANT'] = '1';
 
     $session = nymGaze('tolerant')->clean(NYM_TEST_INPUT);
@@ -92,10 +91,10 @@ it('reports Suspect when tolerant ships the flagged spans raw', function () {
     expect($session->cleanText)->toContain('1971-05-30')
         ->and($session->leakReport?->actsOnSuspects)->toBeFalse()
         ->and($session->hasSuspectedLeak())->toBeTrue()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeFalse()
         ->and($session->coverageState())->toBe(CoverageState::Suspect);
-});
 
-it('refuses under strict instead of returning a report', function () {
+    // Same input under strict: no report at all, the binary refuses (exit 3).
     try {
         nymGaze('strict')->clean(NYM_TEST_INPUT);
         $this->fail('strict mode returned a session for a flagged span');

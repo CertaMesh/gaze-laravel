@@ -185,15 +185,16 @@ it('treats a class-mismatch-only report as covered: Unverified, not Suspect (wha
         ->and($report->coverageState())->toBe(CoverageState::Unverified);
 });
 
-it('never reports Verified while a suspect exists, even one of an unknown leak kind', function (bool $actsOnSuspects, CoverageState $expected) {
+it('never reports Verified while a suspect exists, even one of an unknown leak kind', function (bool $actsOnSuspects, CoverageState $expected, bool $resolved) {
     // A future upstream LeakKind serialises as leak_kind "unknown": counted in
     // suspect_count but in none of the gap counts.
     $report = LeakReport::fromArray(leakReportArray(['suspect_count' => 1]), $actsOnSuspects);
 
-    expect($report->coverageState())->toBe($expected);
+    expect($report->coverageState())->toBe($expected)
+        ->and($report->hasResolvedSuspects())->toBe($resolved);
 })->with([
-    'acting decision: protected, amber' => [true, CoverageState::Unverified],
-    'observe decision: possibly raw, red' => [false, CoverageState::Suspect],
+    'acting decision: protected, amber' => [true, CoverageState::Unverified, true],
+    'observe decision: possibly raw, red' => [false, CoverageState::Suspect, false],
 ]);
 
 it('parses the leak_report stats counts from the upstream shape', function () {
