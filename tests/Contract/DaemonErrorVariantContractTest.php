@@ -51,9 +51,10 @@ const ADAPTER_DAEMON_VARIANTS = ['Transport', 'Timeout', 'Unavailable', 'Unknown
  * Upstream daemon error names deliberately NOT mapped; they land in `Unknown`:
  *   - SafetyNetConfig, PolicyConfig, PolicyOpen, Io, CliError: listed in
  *     `DaemonError::variant()`, but no `clean_request` path builds those
- *     `CliError`s at 0.15.1. The same names do occur at startup
- *     (`Daemon::new`), as one-shot stderr JSON before the daemon exits; the
- *     client then reads EOF → `GazeDaemonTransportException`.
+ *     `CliError`s at 0.15.1 (`CliError` is the catch-all name). All but
+ *     `CliError` do occur at startup (`Daemon::new`), as one-shot stderr JSON
+ *     before the daemon exits; the client then reads EOF →
+ *     `GazeDaemonTransportException`.
  *   - TolerantModeDisabled: a `SafetyNetFailure` raised only in `Daemon::new`.
  *   - Unknown: `map_safety_net_error`'s arm for a future `SafetyNetError`
  *     variant (dead at 0.15.1, every variant is matched); it is the sink anyway.
