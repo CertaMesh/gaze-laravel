@@ -514,6 +514,9 @@ final class DoctorCommand extends Command
      *    process environment passes to gaze, not in the policy's
      *    `[safety_net.nym] model_dir` — the binary then fails every clean
      *    with SafetyNetConfig "nym model_dir is missing";
+     *  - `GAZE_NYM_MODEL_DIR` is set but empty: upstream uses it as is
+     *    (no fallback to the policy) and fails every clean with
+     *    SafetyNetArtifactMissing;
      *  - the directory or a required file is missing, a path in it is a
      *    symlink, a path is not owned by the effective uid, the directory is
      *    not mode 0700, or a file is group/world-writable — the binary
@@ -549,6 +552,16 @@ final class DoctorCommand extends Command
             $this->warn('Fetch the bundle as the PHP-FPM pool / queue worker user (replace www-data):');
             $this->warn(NymBundle::setupCommand($binary));
             $this->warn('Then: php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='.NymBundle::setupTarget());
+
+            return false;
+        }
+
+        if ($located['dir'] === '') {
+            // Upstream takes a set-but-empty GAZE_NYM_MODEL_DIR as is and
+            // never reaches the policy, so this is a FAIL even when the
+            // policy names a valid bundle.
+            $this->components->twoColumnDetail('nym bundle', '<fg=red>GAZE_NYM_MODEL_DIR is empty</>');
+            $this->error(NymBundle::EMPTY_ENV);
 
             return false;
         }

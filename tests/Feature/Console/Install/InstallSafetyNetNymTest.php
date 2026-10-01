@@ -114,6 +114,33 @@ it('wires only the switch and selector when the policy already names a valid bun
     }
 });
 
+it('refuses a set-but-empty GAZE_NYM_MODEL_DIR instead of accepting the policy bundle behind it', function () {
+    $policy = tempnam(sys_get_temp_dir(), 'gaze-nym-policy-').'.toml';
+    file_put_contents($policy, "[safety_net.nym]\nmodel_dir = \"{$this->bundle}\"\n");
+    $this->app['config']->set('gaze.policy_path', $policy);
+    file_put_contents($this->env, "APP_ENV=testing\nGAZE_NYM_MODEL_DIR=\n");
+    $_ENV['GAZE_NYM_MODEL_DIR'] = '';
+
+    try {
+        $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--no-interaction' => true])
+            ->expectsOutputToContain(NymBundle::EMPTY_ENV.' .env was not changed.')
+            ->expectsOutputToContain('Or pass --nym-model-dir=<bundle dir>')
+            ->assertExitCode(1);
+
+        expect(file_get_contents($this->env))->toBe("APP_ENV=testing\nGAZE_NYM_MODEL_DIR=\n");
+
+        // --nym-model-dir fills the blank line in place.
+        $this->artisan('gaze:install:safety-net', ['--safety-net' => 'nym', '--nym-model-dir' => $this->bundle, '--no-interaction' => true])
+            ->assertExitCode(0);
+
+        expect(file_get_contents($this->env))->toBe(
+            "APP_ENV=testing\nGAZE_NYM_MODEL_DIR={$this->bundle}\nGAZE_SAFETY_NET=true\nGAZE_SAFETY_NET_BACKEND=nym\n"
+        );
+    } finally {
+        @unlink($policy);
+    }
+});
+
 it('validates a bundle that the policy names but is broken, without writing', function () {
     $policy = tempnam(sys_get_temp_dir(), 'gaze-nym-policy-').'.toml';
     file_put_contents($policy, "[safety_net.nym]\nmodel_dir = \"{$this->bundle}\"\n");

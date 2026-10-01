@@ -164,7 +164,7 @@ final class InstallSafetyNetCommand extends Command
         if ($given === null && $this->input->isInteractive()) {
             $answer = $this->ask(
                 'Nym bundle directory (from `gaze setup --safety-net nym`)',
-                $located['dir'] ?? NymBundle::existingSetupDefault(),
+                ($located['dir'] ?? '') !== '' ? $located['dir'] : NymBundle::existingSetupDefault(),
             );
             $given = is_string($answer) && $answer !== '' ? $answer : null;
         }
@@ -172,6 +172,15 @@ final class InstallSafetyNetCommand extends Command
         if ($given !== null) {
             $given = $this->absolute($given);
             $located = ['dir' => $given, 'source' => '--nym-model-dir'];
+        }
+
+        if ($located !== null && $located['dir'] === '') {
+            // A set-but-empty GAZE_NYM_MODEL_DIR wins over the policy
+            // upstream, so a policy bundle would not save this wiring.
+            $this->error(NymBundle::EMPTY_ENV.' .env was not changed.');
+            $this->line('Or pass --nym-model-dir=<bundle dir>, which writes the directory into that line.');
+
+            return false;
         }
 
         if ($located === null) {

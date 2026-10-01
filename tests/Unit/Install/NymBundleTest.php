@@ -124,6 +124,37 @@ it('locates the bundle dir in upstream precedence: config, process env, policy',
     }
 });
 
+it('treats a set-but-empty GAZE_NYM_MODEL_DIR as set, like upstream (no fallback to the policy)', function () {
+    $policy = tempnam(sys_get_temp_dir(), 'gaze-nym-policy-');
+    file_put_contents($policy, "[safety_net.nym]\nmodel_dir = \"/from/policy\"\n");
+
+    try {
+        putenv('GAZE_NYM_MODEL_DIR=');
+        expect(NymBundle::envModelDir())->toBe('')
+            ->and(NymBundle::locate(null, $policy))->toBe(['dir' => '', 'source' => 'GAZE_NYM_MODEL_DIR (process environment)'])
+            ->and(NymBundle::locate('/from/config', $policy))->toBe(['dir' => '/from/config', 'source' => 'gaze.safety_net.nym.model_dir'])
+            ->and((new NymBundle)->problems(''))->toBe(['the bundle path is empty']);
+    } finally {
+        @unlink($policy);
+    }
+});
+
+it('reads GAZE_NYM_MODEL_DIR from $_ENV before getenv(), the way Symfony Process hands it to gaze', function () {
+    $_ENV['GAZE_NYM_MODEL_DIR'] = '';
+    putenv('GAZE_NYM_MODEL_DIR=/from/getenv');
+    expect(NymBundle::envModelDir())->toBe('');
+
+    $_ENV['GAZE_NYM_MODEL_DIR'] = '/from/dotenv';
+    expect(NymBundle::envModelDir())->toBe('/from/dotenv');
+
+    unset($_ENV['GAZE_NYM_MODEL_DIR']);
+    expect(NymBundle::envModelDir())->toBe('/from/getenv');
+
+    putenv('GAZE_NYM_MODEL_DIR');
+    $_SERVER['GAZE_NYM_MODEL_DIR'] = '/from/server'; // Symfony never passes a $_SERVER-only value
+    expect(NymBundle::envModelDir())->toBeNull();
+});
+
 it('locates nothing when no source names a directory', function () {
     $policy = tempnam(sys_get_temp_dir(), 'gaze-nym-policy-');
     file_put_contents($policy, "[safety_net]\nbackend = \"nym\"\n");

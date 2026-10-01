@@ -44,6 +44,14 @@ final class NymBundle
     /** `$XDG_DATA_HOME` used in the setup hint when the target dir does not imply one. */
     public const EXAMPLE_DATA_HOME = '/srv/gaze';
 
+    /** The environment variable upstream falls back to when `--nym-model-dir` is absent. */
+    public const ENV = 'GAZE_NYM_MODEL_DIR';
+
+    /** Why a set-but-empty {@see self::ENV} breaks every clean, and the fix. */
+    public const EMPTY_ENV = 'GAZE_NYM_MODEL_DIR is set but empty. gaze uses it as is: it does not fall back to '
+        .'the policy, and every clean fails with SafetyNetArtifactMissing. Remove the GAZE_NYM_MODEL_DIR= line '
+        .'from .env (or the environment), or set it to the bundle directory.';
+
     public function __construct(private readonly ?int $euid = null) {}
 
     /**
@@ -51,7 +59,8 @@ final class NymBundle
      *
      *  1. `gaze.safety_net.nym.model_dir`, forwarded as `--nym-model-dir`;
      *  2. `GAZE_NYM_MODEL_DIR` in the process environment, which the gaze
-     *     subprocess inherits;
+     *     subprocess inherits ({@see self::envModelDir()}). Set but EMPTY
+     *     still wins: the dir is then `''` and the policy is never read;
      *  3. the policy's `[safety_net.nym] model_dir`.
      *
      * Null when none of them names a directory. An unreadable or unparseable
@@ -65,9 +74,9 @@ final class NymBundle
             return ['dir' => $configured, 'source' => 'gaze.safety_net.nym.model_dir'];
         }
 
-        $env = getenv('GAZE_NYM_MODEL_DIR');
-        if (is_string($env) && $env !== '') {
-            return ['dir' => $env, 'source' => 'GAZE_NYM_MODEL_DIR (process environment)'];
+        $env = self::envModelDir();
+        if ($env !== null) {
+            return ['dir' => $env, 'source' => self::ENV.' (process environment)'];
         }
 
         $fromPolicy = $policyPath !== null ? self::policyModelDir($policyPath) : null;
@@ -76,6 +85,24 @@ final class NymBundle
         }
 
         return null;
+    }
+
+    /**
+     * `GAZE_NYM_MODEL_DIR` as a spawned gaze inherits it, or null when unset.
+     *
+     * `Gaze::clean()` spawns through Symfony Process, which hands the child
+     * `$_ENV` first and then getenv(); the daemon's proc_open hands it the
+     * real environment (getenv()). Laravel's dotenv loader fills both, so an
+     * `.env` line `GAZE_NYM_MODEL_DIR=` reaches gaze as an empty value.
+     * Upstream reads the variable with `var_os` and takes any set value as is,
+     * empty included, so an empty string is returned here, not null.
+     * `$_SERVER` is not a source: Symfony only passes getenv() values.
+     */
+    public static function envModelDir(): ?string
+    {
+        $value = array_key_exists(self::ENV, $_ENV) ? $_ENV[self::ENV] : getenv(self::ENV);
+
+        return is_string($value) ? $value : null;
     }
 
     /**
@@ -113,6 +140,9 @@ final class NymBundle
     {
         clearstatcache();
 
+        if ($dir === '') {
+            return ['the bundle path is empty'];
+        }
         if (! str_starts_with($dir, '/')) {
             return ["{$dir} is a relative path; gaze resolves it against the worker's working directory, so use an absolute path"];
         }

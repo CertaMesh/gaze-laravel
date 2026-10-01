@@ -83,6 +83,30 @@ it('finds the bundle through each upstream source', function (string $source) {
     }
 })->with(['nested config group', 'process env', 'policy']);
 
+it('fails a set-but-empty GAZE_NYM_MODEL_DIR even when the policy names a valid bundle', function (string $via) {
+    // Upstream reads the variable with var_os: set but empty wins over the
+    // policy and every clean fails with SafetyNetArtifactMissing.
+    $policy = nbp_policyWithModelDir($this->bundle);
+    $this->app['config']->set('gaze.policy_path', $policy);
+    if ($via === 'dotenv ($_ENV)') {
+        $_ENV['GAZE_NYM_MODEL_DIR'] = '';
+    } else {
+        putenv('GAZE_NYM_MODEL_DIR=');
+    }
+
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(1)
+            ->expectsOutputToContain('GAZE_NYM_MODEL_DIR is empty')
+            // One expectation per output line: Laravel lets one write satisfy only one.
+            ->expectsOutputToContain(NymBundle::EMPTY_ENV)
+            ->doesntExpectOutputToContain('OK for')
+            ->expectsOutputToContain('FAIL');
+    } finally {
+        @unlink($policy);
+    }
+})->with(['dotenv ($_ENV)', 'process env (getenv)']);
+
 it('fails a bundle directory that does not exist', function () {
     $this->app['config']->set('gaze.nym_model_dir', $this->bundle.'-gone');
 

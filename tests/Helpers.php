@@ -167,18 +167,38 @@ function gl_removeNymBundle(string $dir): void
 
 /**
  * Unset GAZE_NYM_MODEL_DIR for a test that needs it absent (it may be exported
- * for the Nym integration suite) and return the previous value for
- * gl_restoreNymEnv().
+ * for the Nym integration suite) and return the previous state for
+ * gl_restoreNymEnv(). Covers getenv(), $_ENV and $_SERVER: the adapter reads
+ * $_ENV first, the way Symfony Process hands it to gaze.
+ *
+ * @return array{getenv: string|false, env: array<int, mixed>, server: array<int, mixed>}
  */
-function gl_stashNymEnv(): string|false
+function gl_stashNymEnv(): array
 {
-    $previous = getenv('GAZE_NYM_MODEL_DIR');
+    $previous = [
+        'getenv' => getenv('GAZE_NYM_MODEL_DIR'),
+        'env' => array_key_exists('GAZE_NYM_MODEL_DIR', $_ENV) ? [$_ENV['GAZE_NYM_MODEL_DIR']] : [],
+        'server' => array_key_exists('GAZE_NYM_MODEL_DIR', $_SERVER) ? [$_SERVER['GAZE_NYM_MODEL_DIR']] : [],
+    ];
+
     putenv('GAZE_NYM_MODEL_DIR');
+    unset($_ENV['GAZE_NYM_MODEL_DIR'], $_SERVER['GAZE_NYM_MODEL_DIR']);
 
     return $previous;
 }
 
-function gl_restoreNymEnv(string|false $previous): void
+/**
+ * @param  array{getenv: string|false, env: array<int, mixed>, server: array<int, mixed>}  $previous
+ */
+function gl_restoreNymEnv(array $previous): void
 {
-    putenv($previous === false ? 'GAZE_NYM_MODEL_DIR' : 'GAZE_NYM_MODEL_DIR='.$previous);
+    putenv($previous['getenv'] === false ? 'GAZE_NYM_MODEL_DIR' : 'GAZE_NYM_MODEL_DIR='.$previous['getenv']);
+
+    unset($_ENV['GAZE_NYM_MODEL_DIR'], $_SERVER['GAZE_NYM_MODEL_DIR']);
+    if ($previous['env'] !== []) {
+        $_ENV['GAZE_NYM_MODEL_DIR'] = $previous['env'][0];
+    }
+    if ($previous['server'] !== []) {
+        $_SERVER['GAZE_NYM_MODEL_DIR'] = $previous['server'][0];
+    }
 }
