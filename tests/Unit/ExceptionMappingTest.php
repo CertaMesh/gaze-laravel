@@ -16,6 +16,7 @@ use CertaMesh\Gaze\Exceptions\GazePolicySchemaUnsupportedException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetArtifactMissingException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetUsageException;
 use CertaMesh\Gaze\Exceptions\GazeSigPipeException;
 use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
 use CertaMesh\Gaze\Exceptions\GazeUnsupportedSessionScopeException;
@@ -31,7 +32,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
 
     $error = $payload['error'];
     $payload['exit'] = match ($error) {
-        'PolicyConfig', 'PolicySchemaUnsupported', 'SafetyNetArtifactMissing' => 2,
+        'PolicyConfig', 'PolicySchemaUnsupported', 'SafetyNetArtifactMissing', 'SafetyNetUsage' => 2,
         'Io', 'PolicyOpen' => 4,
         'SigPipe' => 141,
         default => 3,
@@ -43,7 +44,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
             output: '',
             errorOutput: $stderr,
             exitCode: match ($error) {
-                'PolicyConfig', 'PolicySchemaUnsupported', 'SafetyNetArtifactMissing' => 2,
+                'PolicyConfig', 'PolicySchemaUnsupported', 'SafetyNetArtifactMissing', 'SafetyNetUsage' => 2,
                 'Io', 'PolicyOpen' => 4,
                 'SigPipe' => 141,
                 default => 3,
@@ -74,6 +75,7 @@ it('maps variants to their dedicated exception classes', function (array $payloa
     [['error' => 'PolicyConfig', 'detail' => 'unknown bundled rulepack: garbage'], GazePolicyConfigDetailException::class],
     [['error' => 'PolicySchemaUnsupported', 'found' => '9.9.0', 'supported' => '0.1'], GazePolicySchemaUnsupportedException::class],
     [['error' => 'SafetyNetConfig', 'detail' => 'missing config'], GazeSafetyNetConfigException::class],
+    [['error' => 'SafetyNetUsage', 'detail' => '--safety-net-backend requires exactly one --safety-net value'], GazeSafetyNetUsageException::class],
     [['error' => 'SafetyNet', 'variant' => 'Timeout'], GazeSafetyNetFailureException::class],
     [['error' => 'SafetyNetArtifactMissing', 'backend' => 'kiji-distilbert', 'path' => '/var/lib/gaze/models/kiji'], GazeSafetyNetArtifactMissingException::class],
     [['error' => 'UnsupportedSessionScope', 'variant' => 'global'], GazeUnsupportedSessionScopeException::class],
@@ -105,6 +107,27 @@ it('exposes the upstream PolicyConfig detail sidecar through the typed exception
     }
 
     $this->fail('Expected GazePolicyConfigDetailException to be thrown.');
+});
+
+it('exposes the upstream SafetyNetUsage detail sidecar through the typed exception', function () {
+    $payload = ['error' => 'SafetyNetUsage', 'exit' => 2, 'detail' => '--safety-net none cannot be combined with another safety-net selection'];
+    $stderr = json_encode($payload, JSON_THROW_ON_ERROR).PHP_EOL;
+
+    Process::fake(['*' => Process::result(output: '', errorOutput: $stderr, exitCode: 2)]);
+
+    try {
+        $this->makeGaze()->restore($this->bindAndReturnCleanSession('Hello Name_1', 'blob', 1), 'Hello Name_1');
+    } catch (GazeSafetyNetUsageException $e) {
+        expect($e->detail())->toBe('--safety-net none cannot be combined with another safety-net selection')
+            ->and($e)->toBeInstanceOf(GazePolicyConfigException::class)
+            ->and($e)->toBeInstanceOf(NonRetryable::class)
+            ->and($e->exitCode)->toBe(2)
+            ->and($e->getMessage())->not->toContain('--safety-net none');
+
+        return;
+    }
+
+    $this->fail('Expected GazeSafetyNetUsageException to be thrown.');
 });
 
 it('exposes the upstream SafetyNetArtifactMissing backend/path sidecars', function () {

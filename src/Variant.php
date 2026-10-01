@@ -21,6 +21,7 @@ use CertaMesh\Gaze\Exceptions\GazePolicySchemaUnsupportedException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetArtifactMissingException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetUsageException;
 use CertaMesh\Gaze\Exceptions\GazeSigPipeException;
 use CertaMesh\Gaze\Exceptions\GazeStdinParseException;
 use CertaMesh\Gaze\Exceptions\GazeUnknownTokenException;
@@ -35,11 +36,27 @@ enum Variant: string
     case PolicyConfig = 'PolicyConfig';
     case PolicyConfigDetail = 'PolicyConfigDetail';
     case PolicySchemaUnsupported = 'PolicySchemaUnsupported';
+    /**
+     * Upstream emits this wire name at exit 3 (subprocess/backend config) and,
+     * since gaze 0.15.0, at exit 2 (Nym policy/bundle setup errors). Both carry
+     * a `detail` sidecar; {@see exitBucket()} reports the original bucket 3.
+     */
     case SafetyNetConfig = 'SafetyNetConfig';
+    /** gaze >= 0.15.0: rejected safety-net flag combination (exit 2). */
+    case SafetyNetUsage = 'SafetyNetUsage';
     case SafetyNet = 'SafetyNet';
     case SafetyNetArtifactMissing = 'SafetyNetArtifactMissing';
     case AuditPurgeIso8601 = 'AuditPurgeIso8601';
     case UnknownToken = 'UnknownToken';
+    /**
+     * @deprecated Removed upstream in gaze 0.15.0 (#618). The adapter never
+     *             reached it before that: upstream emitted it only on the
+     *             no-policy `gaze clean` path, and the adapter always passes
+     *             `--policy`; an invalid `--session-scope` surfaces as
+     *             `PolicyConfig` + `detail` ({@see self::PolicyConfigDetail}).
+     *             Kept so code that references the case keeps compiling;
+     *             removed before 1.0.
+     */
     case UnsupportedSessionScope = 'UnsupportedSessionScope';
     case InvalidSignature = 'InvalidSignature';
     case InvalidBlobVersion = 'InvalidBlobVersion';
@@ -147,6 +164,12 @@ enum Variant: string
                 self::stderrStringField($stderr, 'backend') ?? '',
                 self::stderrStringField($stderr, 'path') ?? '',
             ),
+            self::SafetyNetUsage => new GazeSafetyNetUsageException(
+                $message,
+                $exitCode,
+                $stderrHash,
+                self::stderrStringField($stderr, 'detail'),
+            ),
             self::UnsupportedSessionScope => new GazeUnsupportedSessionScopeException(
                 $message,
                 $exitCode,
@@ -175,6 +198,7 @@ enum Variant: string
             self::PolicyConfigDetail => [GazePolicyConfigDetailException::class, 'policy configuration invalid'],
             self::PolicySchemaUnsupported => [GazePolicySchemaUnsupportedException::class, 'policy schema version unsupported'],
             self::SafetyNetConfig => [GazeSafetyNetConfigException::class, 'safety-net configuration invalid'],
+            self::SafetyNetUsage => [GazeSafetyNetUsageException::class, 'safety-net flag combination invalid'],
             self::SafetyNet => [GazeSafetyNetFailureException::class, 'safety-net failed'],
             self::SafetyNetArtifactMissing => [GazeSafetyNetArtifactMissingException::class, 'safety-net artifact missing'],
             self::AuditPurgeIso8601 => [GazeAuditPurgeIso8601Exception::class, 'audit purge timestamp not ISO8601'],
@@ -211,7 +235,7 @@ enum Variant: string
     {
         return match ($this) {
             self::StdinParse, self::EmptyInput, self::InputTooLarge, self::InvalidEncoding => 1,
-            self::PolicyConfig, self::PolicyConfigDetail, self::PolicySchemaUnsupported, self::SafetyNetArtifactMissing, self::AuditPurgeIso8601 => 2,
+            self::PolicyConfig, self::PolicyConfigDetail, self::PolicySchemaUnsupported, self::SafetyNetArtifactMissing, self::SafetyNetUsage, self::AuditPurgeIso8601 => 2,
             self::SafetyNetConfig,
             self::SafetyNet,
             self::UnknownToken,

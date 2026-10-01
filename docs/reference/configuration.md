@@ -189,7 +189,7 @@ Optional session isolation scope forwarded to `gaze clean` as `--session-scope=<
 GAZE_SESSION_SCOPE=conversation
 ```
 
-**Caveat:** Unsupported values are rejected by the binary and surface as `GazeUnsupportedSessionScopeException`.
+**Caveat:** Unsupported values are rejected by the binary and surface as `GazePolicyConfigDetailException` (`detail()`: `session.scope must be one of ephemeral, conversation, persistent, got …`).
 
 ---
 

@@ -6,6 +6,33 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.13.0 → v0.14.0 (Unreleased)
+
+> Pre-1.0 SemVer: breaking changes land on a MINOR bump. v0.14.0 moves the
+> pinned binary from gaze 0.12.0 to 0.15.x and tracks the upstream contract
+> changes that come with it.
+
+### TL;DR
+
+1. **New `GazeSafetyNetUsageException`; `GazeUnsupportedSessionScopeException`
+   deprecated.** See [Error variants](#error-variants-safetynetusage-added-unsupportedsessionscope-deprecated).
+
+### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
+
+gaze 0.15.0 rejects contradictory safety-net flags with a new
+`SafetyNetUsage` error (exit 2). The adapter maps it to
+`CertaMesh\Gaze\Exceptions\GazeSafetyNetUsageException`, a subclass of
+`GazePolicyConfigException` — an existing `catch (GazePolicyConfigException)`
+or `catch (GazeOpsConfigException)` still matches, and the queue retry policy
+fails the job (`NonRetryable`). Its `detail()` returns the upstream usage
+message. Fix the safety-net configuration; retrying cannot help.
+
+`GazeUnsupportedSessionScopeException` (and `Variant::UnsupportedSessionScope`)
+is deprecated and never thrown: an invalid `GAZE_SESSION_SCOPE` has always
+surfaced as `GazePolicyConfigDetailException` at the adapter's pins. If you
+catch the deprecated class, catch `GazePolicyConfigDetailException` instead.
+Both stay until 1.0.
+
 ## v0.12.0 → v0.13.0
 
 > Pre-1.0 SemVer: this breaking change lands on a MINOR bump. v0.13.0 removes

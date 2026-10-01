@@ -70,12 +70,13 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.12.0.
 | `InvalidEncoding` | `GazeInvalidEncodingException` |
 | `PolicyConfig` | `GazePolicyConfigException` or `GazePolicyConfigDetailException` when `detail` exists; `detail()` accessor exposes the upstream sidecar |
 | `PolicySchemaUnsupported` | `GazePolicySchemaUnsupportedException`; `found()` + `supported()` accessors expose the typed envelope fields |
-| `SafetyNetConfig` | `GazeSafetyNetConfigException` |
+| `SafetyNetConfig` | `GazeSafetyNetConfigException` (exit 3; since gaze 0.15.0 also exit 2 for Nym policy/bundle setup errors) |
+| `SafetyNetUsage` (gaze >= 0.15.0) | `GazeSafetyNetUsageException` (exit 2); `detail()` accessor exposes the upstream usage message (e.g. `--safety-net-backend` without exactly one `--safety-net`) |
 | `SafetyNet` | `GazeSafetyNetFailureException` |
-| `SafetyNetArtifactMissing` | `GazeSafetyNetArtifactMissingException`; `backend()` + `path()` accessors expose the typed envelope sidecars. Axis-1 fail-closed (exit 2) when a backend's pinned artifact (e.g. `SHA256SUMS` for the Kiji DistilBERT backend) is absent. |
+| `SafetyNetArtifactMissing` | `GazeSafetyNetArtifactMissingException`; `backend()` + `path()` accessors expose the typed envelope sidecars. Axis-1 fail-closed (exit 2) when a backend's pinned artifact (e.g. the Nym bundle weights) is absent. |
 | `AuditPurgeIso8601` | `GazeAuditPurgeIso8601Exception` |
 | `UnknownToken` | `GazeUnknownTokenException` |
-| `UnsupportedSessionScope` | `GazeUnsupportedSessionScopeException` |
+| `UnsupportedSessionScope` (removed upstream in 0.15.0, #618) | `GazeUnsupportedSessionScopeException` — **deprecated**, kept for BC. Only the no-policy clean path ever emitted it; the adapter always passes `--policy`, and an invalid `--session-scope` surfaces as `PolicyConfig` + `detail`. |
 | `InvalidSignature` | `GazeInvalidSignatureException` |
 | `InvalidBlobVersion` | `GazeInvalidBlobVersionException` |
 | `BlobExpired` | `GazeBlobExpiredException` |

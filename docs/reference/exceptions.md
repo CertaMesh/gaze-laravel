@@ -14,7 +14,8 @@ Every exception this package throws extends `CertaMesh\Gaze\Exceptions\GazeExcep
     │   └── GazeStdinParseException
     ├── GazeOpsConfigException           (exit bucket 2 — config error, NonRetryable)
     │   ├── GazePolicyConfigException
-    │   │   └── GazeSafetyNetConfigException (exit bucket 3, NonRetryable)
+    │   │   ├── GazeSafetyNetConfigException (exit bucket 3, NonRetryable)
+    │   │   └── GazeSafetyNetUsageException (exit bucket 2, NonRetryable — gaze >= 0.15)
     │   ├── GazePolicyConfigDetailException
     │   ├── GazePolicySchemaUnsupportedException
     │   ├── GazeAuditPurgeIso8601Exception
@@ -23,7 +24,7 @@ Every exception this package throws extends `CertaMesh\Gaze\Exceptions\GazeExcep
     │   ├── GazeUnknownTokenException    (NonRetryable)
     │   ├── GazeResponseDecodeException  (NonRetryable)
     │   ├── GazeSafetyNetFailureException (HasRetryDisposition — variant-dependent retry policy)
-    │   ├── GazeUnsupportedSessionScopeException (NonRetryable)
+    │   ├── GazeUnsupportedSessionScopeException (NonRetryable — deprecated, never thrown)
     │   ├── GazeInvalidSignatureException (NonRetryable)
     │   ├── GazeInvalidBlobVersionException (NonRetryable, requiresFreshClean() = true)
     │   ├── GazeBlobExpiredException     (NonRetryable, requiresFreshClean() = true)
@@ -78,9 +79,10 @@ The `Install\Ner*` family lives under the `CertaMesh\Gaze\Install` namespace. Th
 | `GazeIntegrityException` | 3 | (see subclasses) | No | Abstract base for session-integrity subclasses |
 | `GazeUnknownTokenException` | 3 | `NonRetryable` → fail | No | Binary encountered a token it could not map back to PII |
 | `GazeResponseDecodeException` | 3 | `NonRetryable` → fail | No | Binary stdout was not valid JSON or not a JSON object |
-| `GazeSafetyNetConfigException` | 3 | `NonRetryable` → fail | No | Safety-net configuration is invalid; extends `GazePolicyConfigException` |
+| `GazeSafetyNetConfigException` | 3 | `NonRetryable` → fail | No | Safety-net configuration is invalid; extends `GazePolicyConfigException`. Since gaze 0.15.0 upstream also emits it at exit 2 for Nym policy/bundle setup errors |
+| `GazeSafetyNetUsageException` | 2 | `NonRetryable` → fail | No | gaze >= 0.15.0 rejected the safety-net flag combination (e.g. `--safety-net-backend` without exactly one `--safety-net`); extends `GazePolicyConfigException`; exposes `detail(): ?string` |
 | `GazeSafetyNetFailureException` | 3 | See safety-net table | No | Safety-net subprocess failed or suspected a leak; exposes `safetyNetVariant(): string` |
-| `GazeUnsupportedSessionScopeException` | 3 | `NonRetryable` → fail | No | `--session-scope` value is not supported; exposes `attemptedScope(): string` |
+| `GazeUnsupportedSessionScopeException` | 3 | `NonRetryable` → fail | No | **Deprecated, never thrown.** Upstream removed the variant in gaze 0.15.0; an invalid `--session-scope` surfaces as `GazePolicyConfigDetailException`. Kept for BC until 1.0 |
 | `GazeInvalidSignatureException` | 3 | `NonRetryable` → fail | No | Session blob HMAC verification failed |
 | `GazeInvalidBlobVersionException` | 3 | `NonRetryable` → fail | **Yes** | Session blob was created by a newer binary version |
 | `GazeBlobExpiredException` | 3 | `NonRetryable` → fail | **Yes** | Session blob TTL has elapsed |
@@ -163,9 +165,9 @@ pinning by adding `schema_version = "0.1"` to the top of `policy.toml`.
 
 Do **not** branch on `$e instanceof NonRetryable` (or the other markers) for this exception — it matches none of them. Use `GazeRetryPolicy::classify($e)` or `$e->retryDisposition()`.
 
-`GazeSafetyNetConfigException` extends `GazePolicyConfigException`, so existing catch blocks for policy/config failures keep working.
+`GazeSafetyNetConfigException` and `GazeSafetyNetUsageException` extend `GazePolicyConfigException`, so existing catch blocks for policy/config failures keep working. `GazeSafetyNetUsageException` (gaze >= 0.15.0) means the argv itself is wrong — fix the safety-net config, don't retry.
 
-`GazeUnsupportedSessionScopeException::attemptedScope()` returns the rejected scope string from the upstream `variant` sidecar. It is non-retryable because retrying cannot fix invalid configuration/input.
+`GazeUnsupportedSessionScopeException` is deprecated and never thrown: upstream only emitted `UnsupportedSessionScope` on the no-policy `gaze clean` path (the adapter always passes `--policy`) and removed the variant in gaze 0.15.0. Catch `GazePolicyConfigDetailException` for an invalid `--session-scope`. `attemptedScope()` still returns the `variant` sidecar if an older binary ever emits it.
 
 ### `GazeInvalidBlobVersionException` + `GazeBlobExpiredException` (fresh clean required)
 
