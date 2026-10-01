@@ -99,7 +99,9 @@ Gaze::restore(session, text)
   loudly if `GAZE_ENCRYPTION_KEY` is set but malformed.
 - No PII or raw session blob is logged. `toLogContext()` surfaces only
   `exit_code`, `error_variant`, and `stderr_sha256` (SHA256 of binary stderr,
-  never plaintext).
+  never plaintext). The daemon family logs `daemon_variant`, a
+  `session_id_sha256` digest of the adopter-chosen session id, and the
+  envelope with its ids and text digested.
 
 ---
 

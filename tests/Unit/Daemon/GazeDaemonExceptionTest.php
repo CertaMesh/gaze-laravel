@@ -23,7 +23,7 @@ it('accepts an envelope without a stderrHash', function () {
     expect($exception->stderrHash)->toBeNull();
 });
 
-it('emits the envelope raw payload in toLogContext instead of stderr_sha256', function () {
+it('emits the envelope in toLogContext instead of stderr_sha256, with session ids digested', function () {
     $raw = ['error' => 'Pipeline', 'detail' => 'pipeline failed', 'session_id' => 's1'];
     $exception = new GazeDaemonException(
         'pipeline failed',
@@ -33,10 +33,12 @@ it('emits the envelope raw payload in toLogContext instead of stderr_sha256', fu
     );
 
     $context = $exception->toLogContext();
+    $digest = substr(hash('sha256', 's1'), 0, 12);
 
     expect($context)->toHaveKey('daemon_variant', 'Pipeline');
-    expect($context)->toHaveKey('session_id', 's1');
-    expect($context)->toHaveKey('raw', $raw);
+    expect($context)->toHaveKey('session_id_sha256', $digest);
+    expect($context)->not->toHaveKey('session_id');
+    expect($context)->toHaveKey('raw', ['error' => 'Pipeline', 'detail' => 'pipeline failed', 'session_id_sha256' => $digest]);
     expect($context)->not->toHaveKey('stderr_sha256');
 });
 
