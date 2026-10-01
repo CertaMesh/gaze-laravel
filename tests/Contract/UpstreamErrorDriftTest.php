@@ -107,12 +107,7 @@ function ued_names(string $pattern, string $source): array
 }
 
 it('maps or deliberately lists every error name upstream writes at the pinned tag', function () {
-    $src = ued_upstreamSrc();
-    if ($src === null) {
-        $this->markTestSkipped('GAZE_UPSTREAM_SRC not set; upstream error-name drift check skipped (run it during a pin bump, see docs/how-to/testing.md).');
-
-        return;
-    }
+    $src = ued_upstreamSrc() ?? throw new RuntimeException('GAZE_UPSTREAM_SRC is not set.');
 
     $tag = 'v'.BinaryDownloader::PINNED_VERSION;
     $files = [
@@ -169,4 +164,4 @@ it('maps or deliberately lists every error name upstream writes at the pinned ta
     }
 
     expect($drift)->toBe([], "gaze {$tag} drifted from the adapter's error contract:\n  ".implode("\n  ", $drift));
-});
+})->skip(fn () => ued_upstreamSrc() === null, 'GAZE_UPSTREAM_SRC not set; upstream error-name drift check skipped (run it during a pin bump, see docs/how-to/testing.md).');
