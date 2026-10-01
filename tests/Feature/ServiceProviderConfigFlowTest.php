@@ -175,6 +175,86 @@ it('Gaze resolved from container forwards the nested safety_net group on clean a
     });
 });
 
+it('back-fills the nym knobs so they survive the boot-time collapse of the nested group', function () {
+    config()->set('gaze.nym_model_dir', null);
+    config()->set('gaze.nym_intra_threads', null);
+    config()->set('gaze.safety_net', [
+        'enabled' => true,
+        'backend' => 'nym',
+        'nym' => ['model_dir' => '/srv/gaze/gaze/models/nym-small-int8', 'intra_threads' => '2'],
+    ]);
+
+    (new GazeServiceProvider($this->app))->register();
+
+    expect(config('gaze.safety_net'))->toBeTrue()
+        ->and(config('gaze.nym_model_dir'))->toBe('/srv/gaze/gaze/models/nym-small-int8')
+        ->and(config('gaze.nym_intra_threads'))->toBe('2');
+});
+
+it('fills the nym entry a pre-v0.16 published config lacks, so GAZE_NYM_* still reach the runtime config', function () {
+    $previous = gl_stashNymEnv();
+    $threads = getenv('GAZE_NYM_INTRA_THREADS');
+    putenv('GAZE_NYM_MODEL_DIR=/from/env');
+    putenv('GAZE_NYM_INTRA_THREADS=2');
+
+    try {
+        config()->set('gaze.nym_model_dir', null);
+        config()->set('gaze.nym_intra_threads', null);
+        // The safety_net group as v0.15.0 published it: no `nym` entry.
+        config()->set('gaze.safety_net', ['enabled' => true, 'backend' => 'nym', 'mode' => 'redact']);
+
+        (new GazeServiceProvider($this->app))->register();
+
+        expect(config('gaze.safety_net'))->toBeTrue()
+            ->and(config('gaze.safety_net_mode'))->toBe('redact')
+            ->and(config('gaze.nym_model_dir'))->toBe('/from/env')
+            ->and((string) config('gaze.nym_intra_threads'))->toBe('2');
+    } finally {
+        gl_restoreNymEnv($previous);
+        putenv($threads === false ? 'GAZE_NYM_INTRA_THREADS' : 'GAZE_NYM_INTRA_THREADS='.$threads);
+    }
+});
+
+it('container-resolved Gaze forwards the nested nym group on clean argv', function () {
+    config([
+        'gaze.binary' => '/fake/gaze',
+        'gaze.policy_path' => '/tmp/policy.toml',
+        'gaze.nym_model_dir' => null,
+        'gaze.nym_intra_threads' => null,
+        'gaze.safety_net' => [
+            'enabled' => true,
+            'backend' => 'nym',
+            'nym' => ['model_dir' => '/srv/nym', 'intra_threads' => 2],
+        ],
+    ]);
+    $this->app->forgetInstance(Gaze::class);
+
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Hello',
+            'session_blob' => base64_encode('blob'),
+            'stats' => ['detections' => 0],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $this->app->make(Gaze::class)->clean('Hello');
+
+    Process::assertRan(function ($process): bool {
+        expect($process->command)->toBe([
+            '/fake/gaze',
+            'clean',
+            '--policy=/tmp/policy.toml',
+            '--format=json',
+            '--safety-net=openai-filter',
+            '--safety-net-backend=nym',
+            '--nym-model-dir=/srv/nym',
+            '--nym-intra-threads=2',
+        ]);
+
+        return true;
+    });
+});
+
 it('container-resolved Gaze refuses a nested kiji-distilbert backend before spawning', function () {
     config([
         'gaze.binary' => '/fake/gaze',

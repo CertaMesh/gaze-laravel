@@ -27,6 +27,9 @@ namespace CertaMesh\Gaze;
  * The Kiji DistilBERT knobs (`safety_net.kiji.*` / flat `kiji_*`) are no
  * longer read: upstream removed that backend in gaze 0.15.0, and a selected
  * `kiji-distilbert` backend fails closed in {@see SafetyNetBackendGuard}.
+ *
+ * New properties are appended at the END of the constructor so positional
+ * callers keep working (BC).
  */
 final readonly class GazeOptions
 {
@@ -56,7 +59,31 @@ final readonly class GazeOptions
         public ?string $restoreMode = null,
         public bool $restoreTelemetry = false,
         public ?float $nerThreshold = null,
+        public ?string $nymModelDir = null,
+        public ?int $nymIntraThreads = null,
+        /**
+         * The configured `gaze.safety_net.nym.intra_threads` when it is set
+         * but not an integer (`1.5`, `abc`), rendered for messages; then
+         * {@see $nymIntraThreads} is null. {@see SafetyNetBackendGuard}
+         * refuses it instead of truncating or dropping it.
+         *
+         * @internal set by {@see self::fromConfig()} only.
+         */
+        public ?string $invalidNymIntraThreads = null,
     ) {}
+
+    /**
+     * True when the ENABLED safety net selects the Nym backend — the only
+     * state in which the `--nym-*` flags may be forwarded. gaze >= 0.15
+     * rejects them in every other state: with the net off it exits 3 with
+     * SafetyNetConfig ("safety-net backend options require
+     * --safety-net=<kind> activation"). Upstream parses the selector
+     * case-sensitively, so only the exact value `nym` counts.
+     */
+    public function nymSelected(): bool
+    {
+        return $this->safetyNet && $this->safetyNetBackend === SafetyNetBackendGuard::NYM;
+    }
 
     /**
      * Build options from the `config('gaze')` array.
@@ -78,7 +105,9 @@ final readonly class GazeOptions
         $safetyNetRoot = $config['safety_net'] ?? null;
         $group = is_array($safetyNetRoot) ? $safetyNetRoot : [];
         $opf = is_array($group['openai_filter'] ?? null) ? $group['openai_filter'] : [];
+        $nym = is_array($group['nym'] ?? null) ? $group['nym'] : [];
         $enabled = is_array($safetyNetRoot) ? ($group['enabled'] ?? false) : $safetyNetRoot;
+        $nymThreads = $nym['intra_threads'] ?? $config['nym_intra_threads'] ?? null;
 
         return new self(
             timeoutSeconds: self::intOrNull($config['timeout_seconds'] ?? null) ?? 30,
@@ -102,7 +131,28 @@ final readonly class GazeOptions
             restoreMode: self::stringOrNull($config['restore_mode'] ?? null),
             restoreTelemetry: (bool) ($config['restore_telemetry'] ?? false),
             nerThreshold: self::floatOrNull($config['ner_threshold'] ?? null),
+            // Flat `nym_*` keys are not published: the provider back-fills
+            // them from the nested group before collapsing it at boot.
+            nymModelDir: self::stringOrNull($nym['model_dir'] ?? $config['nym_model_dir'] ?? null),
+            nymIntraThreads: self::strictIntOrNull($nymThreads),
+            invalidNymIntraThreads: self::strictIntOrNull($nymThreads) === null && $nymThreads !== null && $nymThreads !== ''
+                ? (is_scalar($nymThreads) ? var_export($nymThreads, true) : get_debug_type($nymThreads))
+                : null,
         );
+    }
+
+    /**
+     * An int, or a string of digits (sign and surrounding spaces allowed),
+     * as int; null for anything else. Unlike {@see self::intOrNull()} it
+     * neither truncates `1.5` to 1 nor accepts `1e3`.
+     */
+    private static function strictIntOrNull(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        return is_string($value) && preg_match('/^[+-]?\d+$/', trim($value)) === 1 ? (int) trim($value) : null;
     }
 
     /**

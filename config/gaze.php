@@ -156,9 +156,9 @@ return [
          *     a gaze binary built with upstream's `safety-net-openai` feature
          *     (the release binaries are not).
          *   - `nym` — compiled into the release binary. Fetch the bundle with
-         *     `gaze setup --safety-net nym` and name its directory in the
-         *     policy's `[safety_net.nym] model_dir` (or in `GAZE_NYM_MODEL_DIR`
-         *     in the worker's real process environment).
+         *     `gaze setup --safety-net nym` and name its directory in
+         *     `nym.model_dir` below (or in the policy's
+         *     `[safety_net.nym] model_dir`).
          *
          * `kiji-distilbert` was removed upstream in gaze 0.15.0; the adapter
          * refuses it before spawning. Null omits the flag and lets upstream
@@ -232,6 +232,38 @@ return [
              * use its default.
              */
             'operating_point' => env('GAZE_OPENAI_FILTER_OPERATING_POINT'),
+        ],
+
+        /*
+         * Nym-small safety net (gaze >= 0.15.0, compiled into the release
+         * binary). Both keys are forwarded on `Gaze::clean()` AND the daemon
+         * — ONLY while `enabled` is true and `backend` is `nym`; gaze rejects
+         * them otherwise. Run `php artisan gaze:install:safety-net
+         * --safety-net=nym` to wire them, `gaze:doctor` to check the bundle.
+         */
+        'nym' => [
+            /*
+             * Directory of the pinned Nym-small int8 bundle fetched by
+             * `gaze setup --safety-net nym` (default
+             * `$XDG_DATA_HOME/gaze/models/nym-small-int8`). Forwarded as
+             * `--nym-model-dir=<value>`; wins over the policy's
+             * `[safety_net.nym] model_dir`. Unlike a `GAZE_NYM_MODEL_DIR` the
+             * binary inherits from the worker environment, this value
+             * survives `php artisan config:cache`. The directory and every
+             * file in it must be owned by the user that runs gaze (under
+             * PHP-FPM: the pool user), the directory mode must be exactly
+             * 0700. Null omits the flag: the binary then falls back to
+             * GAZE_NYM_MODEL_DIR in its environment, then to the policy.
+             */
+            'model_dir' => env('GAZE_NYM_MODEL_DIR'),
+
+            /*
+             * ONNX Runtime intra-op threads for the Nym backend. Positive
+             * integer, forwarded as `--nym-intra-threads=<value>`; any other
+             * value (`0`, `1.5`, `abc`) fails closed before gaze runs. Null
+             * lets the binary use its default of 1.
+             */
+            'intra_threads' => env('GAZE_NYM_INTRA_THREADS'),
         ],
 
     ],

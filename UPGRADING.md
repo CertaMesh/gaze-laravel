@@ -8,6 +8,9 @@ upcoming release in full; per-minor guides for earlier versions live in
 
 ## v0.15.0 → v0.16.0 (Unreleased)
 
+> Same gaze 0.15.1 pin, no re-install. MINOR: new config keys, an installer
+> backend and a doctor probe.
+
 ### TL;DR
 
 1. **Safety-net failures get a queue lane per real upstream variant, on clean
@@ -39,7 +42,9 @@ upcoming release in full; per-minor guides for earlier versions live in
    `warning:` line, usually by setting the default rule to
    `action = "tokenize"`. Doctor runs one `gaze clean` on a fixed input, writes
    no audit row, and the warnings keep its exit code. It exits 1 when that
-   clean fails NonRetryable, because then every `Gaze::clean()` fails too. See
+   clean fails NonRetryable, because then every `Gaze::clean()` fails too.
+   With a safety net on, that clean loads the model, so doctor takes a moment
+   longer (about 2 s with Nym). See
    [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
 4. **Safety-net hits the pipeline protected are amber, not red** (#160). With
    a safety net on (Nym on the release binary), `coverageState()` used to
@@ -64,6 +69,46 @@ upcoming release in full; per-minor guides for earlier versions live in
    `LeakReport` fields (`Cannot create dynamic property`). Deploy workers no
    later than the code that dispatches, and drain such jobs before rolling
    back.
+6. **Nym is now a first-class safety net.** If you run Nym through
+   `GAZE_SAFETY_NET=true` + `GAZE_SAFETY_NET_BACKEND=nym`, nothing breaks, but
+   you can now point the adapter at the bundle:
+   `GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8` is forwarded as
+   `--nym-model-dir`, so it survives `php artisan config:cache` (before, it
+   reached gaze only through the worker's real process environment).
+   `GAZE_NYM_INTRA_THREADS` sets the ONNX Runtime threads. Both are forwarded
+   only while the net is enabled with backend `nym`. A policy
+   `[safety_net.nym] model_dir` keeps working; the config key wins over it.
+   `php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=<dir>`
+   checks the bundle and wires `.env`. Run it as the runtime user, or as the
+   deploy user with `--runtime-user=www-data` (new option) so the owner is
+   checked for the user that runs gaze. A `config/gaze.php` published before
+   v0.16.0 needs no edit: the adapter fills in the missing `nym` entry. See
+   [SafetyNet → Quick start (Nym)](docs/how-to/safety-net.md#quick-start-nym).
+7. **`gaze:doctor` now fails on a Nym bundle gaze would refuse**, while the net
+   is enabled with backend `nym`: no bundle directory configured anywhere, a
+   bare `GAZE_NYM_MODEL_DIR=` line (gaze takes the empty value and skips the
+   policy), a missing or unreadable file, a group- or world-writable file, a
+   bundle not owned by the user running doctor, a directory that is not mode
+   `0700`, or a symlink or fifo in it. Its clean probe (item 3) also fails
+   when gaze refuses the bundle's digests. These checks hold for the user that
+   runs them, so **run doctor as
+   the PHP-FPM pool / queue worker user**
+   (`sudo -u www-data php artisan gaze:doctor`). A deploy pipeline that runs
+   doctor as the deploy user against a bundle owned by `www-data` now fails;
+   run that step as `www-data` instead. Doctor also sees only its own
+   environment: if you followed the v0.15.0 docs and set `GAZE_NYM_MODEL_DIR`
+   only in the worker's environment (PHP-FPM `env[…]`, systemd
+   `Environment=`), doctor reports it as not configured. Move it to `.env` or
+   the policy's `[safety_net.nym] model_dir`.
+8. **`gaze:doctor` now fails a mis-spelled backend.** With the net enabled,
+   `GAZE_SAFETY_NET_BACKEND` must be exactly `nym` or `openai-filter`. `Nym`
+   used to pass doctor while every clean failed with `PolicyConfig`; fix the
+   spelling.
+9. **`GAZE_NYM_INTRA_THREADS` must be a positive integer.** `0`, a negative
+   number or a non-integer (`1.5`, `abc`) fails fast with
+   `GazeSafetyNetConfigException` before gaze runs, and doctor fails on it.
+   v0.15.0 had no such key and ignored the variable; a bad value now fails
+   closed instead.
 
 ## v0.14.0 → v0.15.0
 

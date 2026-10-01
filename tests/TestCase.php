@@ -57,6 +57,8 @@ abstract class TestCase extends OrchestraTestCase
         ?string $restoreMode = null,
         bool $restoreTelemetry = false,
         ?float $nerThreshold = null,
+        ?string $nymModelDir = null,
+        ?int $nymIntraThreads = null,
     ): Gaze {
         $app = $this->applicationInstance();
 
@@ -93,6 +95,8 @@ abstract class TestCase extends OrchestraTestCase
                 restoreMode: $restoreMode,
                 restoreTelemetry: $restoreTelemetry,
                 nerThreshold: $nerThreshold,
+                nymModelDir: $nymModelDir,
+                nymIntraThreads: $nymIntraThreads,
             ),
             encrypter: $encrypter,
         );

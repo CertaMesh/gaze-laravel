@@ -7,9 +7,11 @@ namespace CertaMesh\Gaze\Console;
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Console\Concerns\RunsHealthProbes;
 use CertaMesh\Gaze\Exceptions\GazeException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
+use CertaMesh\Gaze\Install\NymBundle;
 use CertaMesh\Gaze\PolicyFile;
 use CertaMesh\Gaze\Queue\GazeRetryPolicy;
 use CertaMesh\Gaze\Queue\RetryAction;
@@ -19,6 +21,7 @@ use Devium\Toml\Toml;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Process\Factory as ProcessFactory;
+use Symfony\Component\Console\Formatter\OutputFormatter;
 
 final class DoctorCommand extends Command
 {
@@ -77,14 +80,25 @@ final class DoctorCommand extends Command
 
             return self::FAILURE;
         }
-        // Before the upstream-warning probe: an enabled Kiji backend makes
-        // its clean fail closed, which this reports as the real FAIL.
+        // Before the upstream-warning probe: a removed Kiji backend, a
+        // mis-spelled backend or a Nym bundle gaze refuses makes its clean
+        // fail closed, which these report as the real, specific FAIL.
         if (! $this->probeKijiRemoval($config)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
         }
-        if (! $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported)) {
+        if (! $this->probeSafetyNetBackend($config)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
+        if (! $this->probeNymBundle($config, $policy, $binary)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
+        if (! $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported, $binary)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
@@ -266,7 +280,7 @@ final class DoctorCommand extends Command
      * also covers the policy file, which upstream does not; gaze's own
      * core-extended line is dropped when that check already fired.
      */
-    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported): bool
+    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported, string $binary): bool
     {
         // clean() refuses a policy-level ephemeral scope before spawning, so
         // the probe cannot run. probeSessionScope() already reported it as a
@@ -287,6 +301,7 @@ final class DoctorCommand extends Command
             if ($fatal) {
                 $this->error("The gaze clean probe failed ({$e->getMessage()}).");
                 $this->line('Every Gaze::clean() fails the same way until this is fixed.');
+                $this->hintNymDigestMismatch($e, $config, $binary);
             } else {
                 $this->warn("The gaze clean probe failed ({$e->getMessage()}); using the static policy checks only.");
             }
@@ -423,6 +438,26 @@ final class DoctorCommand extends Command
         $this->warn('Set scope = "conversation" or "persistent", or override it with GAZE_SESSION_SCOPE.');
 
         return true;
+    }
+
+    /**
+     * The probe's clean is the first point a Nym bundle's SHA-256 digests are
+     * checked: probeNymBundle() mirrors every other rule and already passed,
+     * so a SafetyNetConfig refusal here most likely means a corrupt or partial
+     * download. Name it, since the probe's message cannot.
+     */
+    private function hintNymDigestMismatch(\Throwable $e, ConfigRepository $config, string $binary): void
+    {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        if (! $e instanceof GazeSafetyNetConfigException || ! $options->nymSelected()) {
+            return;
+        }
+
+        // Own short lines so the command survives console width-wrapping.
+        $this->warn('The Nym bundle passed the file checks, so gaze most likely refused its SHA-256 digests.');
+        $this->warn('Re-fetch it as the runtime user: '.NymBundle::setupCommand($binary, $options->nymModelDir));
     }
 
     /**
@@ -621,6 +656,160 @@ final class DoctorCommand extends Command
         $this->warn('Remove it (see UPGRADING.md); for a safety net, switch to nym.');
 
         return true;
+    }
+
+    /**
+     * Backend selector probe: FAILS when the enabled net selects a value
+     * gaze does not accept for `--safety-net-backend` — anything but exactly
+     * `openai-filter` or `nym` ({@see SafetyNetBackendGuard::ACCEPTED}).
+     * Upstream matches the value exactly, so `Nym` or a quoted `" nym"`
+     * fails every clean with a detail-less PolicyConfig, and the Nym probe
+     * below never runs for it (`nymSelected()` is exact for the same
+     * reason). `kiji-distilbert`, in any case, is left to
+     * {@see self::probeKijiRemoval()}, which runs first.
+     */
+    private function probeSafetyNetBackend(ConfigRepository $config): bool
+    {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        $backend = $options->safetyNetBackend;
+
+        if (! $options->safetyNet || $backend === null
+            || SafetyNetBackendGuard::isAccepted($backend) || SafetyNetBackendGuard::isRemoved($backend)) {
+            return true;
+        }
+
+        // Quoted, so stray whitespace shows.
+        $shown = OutputFormatter::escape("'{$backend}'");
+        $normalized = strtolower(trim($backend));
+        $hint = SafetyNetBackendGuard::isAccepted($normalized)
+            ? " Did you mean {$normalized}? gaze matches the value exactly: case and spaces count."
+            : '';
+
+        $this->components->twoColumnDetail('safety_net_backend', "<fg=red>unknown {$shown}</>");
+        $this->error(
+            "GAZE_SAFETY_NET_BACKEND={$shown} is not a backend gaze accepts, so every clean fails with PolicyConfig. "
+            .'Use nym or openai-filter.'.$hint
+        );
+
+        return false;
+    }
+
+    /**
+     * Nym bundle probe (gaze >= 0.15.0), active only while the enabled safety
+     * net selects `nym` — the state in which the adapter forwards
+     * `--safety-net-backend=nym` and the binary loads the bundle on every
+     * clean / daemon start.
+     *
+     * FAILS (P7 doctor-before-failure) when:
+     *  - `gaze.safety_net.nym.intra_threads` is not a positive integer, the
+     *    pre-flight every clean and daemon start applies
+     *    ({@see SafetyNetBackendGuard::assertNymIntraThreads()});
+     *  - no bundle directory is configured anywhere: not in
+     *    `gaze.safety_net.nym.model_dir`, not in a `GAZE_NYM_MODEL_DIR` the
+     *    process environment passes to gaze, not in the policy's
+     *    `[safety_net.nym] model_dir` — the binary then fails every clean
+     *    with SafetyNetConfig "nym model_dir is missing";
+     *  - `GAZE_NYM_MODEL_DIR` is set but empty: upstream uses it as is
+     *    (no fallback to the policy) and fails every clean with
+     *    SafetyNetArtifactMissing;
+     *  - the directory or a required file is missing, a path in it is a
+     *    symlink, a path is not owned by the effective uid, the directory is
+     *    not mode 0700, or a file is group/world-writable — the binary
+     *    refuses the bundle ({@see NymBundle}).
+     *
+     * The ownership checks hold for the user running doctor, which is often
+     * not the PHP-FPM pool / queue worker user that spawns gaze, so every
+     * result names the uid it was judged against and a failure tells the
+     * adopter to run doctor as that user. Without ext-posix the owner checks
+     * cannot run, so the row WARNs instead of claiming OK. The SHA-256
+     * digests are left to the binary (`--deep` exercises them).
+     */
+    private function probeNymBundle(ConfigRepository $config, string $policyPath, string $binary): bool
+    {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        if (! $options->nymSelected()) {
+            return true;
+        }
+
+        try {
+            SafetyNetBackendGuard::assertNymIntraThreads($options);
+        } catch (GazeSafetyNetConfigException $e) {
+            // The same refusal every clean and daemon start would hit.
+            $this->components->twoColumnDetail('nym intra_threads', '<fg=red>invalid</>');
+            $this->error($e->getMessage());
+
+            return false;
+        }
+
+        $bundle = $this->laravel->make(NymBundle::class);
+        $user = NymBundle::userLabel($bundle->effectiveUid());
+        $located = NymBundle::locate($options->nymModelDir, $policyPath);
+
+        if ($located === null) {
+            $this->components->twoColumnDetail('nym bundle', '<fg=red>not configured</>');
+            $this->error(
+                'GAZE_SAFETY_NET_BACKEND=nym, but no Nym bundle directory is configured: gaze fails every clean '
+                .'with "nym model_dir is missing". Set GAZE_NYM_MODEL_DIR (gaze.safety_net.nym.model_dir) '
+                ."or the policy's [safety_net.nym] model_dir."
+            );
+            $this->warn('Doctor sees only its own environment: a GAZE_NYM_MODEL_DIR set only in the worker\'s');
+            $this->warn('environment (PHP-FPM env[], systemd Environment=) is invisible here; move it to .env or the policy.');
+            // Own short lines so each command survives console width-wrapping.
+            $this->warn('Fetch the bundle as the PHP-FPM pool / queue worker user (replace www-data):');
+            $this->warn(NymBundle::setupCommand($binary));
+            $this->warn('Then: '.NymBundle::installCommand());
+
+            return false;
+        }
+
+        if ($located['dir'] === '') {
+            // Upstream takes a set-but-empty GAZE_NYM_MODEL_DIR as is and
+            // never reaches the policy, so this is a FAIL even when the
+            // policy names a valid bundle.
+            $this->components->twoColumnDetail('nym bundle', '<fg=red>GAZE_NYM_MODEL_DIR is empty</>');
+            $this->error(NymBundle::EMPTY_ENV);
+
+            return false;
+        }
+
+        $problems = $bundle->problems($located['dir']);
+        if ($problems === [] && ! $bundle->ownerChecked()) {
+            // WARN, exit unchanged: every other check passed, but gaze
+            // refuses a bundle its user does not own and that went unchecked.
+            $this->components->twoColumnDetail('nym bundle', '<fg=yellow>WARN</> owner not checked (ext-posix missing)');
+            $this->warn(
+                'Without ext-posix doctor cannot tell who owns the bundle. gaze refuses one that the user running it '
+                .'does not own, so check by hand: ls -lnaR '.escapeshellarg($located['dir'])
+            );
+
+            return true;
+        }
+        if ($problems === []) {
+            $this->components->twoColumnDetail('nym bundle', "<fg=green>OK</> for {$user}");
+
+            return true;
+        }
+
+        $this->components->twoColumnDetail('nym bundle', "<fg=red>refused for {$user}</>");
+        $this->error("gaze would refuse the Nym bundle at {$located['dir']} (from {$located['source']}):");
+        foreach ($problems as $problem) {
+            $this->line("  - {$problem}");
+        }
+        // Own short lines so each hint survives console width-wrapping.
+        $this->warn(
+            "These checks ran as {$user}. gaze enforces them for the user that runs it, so run doctor "
+            .'as the PHP-FPM pool user, e.g. sudo -u www-data php artisan gaze:doctor.'
+        );
+        $this->warn('Re-fetch the bundle as that user: '.NymBundle::setupCommand($binary, $located['dir']));
+        if (is_dir($located['dir'])) {
+            $this->warn('Or hand it to that user: '.NymBundle::chownCommand($located['dir']));
+        }
+
+        return false;
     }
 
     /**

@@ -190,6 +190,76 @@ it('prints a per-step summary table', function () {
     }
 });
 
+it('wires nym through the umbrella, forwarding --nym-model-dir to the safety-net step', function () {
+    Process::fake(['*' => Process::result(output: 'OK', exitCode: 0)]);
+    $env = ic_bindEnv("APP_ENV=testing\n");
+    $bundle = gl_makeNymBundle();
+
+    try {
+        $this->artisan('gaze:install', [
+            '--no-interaction' => true,
+            '--skip-binary' => true,
+            '--skip-ner' => true,
+            '--safety-net' => 'nym',
+            '--nym-model-dir' => $bundle,
+        ])->assertExitCode(0);
+
+        expect(file_get_contents($env))->toBe(
+            "APP_ENV=testing\nGAZE_SAFETY_NET=true\nGAZE_SAFETY_NET_BACKEND=nym\nGAZE_NYM_MODEL_DIR={$bundle}\n"
+        );
+    } finally {
+        gl_removeNymBundle($bundle);
+        ic_rmEnv($env);
+        ic_cleanPublished();
+    }
+});
+
+it('fails the umbrella and leaves .env untouched when the nym bundle would be refused', function () {
+    Process::fake(['*' => Process::result(output: 'OK', exitCode: 0)]);
+    $env = ic_bindEnv("APP_ENV=testing\n");
+    $bundle = gl_makeNymBundle();
+    chmod($bundle, 0755);
+
+    try {
+        $this->artisan('gaze:install', [
+            '--no-interaction' => true,
+            '--skip-binary' => true,
+            '--skip-ner' => true,
+            '--safety-net' => 'nym',
+            '--nym-model-dir' => $bundle,
+        ])
+            ->expectsOutputToContain('the directory mode is 0755; gaze requires exactly 0700')
+            ->assertExitCode(1);
+
+        expect(file_get_contents($env))->toBe("APP_ENV=testing\n")
+            ->and(is_file($env.'.backup'))->toBeFalse();
+    } finally {
+        gl_removeNymBundle($bundle);
+        ic_rmEnv($env);
+        ic_cleanPublished();
+    }
+});
+
+it('offers nym in the interactive safety-net choice', function () {
+    Process::fake(['*' => Process::result(output: 'OK', exitCode: 0)]);
+    $env = ic_bindEnv("APP_ENV=testing\n");
+
+    try {
+        $this->artisan('gaze:install --skip-binary --skip-ner --no-doctor')
+            ->expectsChoice('Configure a safety-net backend?', 'none', [
+                'none' => 'None',
+                'nym' => 'Nym-small (compiled into the release binary)',
+                'opf' => 'OpenAI privacy-filter (Tier 2, needs a safety-net-openai build)',
+            ])
+            ->assertExitCode(0);
+
+        expect(file_get_contents($env))->toBe("APP_ENV=testing\n");
+    } finally {
+        ic_rmEnv($env);
+        ic_cleanPublished();
+    }
+});
+
 it('rejects --safety-net=kiji up front, before any step runs or .env is touched', function () {
     Process::fake();
     $env = ic_bindEnv("APP_ENV=testing\n");
