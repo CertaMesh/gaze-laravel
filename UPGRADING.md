@@ -6,10 +6,12 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
-## v0.15.0 → v0.16.0 (Unreleased)
+## v0.15.0 → v0.16.0
 
-> Same gaze 0.15.1 pin, no re-install. MINOR: new config keys, an installer
-> backend and a doctor probe.
+> Same gaze 0.15.1 pin, no re-install, no policy edit. MINOR: new config keys,
+> an installer option, doctor probes and `LeakReport::hasResolvedSuspects()`.
+> Check items 1, 2 and 4 if queue jobs, log queries or alerts depend on the
+> old behaviour, and items 3 and 7 if a deploy step gates on `gaze:doctor`.
 
 ### TL;DR
 
@@ -109,6 +111,13 @@ upcoming release in full; per-minor guides for earlier versions live in
    `GazeSafetyNetConfigException` before gaze runs, and doctor fails on it.
    v0.15.0 had no such key and ignored the variable; a bad value now fails
    closed instead.
+10. **A policy-level `[session] scope = "ephemeral"` now fails fast too**
+    (#182). v0.15.0 refused only the `GAZE_SESSION_SCOPE=ephemeral` override;
+    an ephemeral scope in the policy still made every `clean()` fail with the
+    *retryable* `GazePipelineException`, so queue jobs retried forever. It now
+    throws the non-retryable `GazePolicyConfigDetailException` before gaze
+    runs. Set `scope = "conversation"` or `"persistent"`, or override it with
+    `GAZE_SESSION_SCOPE`. `Gaze::daemon()` is unaffected.
 
 ## v0.14.0 → v0.15.0
 

@@ -4,6 +4,20 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.15.0 → v0.16.0
+
+> **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
+> Same gaze 0.15.1 pin, no re-install. Nym is a first-class safety net
+> (`GAZE_NYM_MODEL_DIR`, `gaze:install:safety-net --safety-net=nym
+> --runtime-user=`), and `gaze:doctor` now fails on a bundle gaze would refuse,
+> a mis-spelled backend and a NonRetryable failure of its new clean probe, which
+> also shows gaze's own policy warnings. Queue jobs: safety-net failures get a
+> retry lane per real upstream variant (a one-shot `Runtime` now backs off;
+> daemon `SafetyNet*` errors no longer re-throw). Logs: daemon log context
+> carries `session_id_sha256` instead of the raw id, and exception traces no
+> longer record raw input. `coverageState()` reads amber, not red, for spans the
+> net protected. A policy-level `ephemeral` scope fails fast.
+
 ## v0.14.0 → v0.15.0
 
 > **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
