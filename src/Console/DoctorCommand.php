@@ -98,7 +98,7 @@ final class DoctorCommand extends Command
 
             return self::FAILURE;
         }
-        if (! $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported)) {
+        if (! $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported, $binary)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
@@ -280,7 +280,7 @@ final class DoctorCommand extends Command
      * also covers the policy file, which upstream does not; gaze's own
      * core-extended line is dropped when that check already fired.
      */
-    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported): bool
+    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported, string $binary): bool
     {
         // clean() refuses a policy-level ephemeral scope before spawning, so
         // the probe cannot run. probeSessionScope() already reported it as a
@@ -301,6 +301,7 @@ final class DoctorCommand extends Command
             if ($fatal) {
                 $this->error("The gaze clean probe failed ({$e->getMessage()}).");
                 $this->line('Every Gaze::clean() fails the same way until this is fixed.');
+                $this->hintNymDigestMismatch($e, $config, $binary);
             } else {
                 $this->warn("The gaze clean probe failed ({$e->getMessage()}); using the static policy checks only.");
             }
@@ -437,6 +438,26 @@ final class DoctorCommand extends Command
         $this->warn('Set scope = "conversation" or "persistent", or override it with GAZE_SESSION_SCOPE.');
 
         return true;
+    }
+
+    /**
+     * The probe's clean is the first point a Nym bundle's SHA-256 digests are
+     * checked: probeNymBundle() mirrors every other rule and already passed,
+     * so a SafetyNetConfig refusal here most likely means a corrupt or partial
+     * download. Name it, since the probe's message cannot.
+     */
+    private function hintNymDigestMismatch(\Throwable $e, ConfigRepository $config, string $binary): void
+    {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        if (! $e instanceof GazeSafetyNetConfigException || ! $options->nymSelected()) {
+            return;
+        }
+
+        // Own short lines so the command survives console width-wrapping.
+        $this->warn('The Nym bundle passed the file checks, so gaze most likely refused its SHA-256 digests.');
+        $this->warn('Re-fetch it as the runtime user: '.NymBundle::setupCommand($binary, $options->nymModelDir));
     }
 
     /**
@@ -735,6 +756,8 @@ final class DoctorCommand extends Command
                 .'with "nym model_dir is missing". Set GAZE_NYM_MODEL_DIR (gaze.safety_net.nym.model_dir) '
                 ."or the policy's [safety_net.nym] model_dir."
             );
+            $this->warn('Doctor sees only its own environment: a GAZE_NYM_MODEL_DIR set only in the worker\'s');
+            $this->warn('environment (PHP-FPM env[], systemd Environment=) is invisible here; move it to .env or the policy.');
             // Own short lines so each command survives console width-wrapping.
             $this->warn('Fetch the bundle as the PHP-FPM pool / queue worker user (replace www-data):');
             $this->warn(NymBundle::setupCommand($binary));

@@ -49,7 +49,27 @@ it('fails with the setup command when no bundle directory is configured anywhere
         )
         ->expectsOutputToContain('sudo -u www-data env XDG_DATA_HOME=/srv/gaze /fake/gaze setup --safety-net nym --non-interactive')
         ->expectsOutputToContain('Then: php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir=/srv/gaze/gaze/models/nym-small-int8 --runtime-user=www-data')
+        ->expectsOutputToContain('Doctor sees only its own environment')
         ->expectsOutputToContain('FAIL');
+});
+
+it('names a likely digest mismatch when the bundle passes the file checks but the probe clean is refused', function () {
+    $this->app['config']->set('gaze.nym_model_dir', $this->bundle);
+    // The binary checks the digests only when it loads the bundle: on the
+    // upstream-warning probe's clean (verbatim gaze 0.15.1 shape).
+    Process::fake(function ($process) {
+        if (in_array('clean', (array) $process->command, true)) {
+            return Process::result(output: '', errorOutput: '{"error":"SafetyNetConfig","exit":2,"detail":"nym bundle: safety net model integrity mismatch"}', exitCode: 2);
+        }
+
+        return Process::result(output: "gaze 0.15.1\n");
+    });
+
+    $this->artisan('gaze:doctor')
+        ->assertExitCode(1)
+        ->expectsOutputToContain('OK for '.NymBundle::userLabel(posix_geteuid()))
+        ->expectsOutputToContain('gaze most likely refused its SHA-256 digests')
+        ->expectsOutputToContain('Re-fetch it as the runtime user: '.NymBundle::setupCommand('/fake/gaze', $this->bundle));
 });
 
 it('passes a valid bundle and names the uid it was checked for', function () {
