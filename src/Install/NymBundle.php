@@ -16,8 +16,9 @@ use Devium\Toml\Toml;
  * Upstream verifies the bundle on every clean / daemon start and refuses it
  * on (gaze-recognizers `bundle.rs`, gaze-assembly `attach_nym_safety_net`):
  *
- *  - a missing directory or required file;
- *  - a symlink anywhere in the tree;
+ *  - a missing directory or required file, or a required file it cannot read;
+ *  - a symlink anywhere in the tree, or anything that is neither a regular
+ *    file nor a directory (a fifo, a socket);
  *  - any path not owned by the EFFECTIVE uid of the gaze process;
  *  - a directory whose mode is not exactly 0700;
  *  - a group- or world-writable file;
@@ -219,12 +220,27 @@ final class NymBundle
             return ['problems' => $problems, 'unread' => true];
         }
 
-        $missing = array_values(array_filter(
-            self::REQUIRED,
-            static fn (string $name): bool => ! is_file($dir.'/'.$name) || is_link($dir.'/'.$name),
-        ));
+        // Upstream reads every required file (a directory in its place reads
+        // as missing). A symlink or a fifo is left to the tree walk, which
+        // names it once.
+        $missing = [];
+        $unreadable = [];
+        foreach (self::REQUIRED as $name) {
+            $path = $dir.'/'.$name;
+            if (is_link($path)) {
+                continue;
+            }
+            if (! file_exists($path) || is_dir($path)) {
+                $missing[] = $name;
+            } elseif (is_file($path) && ! $this->readableFor($path, $euid)) {
+                $unreadable[] = sprintf('%s (%04o)', $name, (int) fileperms($path) & 0777);
+            }
+        }
         if ($missing !== []) {
             $problems[] = 'required files are missing: '.implode(', ', $missing);
+        }
+        if ($unreadable !== []) {
+            $problems[] = 'required files are not readable by '.self::userLabel($euid).': '.implode(', ', $unreadable);
         }
 
         return ['problems' => [...$problems, ...$this->treeProblems($dir, $euid)], 'unread' => false];
@@ -335,6 +351,7 @@ final class NymBundle
     private function treeProblems(string $dir, ?int $euid): array
     {
         $symlinks = [];
+        $special = [];
         $foreign = [];
         $looseDirs = [];
         $writable = [];
@@ -357,6 +374,11 @@ final class NymBundle
                 if ($euid !== null && $info->getOwner() !== $euid) {
                     $foreign[] = $relative;
                 }
+                if (! $info->isDir() && ! $info->isFile()) {
+                    $special[] = $relative; // fifo, socket, device
+
+                    continue;
+                }
 
                 $mode = $info->getPerms() & 0777;
                 if ($info->isDir() && $mode !== 0700) {
@@ -371,6 +393,7 @@ final class NymBundle
 
         // Directory order is filesystem-dependent; sort for stable messages.
         sort($symlinks);
+        sort($special);
         sort($foreign);
         sort($looseDirs);
         sort($writable);
@@ -378,6 +401,9 @@ final class NymBundle
         $problems = [];
         if ($symlinks !== []) {
             $problems[] = 'symlinks are not allowed: '.implode(', ', $symlinks);
+        }
+        if ($special !== []) {
+            $problems[] = 'only regular files and directories are allowed: '.implode(', ', $special);
         }
         if ($foreign !== []) {
             $problems[] = 'not owned by '.self::userLabel($euid).': '.implode(', ', $foreign);
@@ -390,6 +416,26 @@ final class NymBundle
         }
 
         return $problems;
+    }
+
+    /**
+     * Whether the user gaze runs as can read `$path`. When that user is this
+     * process, the kernel answers. When it is another user (the installer's
+     * `--runtime-user`, run as root say), every path must be owned by that
+     * user anyway, so the owner read bit decides; root reads any file.
+     */
+    private function readableFor(string $path, ?int $euid): bool
+    {
+        if ($euid === null || $euid === $this->processUid()) {
+            return is_readable($path);
+        }
+        if ($euid === 0) {
+            return true;
+        }
+
+        $perms = fileperms($path);
+
+        return $perms !== false && ($perms & 0400) !== 0;
     }
 
     /**

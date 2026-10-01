@@ -101,19 +101,66 @@ it('fails group- or world-writable files, symlinks and loose subdirectories', fu
     ]);
 });
 
-it('fails a required file that is a symlink', function () {
+it('fails a required file that is a symlink, naming it once', function () {
     $real = $this->bundle.'/../'.basename($this->bundle).'-tokenizer.json';
     rename($this->bundle.'/tokenizer.json', $real);
     symlink($real, $this->bundle.'/tokenizer.json');
 
     try {
         expect((new NymBundle)->problems($this->bundle))->toBe([
-            'required files are missing: tokenizer.json',
             'symlinks are not allowed: tokenizer.json',
         ]);
     } finally {
         @unlink($real);
     }
+});
+
+it('fails a fifo or other special file anywhere in the bundle (upstream: "must be a regular file or directory")', function () {
+    posix_mkfifo($this->bundle.'/pipe', 0600);
+    mkdir($this->bundle.'/sub', 0700);
+    chmod($this->bundle.'/sub', 0700);
+    posix_mkfifo($this->bundle.'/sub/pipe', 0600);
+
+    expect((new NymBundle)->problems($this->bundle))->toBe([
+        'only regular files and directories are allowed: pipe, sub/pipe',
+    ]);
+})->skip(! function_exists('posix_mkfifo'), 'ext-posix not available');
+
+it('fails a required file that is a fifo or a directory', function () {
+    unlink($this->bundle.'/config.json');
+    posix_mkfifo($this->bundle.'/config.json', 0600);
+    unlink($this->bundle.'/tokenizer.json');
+    mkdir($this->bundle.'/tokenizer.json', 0700);
+    chmod($this->bundle.'/tokenizer.json', 0700);
+
+    expect((new NymBundle)->problems($this->bundle))->toBe([
+        'required files are missing: tokenizer.json',
+        'only regular files and directories are allowed: config.json',
+    ]);
+})->skip(! function_exists('posix_mkfifo'), 'ext-posix not available');
+
+it('fails a required file the runtime user cannot read (upstream reads every one)', function () {
+    chmod($this->bundle.'/tokenizer.json', 0200);
+    chmod($this->bundle.'/config.json', 0000);
+
+    expect((new NymBundle)->problems($this->bundle))->toBe([
+        'required files are not readable by '.NymBundle::userLabel(posix_geteuid()).': config.json (0000), tokenizer.json (0200)',
+    ]);
+})->skip(! function_exists('posix_geteuid') || posix_geteuid() === 0, 'root reads 0200 files');
+
+it('judges a required file by its owner read bit when checking for another runtime user', function () {
+    // posix: false makes the process uid unknown, so the named uid is
+    // "another user": the kernel cannot answer for it, the mode bits do.
+    $owner = (int) fileowner($this->bundle);
+    chmod($this->bundle.'/tokenizer.json', 0400);
+    chmod($this->bundle.'/config.json', 0200);
+
+    expect((new NymBundle(euid: $owner, posix: false))->problems($this->bundle))->toBe([
+        'required files are not readable by '.NymBundle::userLabel($owner).': config.json (0200)',
+    ])
+        // Root reads any file.
+        ->and((new NymBundle(posix: false))->forUid(0)->inspect($this->bundle)['problems'])
+        ->not->toContain('required files are not readable by '.NymBundle::userLabel(0).': config.json (0200)');
 });
 
 it('fails a missing, relative, non-directory or symlinked bundle path', function () {
