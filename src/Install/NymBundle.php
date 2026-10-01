@@ -25,8 +25,9 @@ use Devium\Toml\Toml;
  *  - a SHA-256 mismatch against the pinned digests.
  *
  * This class mirrors every check except the digests. Hashing the 139 MB model
- * on each doctor run is the binary's job, and `gaze:doctor --deep` runs it. It
- * downloads nothing: `gaze setup --safety-net nym` owns the fetch.
+ * is the binary's job; it does so whenever it loads the bundle, which
+ * gaze:doctor's clean probe does on every run. It downloads nothing:
+ * `gaze setup --safety-net nym` owns the fetch.
  *
  * The owner checks compare against one uid: by default the uid of the PHP
  * process running the check. That process is often not the PHP-FPM pool or

@@ -110,8 +110,7 @@ any other state (exit 3, `safety-net backend options require
 inert. `intra_threads` must be a positive integer. `0`, a negative number or
 a value that is no integer (`1.5`, `abc`) fails closed before spawning with
 `GazeSafetyNetConfigException` (upstream would answer `0` with a detail-less
-`PolicyConfig`; the adapter used to cut `1.5` to `1`). `gaze:doctor` fails on
-it too.
+`PolicyConfig`). `gaze:doctor` fails on it too.
 
 The adapter passes the directory as a flag, so it survives
 `php artisan config:cache`. Before v0.16.0, short of editing the policy, the
@@ -146,7 +145,8 @@ counts as a directory: gaze takes the empty path, skips the policy, and fails
 with `GazeSafetyNetArtifactMissingException`. Through `Gaze::daemon()` they
 all surface as `GazeDaemonTransportException`: the daemon exits at startup,
 and its stderr goes to `gaze.daemon.stderr_path`. `gaze:doctor` catches all
-but the digest case before the first request.
+of them before the first request: the digest case through its clean probe,
+which loads the bundle the way every clean does.
 
 ### Nym bundle ownership
 
@@ -172,9 +172,9 @@ sudo chmod -R u+rwX,go-w /srv/gaze/gaze/models/nym-small-int8
 sudo find /srv/gaze/gaze/models/nym-small-int8 -type d -exec chmod 700 {} +
 ```
 
-`gaze:doctor` and the installer run every check except the digests (the binary
-verifies those; `gaze:doctor --deep` exercises them), but as the user that runs
-*them*. A deploy user's doctor run says nothing about the pool user, so run
+`gaze:doctor` and the installer mirror every check except the digests, which
+the binary verifies when it loads the bundle (doctor's clean probe does), but as
+the user that runs *them*. A deploy user's doctor run says nothing about the pool user, so run
 doctor as the runtime user. The installer can judge for that user instead
 (`--runtime-user`), but it cannot open a `0700` bundle of another user, so it
 leaves the files to doctor. Without ext-posix neither can check the owner:
@@ -362,7 +362,9 @@ Per-mode probe output:
   `nym bundle ... WARN owner not checked (ext-posix missing)`.
 
 - **OK** otherwise (`nym bundle ... OK for uid 33 (www-data)`). The SHA-256
-  digests are left to the binary; `--deep` exercises them.
+  digests are left to the binary. Doctor's upstream-warning probe runs one real
+  clean, so gaze checks them on every doctor run; a mismatch FAILs that row
+  with a re-fetch hint.
 
 It also checks the safety-net backend selector, for the upstream removal of
 Kiji (`probeKijiRemoval()`) and for values gaze does not accept:
@@ -401,9 +403,9 @@ Kiji (`probeKijiRemoval()`) and for values gaze does not accept:
   status ........................................................... FAIL
   ```
 
-- **Silent** otherwise. Doctor does not probe the OPF subprocess;
-  `gaze:doctor --deep` runs a real clean/restore round-trip through the
-  active backend.
+- **Silent** otherwise. Doctor has no OPF-specific row, but its
+  upstream-warning probe runs one real clean through the active backend, and
+  `gaze:doctor --deep` a clean/restore round-trip.
 
 ## Exception handling
 
@@ -540,8 +542,9 @@ fi
 This catches a missing or foreign-owned Nym bundle and the removed
 `kiji-distilbert` backend before the first user request hits a queue job
 that would otherwise dead-letter on `GazeSafetyNetConfigException`. Run it as
-the user your workers run as. Add `--deep` to also exercise the active
-backend (the Nym digests, a missing OPF binary) through a real round-trip.
+the user your workers run as. Its upstream-warning probe already runs one real
+clean through the active backend (the Nym digests, a missing OPF binary); add
+`--deep` for a full clean/restore round-trip.
 
 ## See also
 

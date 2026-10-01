@@ -122,7 +122,9 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
     `SafetyNetConfig` on them otherwise). The bundle directory now survives
     `php artisan config:cache`. An `intra_threads` that is not a positive
     integer (`0`, `-1`, `1.5`, `abc`) fails closed before spawning
-    (`GazeSafetyNetConfigException`) instead of being cut or dropped.
+    (`GazeSafetyNetConfigException`). A config published before v0.16.0 gets
+    the missing `nym` entry from the package default, so these env vars reach
+    it.
   - `gaze:install:safety-net --safety-net=nym [--nym-model-dir=]
     [--runtime-user=]` and `gaze:install --safety-net=nym [--nym-model-dir=]`:
     check the bundle before writing `.env` (required files present and
