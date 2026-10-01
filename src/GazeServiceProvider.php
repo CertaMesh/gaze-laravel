@@ -262,6 +262,14 @@ class GazeServiceProvider extends ServiceProvider
             'openai_filter_command' => $group['openai_filter']['command'] ?? null,
             'openai_filter_checkpoint' => $group['openai_filter']['checkpoint'] ?? null,
             'openai_filter_operating_point' => $group['openai_filter']['operating_point'] ?? null,
+            // Kiji was removed upstream in gaze 0.15.0 and nothing forwards
+            // these any more. They are back-filled only so gaze:doctor can
+            // still see a published config's leftover `safety_net.kiji.*`
+            // values (and warn) after the group is collapsed below.
+            'kiji_backend' => $group['kiji']['backend'] ?? null,
+            'kiji_distilbert_precision' => $group['kiji']['distilbert_precision'] ?? null,
+            'kiji_distilbert_command' => $group['kiji']['distilbert_command'] ?? null,
+            'kiji_distilbert_model_dir' => $group['kiji']['distilbert_model_dir'] ?? null,
         ];
 
         foreach ($flatFromNested as $flatKey => $value) {
