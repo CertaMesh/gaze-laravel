@@ -14,6 +14,16 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   network blocked passes; the live download stays behind
   `GAZE_LIVE_NER_SMOKE=1`.
 
+### Documentation
+
+- **MCP strict protection and the proxy dashboard re-adjudicated: both stay
+  deferred** (#165, #166). Neither the `mcp` nor the `dashboard` cargo feature
+  is in the release binaries the adapter installs, MCP server lifecycle is a
+  NORTH_STAR non-goal, and strict protection is a Rust embedding API rather than
+  a CLI contract. `docs/reference/upstream-coverage.md` records the reasoning and
+  the concrete promotion triggers.
+
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
