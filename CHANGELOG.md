@@ -35,9 +35,12 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   (upstream #641) that the adapter never surfaces, because it discards stderr
   on success. Upstream classifies a `preserve` default as a leak and switched
   its own `gaze setup` policy to `tokenize` (upstream #635). The explicit class
-  rules stay. Expect more tokens — notably whole URLs now come back as
-  `Custom:url` tokens and restore exactly. New integration tests pin both the
-  tokenize default and the absence of the upstream warning. **Published
+  rules stay. Expect more tokens — notably URLs now come back as `Custom:url`
+  tokens and restore exactly. Upstream's URL token runs to the next whitespace,
+  so in minified JSON it also covers the fields after a URL (restore stays
+  exact; UPGRADING.md shows the explicit-preserve opt-out and its trade-off).
+  New integration tests pin both the tokenize default and the absence of the
+  upstream warning. **Published
   policies do not update themselves — see UPGRADING.md.**
 
 ### Deprecated

@@ -129,15 +129,38 @@ If you published the policy into your app (`vendor:publish` or
 ```
 
 To keep a class readable on purpose, add an explicit class rule with
-`action = "preserve"` **above** the default. Check your copy directly against
-the pinned binary — no output means nothing is left raw:
+`action = "preserve"` **above** the default. Check your copy against the
+binary you run. It must be gaze ≥ 0.15.0 — older binaries never print the
+warning, so silence would prove nothing:
 
 ```bash
-echo probe | vendor/bin/gaze clean --policy=policy.toml --format=json 2>&1 >/dev/null | grep 'policy preserves'
+vendor/bin/gaze --version   # must report 0.15.0 or newer
+echo probe | vendor/bin/gaze clean --policy=/absolute/path/from/GAZE_POLICY_PATH --format=json 2>&1 >/dev/null
 ```
 
-Expect more tokens after the change: whole URLs become `Custom:url` tokens
-(they restore exactly), and the ID/date-of-birth classes above are tokenized.
+A `warning: policy preserves …` line means classes still leave raw. An
+`{"error":…}` line (e.g. `PolicyOpen` for a wrong path) means the probe did not
+run. No output means the policy sends no detected class through raw.
+
+Expect more tokens after the change: URLs become `Custom:url` tokens, and the
+ID/date-of-birth classes above are tokenized. Everything restores exactly. One
+side effect of upstream's URL recognizer: a URL token runs to the next
+whitespace, so in **minified JSON** (`json_encode()` without
+`JSON_PRETTY_PRINT`) it also swallows the JSON syntax and the fields after the
+URL up to the next space — the model no longer sees them, though restore is
+still exact. Pretty-print JSON the model has to read. If you would rather keep
+URLs readable, add an explicit rule above the default:
+
+```toml
+[[rule]]
+kind = "class"
+class = "custom:url"
+action = "preserve"
+```
+
+PII that other recognizers find inside a preserved URL (emails, IPs, …) is
+still tokenized on gaze ≥ 0.15, but anything only the URL recognizer would have
+covered (e.g. a name in a URL path) then reaches the model raw.
 
 ## v0.12.0 → v0.13.0
 
