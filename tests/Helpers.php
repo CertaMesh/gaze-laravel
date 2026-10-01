@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Install\NymBundle;
 use Composer\Composer;
 use Composer\Config;
 use Composer\IO\BufferIO;
@@ -127,4 +128,110 @@ function gl_jsonEncode(mixed $value, int $flags = 0): string
     }
 
     return $encoded;
+}
+
+/**
+ * A temp directory shaped like a pinned Nym bundle the way upstream
+ * `gaze setup --safety-net nym` leaves it: directory 0700, the four required
+ * files 0600, owned by the test user. The file contents are placeholders —
+ * the adapter-side checks never hash them (the binary does).
+ *
+ * @param  list<string>|null  $files  required files to create (default: all)
+ */
+function gl_makeNymBundle(?array $files = null): string
+{
+    $dir = sys_get_temp_dir().'/gaze-nym-'.bin2hex(random_bytes(6));
+    mkdir($dir, 0700);
+    chmod($dir, 0700);
+
+    foreach ($files ?? NymBundle::REQUIRED as $name) {
+        file_put_contents($dir.'/'.$name, "placeholder\n");
+        chmod($dir.'/'.$name, 0600);
+    }
+
+    return $dir;
+}
+
+/**
+ * Remove a bundle made by gl_makeNymBundle(), restoring the owner bits first
+ * so a test that chmod'ed it to 0000 cannot leave it behind.
+ */
+function gl_removeNymBundle(string $dir): void
+{
+    if (is_dir($dir) && ! is_link($dir)) {
+        @chmod($dir, 0700);
+    }
+
+    gl_recursiveRemove($dir);
+}
+
+/**
+ * A directory owned by another user, mode 0700, that this process cannot
+ * read — the shape of a www-data bundle seen by the deploy user: /root on
+ * Linux, /private/var/audit on macOS. Null when there is none (or the tests
+ * run as root).
+ */
+function gl_foreignPrivateDir(): ?string
+{
+    foreach (['/root', '/private/var/audit'] as $dir) {
+        clearstatcache();
+        if (is_dir($dir) && ! is_link($dir) && (fileperms($dir) & 0777) === 0700 && ! is_readable($dir)
+            && function_exists('posix_geteuid') && fileowner($dir) !== posix_geteuid()) {
+            return $dir;
+        }
+    }
+
+    return null;
+}
+
+/** {@see gl_foreignPrivateDir()} for a test already skipped without one. */
+function gl_requireForeignPrivateDir(): string
+{
+    return gl_foreignPrivateDir() ?? throw new RuntimeException('no 0700 directory of another user on this host');
+}
+
+/** The user name of `$uid`, via ext-posix. */
+function gl_userName(int $uid): string
+{
+    $entry = function_exists('posix_getpwuid') ? posix_getpwuid($uid) : false;
+
+    return is_array($entry) ? $entry['name'] : throw new RuntimeException("no user name for uid {$uid}");
+}
+
+/**
+ * Unset GAZE_NYM_MODEL_DIR for a test that needs it absent (it may be exported
+ * for the Nym integration suite) and return the previous state for
+ * gl_restoreNymEnv(). Covers getenv(), $_ENV and $_SERVER: the adapter reads
+ * $_ENV first, the way Symfony Process hands it to gaze.
+ *
+ * @return array{getenv: string|false, env: array<int, mixed>, server: array<int, mixed>}
+ */
+function gl_stashNymEnv(): array
+{
+    $previous = [
+        'getenv' => getenv('GAZE_NYM_MODEL_DIR'),
+        'env' => array_key_exists('GAZE_NYM_MODEL_DIR', $_ENV) ? [$_ENV['GAZE_NYM_MODEL_DIR']] : [],
+        'server' => array_key_exists('GAZE_NYM_MODEL_DIR', $_SERVER) ? [$_SERVER['GAZE_NYM_MODEL_DIR']] : [],
+    ];
+
+    putenv('GAZE_NYM_MODEL_DIR');
+    unset($_ENV['GAZE_NYM_MODEL_DIR'], $_SERVER['GAZE_NYM_MODEL_DIR']);
+
+    return $previous;
+}
+
+/**
+ * @param  array{getenv: string|false, env: array<int, mixed>, server: array<int, mixed>}  $previous
+ */
+function gl_restoreNymEnv(array $previous): void
+{
+    putenv($previous['getenv'] === false ? 'GAZE_NYM_MODEL_DIR' : 'GAZE_NYM_MODEL_DIR='.$previous['getenv']);
+
+    unset($_ENV['GAZE_NYM_MODEL_DIR'], $_SERVER['GAZE_NYM_MODEL_DIR']);
+    if ($previous['env'] !== []) {
+        $_ENV['GAZE_NYM_MODEL_DIR'] = $previous['env'][0];
+    }
+    if ($previous['server'] !== []) {
+        $_SERVER['GAZE_NYM_MODEL_DIR'] = $previous['server'][0];
+    }
 }

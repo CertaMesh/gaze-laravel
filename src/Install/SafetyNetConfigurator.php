@@ -31,7 +31,10 @@ final class SafetyNetConfigurator
      * Build the `.env` pairs for a safety-net backend.
      *
      * `opf` (openai-filter) is a LOCAL subprocess — the command + checkpoint are
-     * filesystem paths — NOT an OpenAI API key. `kiji` is gone (removed
+     * filesystem paths — NOT an OpenAI API key. `nym` runs inside the gaze
+     * binary; its bundle directory is optional here because the policy's
+     * `[safety_net.nym] model_dir` can name it instead. The caller validates
+     * the bundle ({@see NymBundle}) before writing. `kiji` is gone (removed
      * upstream in gaze 0.15.0) and throws like any other unknown backend.
      *
      * @return array<string, string>
@@ -40,6 +43,7 @@ final class SafetyNetConfigurator
         string $backend,
         ?string $opfCommand = null,
         ?string $opfCheckpoint = null,
+        ?string $nymModelDir = null,
     ): array {
         return match ($backend) {
             'opf' => self::nonEmpty([
@@ -47,6 +51,11 @@ final class SafetyNetConfigurator
                 'GAZE_SAFETY_NET_BACKEND' => 'openai-filter',
                 'GAZE_OPENAI_FILTER_COMMAND' => $opfCommand,
                 'GAZE_OPENAI_FILTER_CHECKPOINT' => $opfCheckpoint,
+            ]),
+            'nym' => self::nonEmpty([
+                'GAZE_SAFETY_NET' => 'true',
+                'GAZE_SAFETY_NET_BACKEND' => 'nym',
+                'GAZE_NYM_MODEL_DIR' => $nymModelDir,
             ]),
             default => throw new \InvalidArgumentException("unknown safety-net backend: {$backend}"),
         };
@@ -124,7 +133,7 @@ final class SafetyNetConfigurator
     {
         $lines = [];
         foreach ($pairs as $key => $value) {
-            $lines[] = $key.'='.(self::isSensitiveKey($key) ? '***redacted***' : $value);
+            $lines[] = $key.'='.(self::isSensitiveKey($key) ? '***redacted***' : self::envValue($value));
         }
 
         return implode("\n", $lines);
@@ -142,7 +151,7 @@ final class SafetyNetConfigurator
     private function upsert(string $content, array $pairs): string
     {
         foreach ($pairs as $key => $value) {
-            $line = $key.'='.$value;
+            $line = $key.'='.self::envValue($value);
             $pattern = '/^'.preg_quote($key, '/').'=.*$/m';
 
             if (preg_match($pattern, $content) === 1) {
@@ -159,6 +168,26 @@ final class SafetyNetConfigurator
         }
 
         return $content;
+    }
+
+    /**
+     * Render a value so `.env` parses it back verbatim. Plain values (every
+     * value written before paths were accepted) stay unquoted; anything with
+     * whitespace, `#`, quotes or `$` — e.g. a macOS
+     * `Application Support` bundle path — is quoted, because an unquoted
+     * space makes phpdotenv fail and takes the whole app down at boot.
+     */
+    private static function envValue(string $value): string
+    {
+        if (preg_match('#^[A-Za-z0-9_./:@%+,=-]*$#', $value) === 1) {
+            return $value;
+        }
+
+        if (! str_contains($value, "'")) {
+            return "'".$value."'"; // single quotes are literal in phpdotenv
+        }
+
+        return '"'.addcslashes($value, '\\"$').'"';
     }
 
     /**

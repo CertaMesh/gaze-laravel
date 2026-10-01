@@ -97,8 +97,8 @@ finer control:
 - `gaze:install:binary` — install the pinned gaze binary into `vendor/bin/`.
 - `gaze:install:ner` — download the pinned ONNX NER model and wire `policy.toml`
   (legacy alias: `gaze:install-ner`).
-- `gaze:install:safety-net` — wire the `opf` backend into `.env` (the Kiji
-  backend was removed upstream in gaze 0.15.0).
+- `gaze:install:safety-net` — wire the `nym` or `opf` backend into `.env` (the
+  Kiji backend was removed upstream in gaze 0.15.0).
 
 ### Automating the binary install (optional)
 

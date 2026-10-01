@@ -166,3 +166,79 @@ it('falls back to flat keys for values the nested group leaves null', function (
         ->and($options->safetyNetMode)->toBe('tolerant')
         ->and($options->safetyNetFallback)->toBe('redact');
 });
+
+it('reads the nested nym group and coerces env-shaped strings', function () {
+    $options = GazeOptions::fromConfig([
+        'safety_net' => [
+            'enabled' => 'true',
+            'backend' => 'nym',
+            'nym' => ['model_dir' => '/srv/nym', 'intra_threads' => '4'],
+        ],
+    ]);
+
+    expect($options->nymModelDir)->toBe('/srv/nym')
+        ->and($options->nymIntraThreads)->toBe(4)
+        ->and($options->nymSelected())->toBeTrue();
+});
+
+it('reads the provider back-filled flat nym keys, with the nested group winning', function () {
+    $flat = GazeOptions::fromConfig(['nym_model_dir' => '/srv/flat', 'nym_intra_threads' => 2]);
+    $both = GazeOptions::fromConfig([
+        'safety_net' => ['enabled' => true, 'nym' => ['model_dir' => '/srv/nested', 'intra_threads' => null]],
+        'nym_model_dir' => '/srv/flat',
+        'nym_intra_threads' => 2,
+    ]);
+
+    expect($flat->nymModelDir)->toBe('/srv/flat')
+        ->and($flat->nymIntraThreads)->toBe(2)
+        ->and($both->nymModelDir)->toBe('/srv/nested')
+        ->and($both->nymIntraThreads)->toBe(2);
+});
+
+it('defaults the nym knobs to null and treats empty env strings as unset', function () {
+    $options = GazeOptions::fromConfig(['safety_net' => ['nym' => ['model_dir' => '', 'intra_threads' => '']]]);
+
+    expect(GazeOptions::fromConfig([])->nymModelDir)->toBeNull()
+        ->and(GazeOptions::fromConfig([])->nymIntraThreads)->toBeNull()
+        ->and($options->nymModelDir)->toBeNull()
+        ->and($options->nymIntraThreads)->toBeNull();
+});
+
+it('selects nym only for an enabled net with the exact nym backend', function (bool $enabled, ?string $backend, bool $selected) {
+    expect((new GazeOptions(safetyNet: $enabled, safetyNetBackend: $backend))->nymSelected())->toBe($selected);
+})->with([
+    'enabled nym' => [true, 'nym', true],
+    'disabled nym' => [false, 'nym', false],
+    'enabled openai-filter' => [true, 'openai-filter', false],
+    'enabled default backend' => [true, null, false],
+    'mis-cased (upstream rejects it)' => [true, 'Nym', false],
+]);
+
+it('appends the nym properties after every existing constructor parameter (positional BC)', function () {
+    $parameters = array_map(
+        fn (ReflectionParameter $parameter): string => $parameter->getName(),
+        (new ReflectionMethod(GazeOptions::class, '__construct'))->getParameters(),
+    );
+
+    expect(array_slice($parameters, -4))->toBe(['nerThreshold', 'nymModelDir', 'nymIntraThreads', 'invalidNymIntraThreads']);
+});
+
+it('reads intra_threads strictly: integers only, anything else kept for the guard to name', function (mixed $value, ?int $threads, ?string $invalid) {
+    $options = GazeOptions::fromConfig(['safety_net' => ['nym' => ['intra_threads' => $value]]]);
+
+    expect($options->nymIntraThreads)->toBe($threads)
+        ->and($options->invalidNymIntraThreads)->toBe($invalid);
+})->with([
+    'int' => [2, 2, null],
+    'digit string' => ['4', 4, null],
+    'signed digit string' => ['-1', -1, null],
+    'padded digit string' => [' 3 ', 3, null],
+    'unset' => [null, null, null],
+    'empty env string' => ['', null, null],
+    'decimal string' => ['1.5', null, "'1.5'"],
+    'float' => [2.0, null, '2.0'],
+    'word' => ['abc', null, "'abc'"],
+    'exponent' => ['1e3', null, "'1e3'"],
+    'bool' => [true, null, 'true'],
+    'array' => [[2], null, 'array'],
+]);

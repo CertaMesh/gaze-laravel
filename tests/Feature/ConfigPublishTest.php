@@ -49,9 +49,14 @@ it('publishes config to application config path', function () {
             'mode',
             'fallback',
             'openai_filter',
+            'nym',
         ]);
     expect($published['safety_net']['openai_filter'])->toBeArray()
         ->toHaveKeys(['command', 'checkpoint', 'operating_point']);
+    // Nym (gaze >= 0.15.0) — nested only; the flat nym_* mirrors are
+    // provider-internal back-fills and never ship as root keys.
+    expect($published['safety_net']['nym'])->toBeArray()
+        ->toHaveKeys(['model_dir', 'intra_threads']);
     // Kiji DistilBERT was removed upstream in gaze 0.15.0 — no group, no keys.
     expect($published['safety_net'])->not->toHaveKey('kiji');
     expect($published['daemon'])->not->toHaveKey('kiji_distilbert_locales');
@@ -69,6 +74,8 @@ it('publishes config to application config path', function () {
         'kiji_distilbert_precision',
         'kiji_distilbert_command',
         'kiji_distilbert_model_dir',
+        'nym_model_dir',
+        'nym_intra_threads',
     ] as $deprecatedFlatKey) {
         expect($published)->not->toHaveKey($deprecatedFlatKey);
     }

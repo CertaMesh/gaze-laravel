@@ -112,8 +112,12 @@ are ignored, and `gaze:doctor` warns about them). An enabled safety net with
 `GAZE_SAFETY_NET_BACKEND=kiji-distilbert` fails closed before either spawn
 path starts the daemon (`GazeSafetyNetConfigException`; `gaze:daemon:serve`
 prints it and exits 1). See
-[SafetyNet → Kiji was removed upstream](./safety-net.md#kiji-was-removed-upstream-in-gaze-0150)
-for the move to Nym.
+[SafetyNet → Quick start (Nym)](./safety-net.md#quick-start-nym) for the move
+to Nym. Its `gaze.safety_net.nym.*` keys (`GAZE_NYM_MODEL_DIR`,
+`GAZE_NYM_INTRA_THREADS`) reach both daemon spawn paths, only while the
+enabled net selects `nym`. The daemon loads the model once at startup, which
+is why it suits Nym far better than one-shot `Gaze::clean()` (about 2 s per
+call).
 
 Safety-net artifact paths and backend selectors are **config-only** —
 mirroring the one-shot posture that artifacts are deployment config, not
@@ -148,8 +152,10 @@ GAZE_DAEMON_SESSION_CAP=500 \
 GAZE_DAEMON_SESSION_IDLE_TIMEOUT_S=900 \
 GAZE_SAFETY_NET=true \
 GAZE_SAFETY_NET_BACKEND=nym \
+GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8 \
 php artisan gaze:daemon:serve
-# The Nym bundle directory lives in the policy: [safety_net.nym] model_dir.
+# GAZE_NYM_MODEL_DIR is forwarded as --nym-model-dir; the policy's
+# [safety_net.nym] model_dir works too.
 
 # Ad-hoc override of the operational knobs (timeouts, caps, locale,
 # NER threshold). CLI options win over config.

@@ -252,6 +252,17 @@ class GazeServiceProvider extends ServiceProvider
             return;
         }
 
+        // mergeConfigFrom() merges top-level keys only, so a config/gaze.php
+        // published by an older release keeps its old safety_net group: one
+        // from before v0.16.0 has no `nym` entry, and GAZE_NYM_* would never
+        // reach the runtime config (under config:cache gaze then fails every
+        // Nym clean). Fill entries the published group lacks from the package
+        // default; this runs while config:cache builds, so they are cached.
+        $defaults = require __DIR__.'/../config/gaze.php';
+        if (is_array($defaults) && is_array($defaults['safety_net'] ?? null)) {
+            $group += $defaults['safety_net'];
+        }
+
         $flatFromNested = [
             'safety_net_backend' => $group['backend'] ?? null,
             'safety_net_device' => $group['device'] ?? null,
@@ -262,6 +273,11 @@ class GazeServiceProvider extends ServiceProvider
             'openai_filter_command' => $group['openai_filter']['command'] ?? null,
             'openai_filter_checkpoint' => $group['openai_filter']['checkpoint'] ?? null,
             'openai_filter_operating_point' => $group['openai_filter']['operating_point'] ?? null,
+            // Never published as root keys: these mirrors exist only so the
+            // Nym knobs survive the collapse below (DaemonArgv and gaze:doctor
+            // read the runtime config through GazeOptions).
+            'nym_model_dir' => $group['nym']['model_dir'] ?? null,
+            'nym_intra_threads' => $group['nym']['intra_threads'] ?? null,
             // Kiji was removed upstream in gaze 0.15.0 and nothing forwards
             // these any more. They are back-filled only so gaze:doctor can
             // still see a published config's leftover `safety_net.kiji.*`

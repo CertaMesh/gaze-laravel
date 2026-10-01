@@ -34,7 +34,8 @@ final class InstallCommand extends Command
         {--skip-binary : Do not install the gaze binary}
         {--skip-ner : Do not install the NER model (~184 MB)}
         {--skip-safety-net : Do not configure a safety-net backend}
-        {--safety-net= : Safety-net backend non-interactively: opf|none}
+        {--safety-net= : Safety-net backend non-interactively: nym|opf|none}
+        {--nym-model-dir= : Nym bundle directory, forwarded to gaze:install:safety-net (nym backend only)}
         {--ner-variant=int8 : NER quantization variant forwarded to gaze:install:ner}
         {--ner-locale= : BCP47 locale forwarded to gaze:install:ner}
         {--no-doctor : Skip the final gaze:doctor green-check}';
@@ -124,6 +125,10 @@ final class InstallCommand extends Command
                 $summary['safety-net'] = 'SKIP';
             } else {
                 $args = ['--safety-net' => $backend];
+                $nymModelDir = $this->stringOption('nym-model-dir');
+                if ($backend === 'nym' && $nymModelDir !== null) {
+                    $args['--nym-model-dir'] = $nymModelDir;
+                }
                 if ($force) {
                     $args['--force'] = true;
                 }
@@ -172,7 +177,8 @@ final class InstallCommand extends Command
 
         $choice = $this->choice('Configure a safety-net backend?', [
             'none' => 'None',
-            'opf' => 'OpenAI privacy-filter (Tier 2)',
+            'nym' => 'Nym-small (compiled into the release binary)',
+            'opf' => 'OpenAI privacy-filter (Tier 2, needs a safety-net-openai build)',
         ], 'none');
 
         return is_string($choice) ? $choice : 'none';
@@ -180,7 +186,7 @@ final class InstallCommand extends Command
 
     private function runDoctorGate(Application $app, ProcessFactory $process): bool
     {
-        // A subprocess boots a fresh kernel that re-reads .env, so an opf
+        // A subprocess boots a fresh kernel that re-reads .env, so a nym / opf
         // wiring written moments ago is actually reflected (CB4).
         $result = $process->newPendingProcess()
             ->path($app->basePath())
