@@ -4,6 +4,35 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Added
+
+- **`GazeSafetyNetUsageException` for upstream's new `SafetyNetUsage` error
+  variant** (gaze >= 0.15.0, exit 2). The binary now rejects contradictory
+  safety-net flag combinations — `--safety-net-backend` without exactly one
+  `--safety-net`, `--safety-net none` combined with another selection,
+  `--safety-net-registry` combined with `--safety-net` — with
+  `{"error":"SafetyNetUsage","exit":2,"detail":"…"}`. Without the case the
+  adapter fell back to the exit-2 default and threw a misleading
+  `GazePolicyConfigException`. The new class extends
+  `GazePolicyConfigException` (so existing config catch blocks keep matching),
+  is `NonRetryable`, and exposes the fixed upstream usage message via
+  `detail()`. The variant contract fixture (`VariantContractTest`) is re-pinned
+  from v0.8.1 to the v0.15.1 `error.rs`, including the exit-2 `SafetyNetConfig`
+  shape upstream now emits for Nym bundle/policy setup errors and
+  `PolicySchemaUnsupported.supported = "0.1."`.
+
+### Deprecated
+
+- **`Variant::UnsupportedSessionScope` / `GazeUnsupportedSessionScopeException`.**
+  Upstream deleted the variant in gaze 0.15.0 (#618). The adapter never reached
+  it before that either: upstream only emitted it on the no-policy `gaze clean`
+  path, and the adapter always passes `--policy`. An invalid
+  `GAZE_SESSION_SCOPE` surfaces as `GazePolicyConfigDetailException`
+  (`session.scope must be one of ephemeral, conversation, persistent, got …`)
+  on every binary since the 0.12.0 pin — the configuration reference wrongly
+  promised the session-scope exception and is corrected. The case and class stay
+  until 1.0 so referencing code keeps compiling.
+
 ## [0.13.0] - 2026-07-06
 
 ### Changed (BREAKING)
