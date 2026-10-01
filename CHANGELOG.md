@@ -4,6 +4,19 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Security
+
+- **Raw input no longer leaks into exception stack traces** (#195). With
+  `zend.exception_ignore_args=Off` (PHP's development default), every Gaze
+  exception thrown from `clean()` / `mask()` / `restore()` or the daemon path
+  recorded the start of the raw input text — and of response lines holding
+  `entries[].raw`, plaintext session blobs and adopter session ids — as call
+  arguments, which `getTraceAsString()`, Laravel's log and error trackers
+  print. Those parameters are now `#[\SensitiveParameter]` (PHP 8.2+), so PHP
+  records `SensitiveParameterValue` instead. A reflection test pins every
+  marked parameter; behaviour tests prove the trace of a failing clean and a
+  daemon failure carries neither the text nor the session id.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it

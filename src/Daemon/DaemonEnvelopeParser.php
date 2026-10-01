@@ -16,7 +16,7 @@ use CertaMesh\Gaze\Exceptions\GazeDaemonException;
  */
 final class DaemonEnvelopeParser
 {
-    public static function parse(string $line, ?string $expectedSessionId = null): CleanResponse|GazeDaemonException
+    public static function parse(#[\SensitiveParameter] string $line, #[\SensitiveParameter] ?string $expectedSessionId = null): CleanResponse|GazeDaemonException
     {
         try {
             $decoded = json_decode($line, true, 512, JSON_THROW_ON_ERROR);
@@ -49,7 +49,7 @@ final class DaemonEnvelopeParser
     /**
      * @param  array<string, mixed>  $decoded
      */
-    private static function buildErrorException(array $decoded): GazeDaemonException
+    private static function buildErrorException(#[\SensitiveParameter] array $decoded): GazeDaemonException
     {
         $wire = is_string($decoded['error'] ?? null) ? (string) $decoded['error'] : '';
         $variant = DaemonErrorVariant::fromWire($wire);

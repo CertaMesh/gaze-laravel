@@ -131,7 +131,7 @@ final class DaemonClient implements DaemonClientContract
         ];
     }
 
-    public function request(string $sessionId, string $text): CleanResponse
+    public function request(#[\SensitiveParameter] string $sessionId, #[\SensitiveParameter] string $text): CleanResponse
     {
         if ($this->busy) {
             throw new GazeDaemonTransportException(
@@ -244,7 +244,7 @@ final class DaemonClient implements DaemonClientContract
      * closed with GazeDaemonTimeoutException. Exceptions never carry
      * payload text (PII discipline).
      */
-    private function writeRequest(string $payload, string $sessionId): void
+    private function writeRequest(#[\SensitiveParameter] string $payload, #[\SensitiveParameter] string $sessionId): void
     {
         $stdin = $this->stdin;
         if (! is_resource($stdin)) {
@@ -316,7 +316,7 @@ final class DaemonClient implements DaemonClientContract
      * Read one newline-terminated JSON line, honouring the per-request
      * millisecond deadline. Throws on EOF (fail-closed) or timeout.
      */
-    private function readLine(string $sessionId): string
+    private function readLine(#[\SensitiveParameter] string $sessionId): string
     {
         $stdout = $this->stdout;
         if (! is_resource($stdout)) {

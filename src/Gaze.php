@@ -59,7 +59,7 @@ class Gaze implements AuditRunner, GazeContract
         $this->restoreTelemetry = $options->restoreTelemetry;
     }
 
-    public function clean(string $text, ?float $threshold = null): GazeSession
+    public function clean(#[\SensitiveParameter] string $text, ?float $threshold = null): GazeSession
     {
         $this->assertInput($text);
 
@@ -175,7 +175,7 @@ class Gaze implements AuditRunner, GazeContract
      *
      * @param  (callable(Entry): string)|null  $replace
      */
-    public function mask(string $text, ?callable $replace = null): string
+    public function mask(#[\SensitiveParameter] string $text, ?callable $replace = null): string
     {
         $session = $this->clean($text);
 
@@ -216,7 +216,7 @@ class Gaze implements AuditRunner, GazeContract
      *
      * @return list<Entry>
      */
-    private function mapEntries(mixed $raw): array
+    private function mapEntries(#[\SensitiveParameter] mixed $raw): array
     {
         if (! is_array($raw)) {
             return [];
@@ -232,7 +232,7 @@ class Gaze implements AuditRunner, GazeContract
         return $entries;
     }
 
-    public function restore(GazeSession $session, string $text): string
+    public function restore(GazeSession $session, #[\SensitiveParameter] string $text): string
     {
         $this->assertInput($text);
 
@@ -367,7 +367,7 @@ class Gaze implements AuditRunner, GazeContract
     /**
      * @return array<string, mixed>
      */
-    private function decodeResponse(string $output, string $stage): array
+    private function decodeResponse(#[\SensitiveParameter] string $output, string $stage): array
     {
         try {
             /** @var array<string, mixed> $decoded */
@@ -401,7 +401,7 @@ class Gaze implements AuditRunner, GazeContract
     /**
      * @param  list<string>  $command
      */
-    private function run(array $command, string $input, string $stage): ProcessResult
+    private function run(array $command, #[\SensitiveParameter] string $input, string $stage): ProcessResult
     {
         try {
             $result = $this->process
@@ -428,7 +428,7 @@ class Gaze implements AuditRunner, GazeContract
         throw $this->buildException($stage, $result);
     }
 
-    private function assertInput(string $text): void
+    private function assertInput(#[\SensitiveParameter] string $text): void
     {
         if (! mb_check_encoding($text, 'UTF-8')) {
             throw new GazeInvalidEncodingException('gaze input is not valid UTF-8', 1, null);
@@ -441,7 +441,7 @@ class Gaze implements AuditRunner, GazeContract
         }
     }
 
-    private function assertInputSize(string $input): void
+    private function assertInputSize(#[\SensitiveParameter] string $input): void
     {
         if (strlen($input) > ($this->maxBytes ?? self::DEFAULT_MAX_BYTES)) {
             throw new GazeInputTooLargeException('gaze input exceeds max_bytes pre-flight', 1, null);

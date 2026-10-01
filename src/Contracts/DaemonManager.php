@@ -26,7 +26,7 @@ interface DaemonManager
     /**
      * One-shot hot path: clean $text within $sessionId.
      */
-    public function clean(string $sessionId, string $text): CleanResponse;
+    public function clean(#[\SensitiveParameter] string $sessionId, #[\SensitiveParameter] string $text): CleanResponse;
 
     /**
      * The underlying daemon stdio client.

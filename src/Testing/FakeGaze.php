@@ -190,7 +190,7 @@ final class FakeGaze implements GazeContract
         return $this->daemonManager;
     }
 
-    public function clean(string $text, ?float $threshold = null): GazeSession
+    public function clean(#[\SensitiveParameter] string $text, ?float $threshold = null): GazeSession
     {
         $this->cleanCalls[] = ['text' => $text, 'threshold' => $threshold];
 
@@ -223,7 +223,7 @@ final class FakeGaze implements GazeContract
      *
      * @param  (callable(Entry): string)|null  $replace
      */
-    public function mask(string $text, ?callable $replace = null): string
+    public function mask(#[\SensitiveParameter] string $text, ?callable $replace = null): string
     {
         $this->maskCalls[] = ['text' => $text];
 
@@ -246,7 +246,7 @@ final class FakeGaze implements GazeContract
         return $masked;
     }
 
-    public function restore(GazeSession $session, string $text): string
+    public function restore(GazeSession $session, #[\SensitiveParameter] string $text): string
     {
         $this->restoreCalls[] = ['text' => $text, 'clean_text' => $session->cleanText];
 

@@ -15,6 +15,19 @@ This page expands the security model from the [README](../../README.md). It desc
 - Audit DB access control: `GAZE_AUDIT_DB_PATH` points to a SQLite file — OS-level file permissions apply.
 - GDPR, DSGVO, or HIPAA compliance: the adapter is designed to support pseudonymization per GDPR Art. 4(5) and related frameworks, but compliance depends on your full data processing context, not this library alone.
 
+## Raw input never reaches stack traces
+
+With `zend.exception_ignore_args=Off` (PHP's development default, and common in
+containers) PHP keeps call arguments in exception traces, and Laravel's handler
+and error trackers (Flare, Sentry) log them. Every adapter parameter that
+carries raw input text, a binary response holding `entries[].raw`, a plaintext
+session blob or an adopter session id is marked `#[\SensitiveParameter]`, so it
+is recorded as `SensitiveParameterValue` instead of its value (#195). Exception
+messages and `toLogContext()` never carry input text either; they log hashes.
+Your own code that passes raw text around before calling `Gaze::clean()` is not
+covered — mark it the same way, or run production with
+`zend.exception_ignore_args=On`.
+
 ## Trust state: a count is not a verification
 
 `Gaze::clean()` returns a `GazeSession` carrying a detection count
