@@ -31,8 +31,8 @@ trust state rather than letting callers reverse-engineer safety from a number:
 
 - **`$session->coverageState()`** returns a `CoverageState` — `Verified` (green),
   `Unverified` (amber), or `Suspect` (red).
-- **`$session->hasSuspectedLeak()`** is `true` only when upstream's observer-only
-  safety net actively flagged a span that may still carry raw PII.
+- **`$session->hasSuspectedLeak()`** is `true` only when a span upstream's
+  safety net flagged may still carry raw PII in `cleanText`.
 
 The resolution is deliberately conservative:
 
@@ -40,12 +40,19 @@ The resolution is deliberately conservative:
   an upstream verification, not a detection tally.
 - **`Unverified`** is the default whenever coverage is partial **or** there is no
   `leak_report` to back a green at all. Absence of evidence is treated as
-  *unverified*, never as *verified*. Show amber, not green.
-- **`Suspect`** wins over everything when the safety net flags a possible leak.
+  *unverified*, never as *verified*. Show amber, not green. Spans the safety net
+  flagged and the default `resolve` mode tokenized (or `redact` replaced with a
+  `[REDACTED:<class>]` marker) are amber too: the primary pass missed them, and
+  `$session->leakReport->hasResolvedSuspects()` says the net covered them.
+- **`Suspect`** wins over everything when a flagged span may have stayed raw:
+  under `tolerant`, or when upstream reports a suspect no stage acted on.
 
-Drive your UI and gating off `coverageState()` / `hasSuspectedLeak()`, not off
-`detections`. The `LeakReport` is metadata only — it never carries source text or
-byte offsets — so it is safe to log, serialise, or surface to operators. See the
+The safety-net report lists what the net *found*, not what is still raw; the
+adapter reads it together with the `safety_net_mode` / `safety_net_fallback` it
+forwarded. Drive your UI and gating off `coverageState()` /
+`hasSuspectedLeak()`, not off `detections` or `suspectCount`. The `LeakReport`
+is metadata only — it never carries source text or byte offsets — so it is safe
+to log, serialise, or surface to operators. See the
 [upstream-coverage reference](../reference/upstream-coverage.md#clean-leak-report--trust-state-v011x)
-for the field-level shape and the stock-binary caveat (the red `Suspect` state
-requires a safety-net-enabled build).
+for the field-level shape and the per-mode table. The stock release binary has
+carried the Nym safety net since gaze 0.15.0.

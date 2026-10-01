@@ -282,6 +282,16 @@ Or with a specific binary path:
 GAZE_BINARY=/usr/local/bin/gaze ./vendor/bin/pest tests/Integration/
 ```
 
+The safety-net trust-state tests (`tests/Integration/NymLeakReportTest.php`)
+also need a Nym-small bundle from `gaze setup --safety-net nym`, owned by the
+user running the tests, directory mode `0700`. They skip without it:
+
+```bash
+GAZE_BINARY=/usr/local/bin/gaze \
+GAZE_TEST_NYM_MODEL_DIR="$HOME/.local/share/gaze/models/nym-small-int8" \
+  ./vendor/bin/pest tests/Integration/NymLeakReportTest.php
+```
+
 ### Contract snapshot tests
 
 Snapshot tests under `tests/Contract/` pin the binary's `--help` output and variant contract. They guard against unintentional binary API changes:

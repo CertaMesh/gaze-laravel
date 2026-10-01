@@ -6,6 +6,24 @@ upcoming release in full; per-minor guides for earlier versions live in
 [CHANGELOG.md](CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.15.0 → v0.16.0 (Unreleased)
+
+### TL;DR
+
+1. **Safety-net hits the pipeline protected are amber, not red** (#160). With
+   a safety net on (Nym on the release binary), `coverageState()` used to
+   return `Suspect` and `hasSuspectedLeak()` `true` for every span the net
+   flagged, even after the default `resolve` mode tokenized it. They now
+   return `Unverified` / `false`; `$session->leakReport->hasResolvedSuspects()`
+   is `true`. `Suspect` stays for spans that may still be raw (`tolerant`, the
+   `tolerant` fallback, an upstream `UnactionableSubword`). If you alerted or
+   blocked on `Suspect` with `resolve` / `redact`, expect those alerts to stop;
+   if you counted `leakReport->suspectCount` as leaks, switch to
+   `hasSuspectedLeak()`. A `LeakReport::fromArray()` you build yourself (fakes,
+   replays) reads every suspect except a `class_mismatch` as red unless you
+   pass the decision (`actsOnSuspects: true`); a `class_mismatch`-only report
+   is now amber everywhere.
+
 ## v0.14.0 → v0.15.0
 
 > Bug-fix wave on the same gaze 0.15.1 pin. No re-install and no policy edit.

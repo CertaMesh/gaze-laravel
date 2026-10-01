@@ -4,6 +4,31 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Added
+
+- **`LeakReport::hasResolvedSuspects()`** — `true` when the safety net flagged
+  spans and the safety-net decision protected all of them (tokenized under
+  `resolve`, `[REDACTED:<class>]` under `redact`), so callers can tell that
+  amber apart from a coverage gap. `LeakReport` also gains `actsOnSuspects`
+  (the decision `Gaze::clean()` forwarded) and `unactionableSubwordCount`
+  (upstream `UnactionableSubword` telemetry rows, counted only — never their
+  offsets); `LeakReport::fromArray()` takes the decision as an optional second
+  argument (#160).
+
+### Fixed
+
+- **`CoverageState::Suspect` no longer fires for spans the safety net's
+  `resolve` / `redact` decision already protected** (#160). gaze's
+  `leak_report` records what the net found before the pipeline acts: with Nym
+  on the 0.15.1 release binary it is byte-identical under `resolve`, `redact`
+  and `tolerant`, so every Nym hit read red although the default `resolve`
+  had tokenized it. `Suspect` now means a flagged span may still be raw: under
+  `tolerant` (or the `tolerant` fallback), or when upstream reports an
+  `UnactionableSubword` it left in place. Protected suspects read `Unverified`
+  (amber), never `Verified`. A report with only `class_mismatch` suspects
+  (covered by a token of another class, which upstream's strict mode ships) is
+  amber too. Docs no longer claim the stock binary has no safety net.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it

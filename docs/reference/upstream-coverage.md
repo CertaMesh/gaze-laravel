@@ -439,7 +439,7 @@ verdict vocabulary as above.
 | `gaze clean` without `--policy` runs `core` (#618); `--rulepack-path` without a policy dropped custom classes (#545) | passthrough | none | Leak fixes, **not reachable through the adapter**: `Gaze::clean()`, doctor, canary and bench always pass `--policy`, `gaze daemon` requires one, and the proxy without a policy already ran `core`. Fixed in the binary adopters run anyway (matters for direct `vendor/bin/gaze` use). |
 | Stale prefix-cache decision could return raw PII (#579) | n/a | none | Leak fix, **not reachable**: the prefix cache is a library opt-in; `gaze-cli` (clean, daemon) and the proxy never enable it. |
 | Terminal residual scan after a Resolve+Redact fallback (#584, #586, #591, #599) | passthrough | PATCH | **Reason to upgrade for safety-net users.** A fallback deletion could leave newly detectable raw text behind (v0.8.1–v0.14.0), reachable through `clean` and the daemon whenever a net was on (Kiji shipped in the 0.12.0 stock binary). Named refusals surface as `Pipeline` exit 3 → `GazePipelineException`. |
-| The net writes a one-way `[REDACTED:<class>]` marker instead of deleting bytes (#623) | passthrough | PATCH | Markers are not in `entries[]`, so `Gaze::mask()` leaves them alone; `restore` passes them through verbatim. `leak_report` still counts the suspects, so `CoverageState::Suspect` can be a false red — #160. |
+| The net writes a one-way `[REDACTED:<class>]` marker instead of deleting bytes (#623) | passthrough | PATCH | Markers are not in `entries[]`, so `Gaze::mask()` leaves them alone; `restore` passes them through verbatim. `leak_report` still counts the suspects; since #160 the adapter reads them as protected (`Unverified`), not `Suspect`. |
 | IBAN fixes: candidate stops at registry length (#622); trailing boundary decided in code (#626); settled family stays settled (#619); NBSP-grouped identifiers and national IDs under JSON keys (#647) | passthrough | PATCH | **Reasons to upgrade, reachable through the shipped policy.** IBAN + `BIC:` label, IBAN glued to `BIC`, NBSP-grouped IBAN, `{"bsn":…}` / `{"nhs":…}` were raw on 0.12.0; all tokenized on 0.15.1 (the JSON-key IDs via the tokenize default). Pinned by `PublishedPolicyTest`. |
 | Containment precedence, per-character residual coverage, strictest-member family action (#628, #597, #624, #627) | passthrough | PATCH | Token stream changes (one token per entity, e.g. one IBAN token instead of split tokens). `entries` / `detections` count replacements. 0.12.0 session blobs restore on 0.15.1 and vice versa (verified). |
 | `schema_version = "0.1"` refused; must be `"0.1.x"` (#576) | passthrough | PATCH | The shipped policy carries no `schema_version`. The adapter docs used to recommend `"0.1"` — corrected to `"0.1.0"`. |
@@ -562,18 +562,56 @@ a typed, metadata-only DTO and a derived trust state on every `GazeSession`.
 | Surface | Detail |
 |---|---|
 | `GazeSession::$leakReport` | `?CertaMesh\Gaze\LeakReport` — the parsed report, or `null` when the binary emits no `leak_report` |
-| `CertaMesh\Gaze\LeakReport` | Counts (`suspectCount`, `uncoveredCount`, `partialBleedCount`, `classMismatchCount`, `localeSkippedCount`), a `list<LeakSuspect> $suspects`, optional `$replayHash` |
+| `CertaMesh\Gaze\LeakReport` | Counts (`suspectCount`, `uncoveredCount`, `partialBleedCount`, `classMismatchCount`, `localeSkippedCount`), a `list<LeakSuspect> $suspects`, optional `$replayHash`; since #160 also `actsOnSuspects` (the safety-net decision the adapter forwarded) and `unactionableSubwordCount` (count of upstream `UnactionableSubword` telemetry rows) |
 | `CertaMesh\Gaze\LeakSuspect` | Per-suspect **metadata only**: `safetyNetId`, `rawLabel` (backend category label, never source text), `mappedClass`, `leakKind`, `pipelineClass`, `spanLen`, `fieldPath`, `score` |
 | `GazeSession::coverageState(): CoverageState` | `Verified` (green) \| `Unverified` (amber) \| `Suspect` (red) |
-| `GazeSession::hasSuspectedLeak(): bool` | `true` only when the safety net actively flagged a span |
+| `GazeSession::hasSuspectedLeak(): bool` | `true` only when a span the safety net flagged may still be raw in `cleanText` |
+| `LeakReport::hasResolvedSuspects(): bool` | `true` when the net flagged spans and the safety-net decision protected every one (amber from the net, not from a gap) |
+
+**What the report says.** `suspects` / `stats` record what the safety net
+**found**, before the pipeline acts on it (upstream
+`Pipeline::clean_text_target`). With Nym on the 0.15.1 release binary, input
+`Invoice date 1971-05-30, plate B-MW 1234` (synthetic) yields the same report in
+every mode that returns output:
+
+```json
+{"stats":{"suspect_count":2,"uncovered_count":2,"partial_bleed_count":0,"class_mismatch_count":0,"locale_skipped_count":0},
+ "suspects":[{"safety_net_id":"nym-small-int8","raw_label":"DATE_OF_BIRTH>=0.9","mapped_class":"Custom:date","leak_kind":"uncovered","span_len":10,"score":0.9992361},
+             {"safety_net_id":"nym-small-int8","raw_label":"LICENSE_PLATE>=0.5","mapped_class":"Custom:license_plate","leak_kind":"uncovered","span_len":9,"score":0.99993986}],
+ "telemetry":[]}
+```
+
+| `--safety-net-mode` / `--safety-net-fallback` | Exit | `clean_text` | Adapter reads |
+|---|---|---|---|
+| `resolve` / `redact` (default), `resolve` / `strict` | 0 | `Invoice date <h:Custom:date_1>, plate <h:Custom:license_plate_1>` | acting → `Unverified` |
+| `resolve` / `tolerant` (`GAZE_ALLOW_TOLERANT=1`) | 0 | same tokens here; a residual would ship raw | observe → `Suspect` |
+| `redact` | 0 | `Invoice date [REDACTED:custom:date], plate [REDACTED:custom:license-plate]` | acting → `Unverified` |
+| `tolerant` (`GAZE_ALLOW_TOLERANT=1`) | 0 | `Invoice date 1971-05-30, plate B-MW 1234` — **raw** | observe → `Suspect` |
+| `strict` | 3 | none: `{"error":"SafetyNet","exit":3,"variant":"SuspectedLeak"}` | `GazeSafetyNetFailureException` |
+
+No suspect carries an outcome: upstream never built the per-suspect
+`action_taken` field its v0.8 design proposed. Mode and fallback reach gaze only
+as command-line flags (no env var, no policy key), so the adapter knows the
+decision: `Gaze::clean()` passes it to the report as `actsOnSuspects`, mirroring
+upstream `SafetyNetPolicy::decision()`. Under an acting decision upstream's own
+"not acted on" signal is the `UnactionableSubword` telemetry row: a name,
+location or organization suspect that starts or ends inside a word, left raw.
+Nym never emits one (all its classes are `custom:*`, which the sub-word guard
+exempts); OPF can.
 
 **Trust-state semantics** ([why a green count over-asserts](../explanation/security.md#trust-state-a-count-is-not-a-verification)):
 
 | State | When | Meaning |
 |---|---|---|
-| `Suspect` (red) | `suspect_count > 0` | The observer-only safety net flagged a span that may still carry raw PII. Hardest signal — wins over amber. |
-| `Unverified` (amber) | no suspects, but any of `uncovered_count` / `partial_bleed_count` / `class_mismatch_count` / `locale_skipped_count` > 0 — **or `leak_report` absent** | Coverage is partial, or there is no upstream verification to back a green. Never silently promoted to green. |
+| `Suspect` (red) | **acting decision** (`resolve` with the `redact` or `strict` fallback, `redact`): an `UnactionableSubword` row. **Observe decision** (`strict`, `tolerant`, `resolve` with the `tolerant` fallback, or a report built without a decision): any suspect that is not a `class_mismatch` | A flagged span may still carry raw PII. Hardest signal — wins over amber. |
+| `Unverified` (amber) | nothing flagged may still be raw, but `suspect_count` or any of `uncovered_count` / `partial_bleed_count` / `class_mismatch_count` / `locale_skipped_count` > 0 — **or `leak_report` absent** | Coverage is partial, the net caught spans the primary pass missed and they were protected, or there is no upstream verification to back a green. Never silently promoted to green: upstream's "no leaks" contract is exit 0 **and** `suspect_count = 0`. |
 | `Verified` (green) | no suspects **and** no coverage gaps | Upstream's coverage check passed. Not "N detections" — an actual verification. |
+
+A `class_mismatch` suspect is covered by a token of another class, so it is
+amber, not red, under every decision; upstream's strict boundary refuses only
+`uncovered` and `partial_bleed` suspects. Under the `tolerant` fallback a
+residual may ship raw and the report cannot say which suspect it was, so that
+pair stays red even when the resolve pass protected everything.
 
 The report is **metadata only**: upstream serialises no source text and no byte
 offsets (only `span_len` survives; `raw_label` is the backend's category label).
@@ -585,11 +623,13 @@ flow through (enforced by a hostile-fixture test).
 > **Pass-3 safety net**. Without a net configured those stay `0` / empty, so
 > the strongest reachable state is `Unverified`. Since upstream v0.15.0 the
 > stock release binary ships the Nym net (OPF still needs a `safety-net-openai`
-> build), so `Suspect` (red) is reachable with `GAZE_SAFETY_NET_BACKEND=nym` —
-> but the report keeps counting suspects the default `resolve` mode already
-> tokenized (or `redact` replaced with `[REDACTED:<class>]`), so red can be a
-> false alarm until #160 lands. The four coverage-gap counts come from the core
-> pipeline and are always present.
+> build), so suspects appear with `GAZE_SAFETY_NET_BACKEND=nym`. Under the
+> default `resolve` mode they read `Unverified`, and `Suspect` (red) needs a
+> decision that leaves bytes raw (#160). One upstream path stays invisible:
+> after the `redact` fallback ran, a final scan's finding that no stage may act
+> on ships in the report without a telemetry row; it reads amber, never green.
+> The four coverage-gap counts come from the core pipeline and are always
+> present.
 
 ## Deferred
 

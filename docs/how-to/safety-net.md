@@ -167,6 +167,19 @@ Example matrix:
 | `resolve` | `tolerant` | Spans pseudonymized | Log, keep original manifest |
 | `resolve` | `strict` | Spans pseudonymized | Throw `GazeSafetyNetFailureException` |
 
+### Trust state per mode
+
+The session's `leak_report` lists what the net found, not what is still raw,
+so `$session->coverageState()` reads it together with the mode and fallback the
+adapter forwarded. Spans the net flagged read `Unverified` (amber) under
+`resolve` with the `redact` or `strict` fallback and under `redact`: they were
+tokenized or replaced with a marker, and
+`$session->leakReport->hasResolvedSuspects()` is `true`. They read `Suspect`
+(red) under `tolerant` and under `resolve` with the `tolerant` fallback, where
+they may have shipped raw. Under `strict` the clean throws instead. Per-mode
+probe output:
+[Clean leak report & trust state](../reference/upstream-coverage.md#clean-leak-report--trust-state-v011x).
+
 ## Doctor probe
 
 `php artisan gaze:doctor` checks the safety-net backend selector against the
