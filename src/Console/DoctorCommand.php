@@ -25,6 +25,27 @@ final class DoctorCommand extends Command
 
     protected $description = 'Verify binary, policy, encrypter, and optional round-trip readiness.';
 
+    /** Fixed, PII-free input of the upstream-warning probe. */
+    private const PROBE_INPUT = 'gaze doctor probe';
+
+    /** First gaze that prints its policy warnings on a successful clean (#641). */
+    private const POLICY_WARNINGS_SINCE = '0.15.0';
+
+    private const PRESERVE_WARNING = 'warning: policy preserves ';
+
+    private const CORE_FLOOR_NOTICE = 'notice: core rulepack floor is off';
+
+    private const CORE_EXTENDED_WARNING = 'warning: `--rulepack-bundled core-extended` is deprecated';
+
+    private const PRESERVE_FIX_HINT = 'Set the default rule to action = "tokenize" (UPGRADING.md, v0.14.0).';
+
+    /** Adapter fix hints printed under the matching upstream line. */
+    private const UPSTREAM_FIX_HINTS = [
+        self::PRESERVE_WARNING => self::PRESERVE_FIX_HINT,
+        self::CORE_FLOOR_NOTICE => 'Without core, emails, phones, IBANs, cards and IPs reach the model raw: '
+            .'keep core in GAZE_RULEPACKS and in the policy\'s [policy.rulepacks] bundled list.',
+    ];
+
     public function handle(BinaryResolver $resolver, ProcessFactory $process, ConfigRepository $config, Gaze $gaze): int
     {
         $binary = $this->probeBinary($resolver);
@@ -47,22 +68,23 @@ final class DoctorCommand extends Command
             return self::FAILURE;
         }
 
-        $this->warnIfDeprecatedRulepack($config, $policy);
-        $this->warnIfPolicyPreservesByDefault($policy);
-        $this->warnIfRulepacksDropCore($config);
+        $coreExtendedReported = $this->warnIfDeprecatedRulepack($config, $policy);
         if (! $this->probeSessionScope($config, $policy)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
         }
-        $this->probeProxyFeature($binary, $config, $process);
-        $this->probeDaemonFeature($binary, $config, $process);
-        $this->probeRestoreTelemetry($config);
+        // Before the upstream-warning probe: an enabled Kiji backend makes
+        // its clean fail closed, which this reports as the real FAIL.
         if (! $this->probeKijiRemoval($config)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
         }
+        $this->reportPolicyWarnings($gaze, $config, $policy, $versionOutput, $coreExtendedReported);
+        $this->probeProxyFeature($binary, $config, $process);
+        $this->probeDaemonFeature($binary, $config, $process);
+        $this->probeRestoreTelemetry($config);
 
         $encrypterFailure = $this->probeEncrypter();
         if ($encrypterFailure !== null) {
@@ -174,7 +196,11 @@ final class DoctorCommand extends Command
         $this->warn('Run `php artisan gaze:install --force` to install the pinned binary.');
     }
 
-    private function warnIfDeprecatedRulepack(ConfigRepository $config, string $policyPath): void
+    /**
+     * Returns true when it reported the deprecation, so the upstream probe
+     * can drop gaze's own core-extended line as a duplicate.
+     */
+    private function warnIfDeprecatedRulepack(ConfigRepository $config, string $policyPath): bool
     {
         $message = "rulepack 'core-extended' is deprecated as of gaze v0.8.0; aliases to 'core' with a runtime warning. Upstream still ships this soft alias through v0.11.x; removal is deferred (no firm target announced). Pass an explicit --locale (or set GAZE_LOCALE) to retain phone.national.* / postal.* coverage.";
 
@@ -182,7 +208,7 @@ final class DoctorCommand extends Command
         if (is_array($rulepacks) && in_array('core-extended', $rulepacks, true)) {
             $this->warn($message);
 
-            return;
+            return true;
         }
 
         try {
@@ -199,12 +225,90 @@ final class DoctorCommand extends Command
                 .'skipping deprecated-rulepack check. The gaze binary will likely reject this policy too.'
             );
 
-            return;
+            return false;
         }
 
         $bundled = $parsed['policy']['rulepacks']['bundled'] ?? null;
         if (is_array($bundled) && in_array('core-extended', $bundled, true)) {
             $this->warn($message);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * #159: run one real `gaze clean` on a fixed non-PII input and report
+     * each `warning:` / `notice:` line gaze prints on its success path — the
+     * preserve fall-through (#641), one-way generalize, the core floor, the
+     * collision-family notice (#360). Gaze::clean() discards that stderr, so
+     * without this probe an adopter never sees them. WARN, never FAIL: the
+     * exit code stays unchanged, like the other policy checks. A failed or
+     * timed-out probe is a WARN row too, never an uncaught exception.
+     *
+     * Dedupe, so each finding prints once. Upstream is the source of truth
+     * for policy semantics (NORTH_STAR §1), so the static preserve-default
+     * and core-floor checks are its fallback: they run only when the probe
+     * cannot vouch for the policy (it failed, or the binary predates 0.15.0,
+     * where a silent probe proves nothing) and upstream did not already
+     * print the same finding. The core-extended check stays first because it
+     * also covers the policy file, which upstream does not; gaze's own
+     * core-extended line is dropped when that check already fired.
+     */
+    private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported): void
+    {
+        try {
+            $warnings = $gaze->probeCleanWarnings(self::PROBE_INPUT);
+        } catch (\Throwable $e) {
+            $this->components->twoColumnDetail('upstream warnings', '<fg=yellow>probe failed</>');
+            $this->warn("The gaze clean probe failed ({$e->getMessage()}); using the static policy checks only.");
+            $this->warnIfPolicyPreservesByDefault($policyPath);
+            $this->warnIfRulepacksDropCore($config);
+
+            return;
+        }
+
+        $version = BinaryDownloader::parseVersion($versionOutput);
+        $authoritative = $version !== null && version_compare($version, self::POLICY_WARNINGS_SINCE, '>=');
+        $printed = static fn (string $prefix): bool => array_filter(
+            $warnings,
+            static fn (string $line): bool => str_starts_with($line, $prefix),
+        ) !== [];
+
+        if (! $authoritative && ! $printed(self::PRESERVE_WARNING)) {
+            $this->warnIfPolicyPreservesByDefault($policyPath);
+        }
+        if (! $authoritative && ! $printed(self::CORE_FLOOR_NOTICE)) {
+            $this->warnIfRulepacksDropCore($config);
+        }
+
+        if ($coreExtendedReported) {
+            $warnings = array_values(array_filter(
+                $warnings,
+                static fn (string $line): bool => ! str_starts_with($line, self::CORE_EXTENDED_WARNING),
+            ));
+        }
+
+        if ($warnings === []) {
+            $this->components->twoColumnDetail(
+                'upstream warnings',
+                $authoritative ? '<fg=green>none</>' : 'none (gaze < '.self::POLICY_WARNINGS_SINCE.': static checks only)',
+            );
+
+            return;
+        }
+
+        $this->components->twoColumnDetail('upstream warnings', '<fg=yellow>'.count($warnings).'</>');
+        foreach ($warnings as $warning) {
+            $this->warn($warning);
+            // gaze's own hints target its CLI (`gaze setup --force`); add the
+            // adapter's fix on its own short line, as the static checks do.
+            foreach (self::UPSTREAM_FIX_HINTS as $prefix => $hint) {
+                if (str_starts_with($warning, $prefix)) {
+                    $this->warn($hint);
+                }
+            }
         }
     }
 
@@ -212,11 +316,12 @@ final class DoctorCommand extends Command
      * WARN (never fail) when the configured policy's fall-through rule sends
      * detected classes to the model raw: a `kind = "default"` rule with
      * `action = "preserve"`, or no default rule at all (upstream then
-     * preserves). gaze >= 0.15 prints the same finding on stderr — but only
-     * on a successful clean, whose stderr the adapter discards, so without
-     * this probe an app's own policy.toml copy keeps leaking silently after
-     * the shipped policy switched to `tokenize` (v0.14.0). An unparseable
-     * policy is skipped here; warnIfDeprecatedRulepack() already reports it.
+     * preserves), so an app's own policy.toml copy does not keep leaking
+     * silently after the shipped policy switched to `tokenize` (v0.14.0).
+     * Static fallback of reportPolicyWarnings(): gaze >= 0.15 reports the
+     * same finding more precisely (per class) on a successful clean. An
+     * unparseable policy is skipped here; warnIfDeprecatedRulepack() already
+     * reports it.
      */
     private function warnIfPolicyPreservesByDefault(string $policyPath): void
     {
@@ -243,7 +348,7 @@ final class DoctorCommand extends Command
             .'(national IDs, dates of birth, URLs, ...) reaches the model raw.'
         );
         // Own short line so the fix survives console width-wrapping.
-        $this->warn('Set the default rule to action = "tokenize" (UPGRADING.md, v0.14.0).');
+        $this->warn(self::PRESERVE_FIX_HINT);
     }
 
     /**
@@ -321,6 +426,8 @@ final class DoctorCommand extends Command
      * `GAZE_RULEPACKS=secrets` drops emails, phones, IBANs and cards, and
      * since gaze 0.15 `GAZE_RULEPACKS=none` is accepted and runs no bundled
      * pack at all (0.12 rejected it) — every clean succeeds with no detection.
+     * Static fallback of reportPolicyWarnings(): gaze >= 0.15 prints
+     * `notice: core rulepack floor is off` for the effective list instead.
      */
     private function warnIfRulepacksDropCore(ConfigRepository $config): void
     {
