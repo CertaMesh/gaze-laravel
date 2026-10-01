@@ -264,3 +264,22 @@ it('prints a finding once when upstream and a static check both cover it', funct
         ['--rulepack-bundled core-extended', 'probe failed'],
     ],
 ]);
+
+it('skips the probe on a policy-level ephemeral scope, which clean() refuses before spawning, and keeps exit 0', function () {
+    $policy = tempnam(sys_get_temp_dir(), 'gaze-uwp-policy-').'.toml';
+    file_put_contents($policy, "[session]\nscope = \"ephemeral\"\n\n[policy.rulepacks]\nbundled = [\"core\"]\n\n[[rule]]\nkind = \"default\"\naction = \"preserve\"\n");
+    $this->policies[] = $policy;
+    $this->app['config']->set('gaze.policy_path', $policy);
+    uwp_fake('0.15.1');
+
+    [$exit, $output] = uwp_doctor();
+
+    expect($exit)->toBe(0)
+        ->and($output)->toContain('policy session scope')
+        ->toMatch('/upstream warnings\s.*skipped \(ephemeral policy scope/')
+        // The static preserve check stands in for the probe.
+        ->toContain('policy default')
+        ->not->toContain('The gaze clean probe failed')
+        ->toMatch('/status\s.*OK/');
+    Process::assertDidntRun(fn ($process): bool => in_array('clean', (array) $process->command, true));
+});

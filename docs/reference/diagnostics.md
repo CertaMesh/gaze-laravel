@@ -25,6 +25,7 @@ gaze 0.15 and later print policy warnings on stderr, but only when a clean **suc
 - **Exit code:** the warnings leave it unchanged. When the probe itself fails, doctor prints the typed error message (stage `clean probe`) and runs its static policy checks:
   - a NonRetryable failure (a broken policy, a missing safety-net model; see [the retry contract](exceptions.md#retry-contract-interfaces)) is a red `FAIL` row and exit `1`, because every `Gaze::clean()` fails the same way;
   - a transient failure or a timeout is a yellow `probe failed` row, and the exit code stays unchanged.
+- **Skipped:** with a policy-level `[session] scope = "ephemeral"` and no `GAZE_SESSION_SCOPE` override, `Gaze::clean()` refuses before spawning, so there is nothing to probe. Doctor already warns about that scope (the daemon handles it), shows `skipped` here and runs the static checks only.
 
 What gaze 0.15.1 reports:
 

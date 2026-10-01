@@ -268,6 +268,17 @@ final class DoctorCommand extends Command
      */
     private function reportPolicyWarnings(Gaze $gaze, ConfigRepository $config, string $policyPath, string $versionOutput, bool $coreExtendedReported): bool
     {
+        // clean() refuses a policy-level ephemeral scope before spawning, so
+        // the probe cannot run. probeSessionScope() already reported it as a
+        // WARN (the daemon is unaffected); do not escalate it to a FAIL here.
+        if ($this->policyScopeIsEphemeral($config, $policyPath)) {
+            $this->components->twoColumnDetail('upstream warnings', 'skipped (ephemeral policy scope: static checks only)');
+            $this->warnIfPolicyPreservesByDefault($policyPath);
+            $this->warnIfRulepacksDropCore($config);
+
+            return true;
+        }
+
         try {
             $warnings = $gaze->probeCleanWarnings(self::PROBE_INPUT);
         } catch (\Throwable $e) {
@@ -399,7 +410,7 @@ final class DoctorCommand extends Command
             return false;
         }
 
-        if (PolicyFile::sessionScope($policyPath) !== SessionScopeGuard::EPHEMERAL) {
+        if (! $this->policyScopeIsEphemeral($config, $policyPath)) {
             return true;
         }
 
@@ -412,6 +423,21 @@ final class DoctorCommand extends Command
         $this->warn('Set scope = "conversation" or "persistent", or override it with GAZE_SESSION_SCOPE.');
 
         return true;
+    }
+
+    /**
+     * True when no `gaze.session_scope` override is set and the policy's
+     * `[session] scope` is exactly `ephemeral` — the case clean() refuses
+     * before spawning ({@see SessionScopeGuard::assertPolicyExportable()}).
+     */
+    private function policyScopeIsEphemeral(ConfigRepository $config, string $policyPath): bool
+    {
+        $override = $config->get('gaze.session_scope');
+        if (is_string($override) && $override !== '') {
+            return false;
+        }
+
+        return PolicyFile::sessionScope($policyPath) === SessionScopeGuard::EPHEMERAL;
     }
 
     /**
