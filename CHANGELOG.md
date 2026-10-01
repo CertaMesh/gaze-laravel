@@ -95,8 +95,25 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   tokenize default and the absence of the upstream warning. **Published
   policies do not update themselves — see UPGRADING.md.**
 
+### Removed (BREAKING)
+
+- **Laravel 11 support dropped.** Laravel 11 reached end of life on 2026-03-12
+  (security fixes ended), and every Laravel 11 release is now flagged by a
+  Composer security advisory (GHSA-jh5r-qr3c-85q8), so CI could only install it
+  with advisory blocking switched off. `illuminate/*` now require
+  `^12.0|^13.0` and `orchestra/testbench` `^10.0|^11.0`. The CI matrix drops the
+  `^11.0` legs and, with them, the advisory override the compat matrix needed;
+  only the prefer-lowest job keeps it, to validate the declared Laravel 12.0
+  floor. Composer will not install this release into a Laravel 11 app; stay on
+  gaze-laravel 0.13.x until you upgrade Laravel. Pre-1.0, so this lands on a
+  MINOR bump.
+
 ### Deprecated
 
+- **PHP 8.2 support ends with the first gaze-laravel release after
+  2026-12-31**, when PHP 8.2 leaves upstream security support. This release
+  and any further release in 2026 still install on PHP 8.2 (CI keeps the 8.2
+  legs and the prefer-lowest job). Plan the move to PHP 8.3+.
 - **`Variant::UnsupportedSessionScope` / `GazeUnsupportedSessionScopeException`.**
   Upstream deleted the variant in gaze 0.15.0 (#618). The adapter never reached
   it before that either: upstream only emitted it on the no-policy `gaze clean`
