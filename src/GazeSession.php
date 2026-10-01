@@ -33,8 +33,10 @@ final readonly class GazeSession
     }
 
     /**
-     * Whether the upstream safety net actively flagged a span that may still
-     * carry raw PII. False when no leak_report was emitted (nothing flagged).
+     * Whether a span the upstream safety net flagged may still carry raw PII
+     * in the clean text. False when the safety-net decision protected every
+     * flagged span (see {@see LeakReport::hasSuspectedLeak()}) and when no
+     * leak_report was emitted (nothing flagged).
      */
     public function hasSuspectedLeak(): bool
     {

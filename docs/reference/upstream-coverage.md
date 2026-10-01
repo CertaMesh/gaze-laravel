@@ -24,7 +24,7 @@ Living parity checklist for upstream `CertaMesh/gaze` v0.15.1.
 | `--format=json` | Always set by `Gaze::clean()` |
 | `--max-bytes` | `gaze.max_bytes` / `GAZE_MAX_BYTES` |
 | `--session-ttl` | `gaze.session_ttl_seconds` / `GAZE_SESSION_TTL` |
-| `--session-scope` | `gaze.session_scope` / `GAZE_SESSION_SCOPE` — `conversation` / `persistent`. `ephemeral` is refused pre-flight: gaze never exports an ephemeral session, so `gaze clean` fails with `Pipeline` (see [configuration](configuration.md#gazesession_scope)). |
+| `--session-scope` | `gaze.session_scope` / `GAZE_SESSION_SCOPE` — `conversation` / `persistent`. `ephemeral` is refused pre-flight, as the override or (with no override) as the policy's `[session] scope`: gaze never exports an ephemeral session, so `gaze clean` fails with `Pipeline` (see [configuration](configuration.md#gazesession_scope)). |
 | `--audit-db` | `gaze.audit_db_path` / `GAZE_AUDIT_DB_PATH` |
 | `--locale` | `gaze.locale` / `GAZE_LOCALE` — passed verbatim. Upstream accepts a **comma-separated, priority-ordered fallback chain** (`--help`: "Active locale fallback chain, comma separated and priority ordered"), so `GAZE_LOCALE=de-DE,en` works today; a single BCP47 value is just a chain of one. |
 | `--ner-model-dir` (runtime) | **Not exposed.** Runtime override of policy `[ner].model_dir` on `gaze clean`. Deferred — the adapter only sets `model_dir` at install time via `gaze:install:ner` writing `policy.toml`. See [Deferred](#deferred). |
@@ -349,7 +349,10 @@ pinned against upstream `commands/daemon.rs` by
 a safety-net failure's own variant as `error`, so those cases carry a
 `SafetyNet` prefix. Without it, the safety net's `Timeout` and `Unavailable`
 would collide with the adapter-owned cases. All wire variants throw
-`GazeDaemonException`. The wire name stays in `raw()['error']`.
+`GazeDaemonException`. The wire name stays in `raw()['error']`. The
+`SafetyNet*` cases share the one-shot safety-net retry map
+(`retryDisposition()`, v0.16.0, #183), pinned against upstream by
+`tests/Contract/SafetyNetRetryMapContractTest.php`.
 
 | Wire variant | `DaemonErrorVariant` | Exception subclass | Adapter posture |
 |---|---|---|---|
@@ -421,7 +424,7 @@ verdict vocabulary as above.
 |---|---|---|---|
 | A payment card with touching digits (CVV/expiry after it, an order/year number before it, normalization-glued digits) is tokenized on the forward path (upstream #658) | passthrough | PATCH | **The reason the pin is 0.15.1, not 0.15.0.** `Karte 4111 1111 1111 1111 123` reaches the model raw on 0.12.0 *and* 0.15.0 through the shipped policy; tokenized on 0.15.1. Pinned by `PublishedPolicyTest` ("closes the leaks the 0.12.0 pin shipped raw"). About 7 % of IBANs now settle to `custom:iban` instead of the family class — the shipped policy tokenizes both, so only token labels and audit rows change. |
 | Restore-boundary DLP scans the whole digit run (#658) | n/a | none | Proxy/MCP only; `gaze restore` never enables Phase-B DLP. |
-| `gaze proxy` tokenizes safety-net findings instead of refusing; refusals become `422 Refused` / `ProtectionRefused` (#660) | passthrough | none | Reachable only with a Nym policy at `GAZE_PROXY_POLICY_PATH`. The artisan wrappers manage the process and never parse proxy HTTP responses. Docs follow-up: #167. |
+| `gaze proxy` tokenizes safety-net findings instead of refusing; refusals become `422 Refused` / `ProtectionRefused` (#660) | passthrough | none | Reachable only with a Nym policy at `GAZE_PROXY_POLICY_PATH`. The artisan wrappers manage the process and never parse proxy HTTP responses. Adopter guidance: [proxy-daemon.md → Safety nets and refusals](../how-to/proxy-daemon.md#safety-nets-and-refusals-gaze--015). |
 | `DirectProxyError` no longer `Copy` (#660); docs batch A (#659) | n/a | none | Rust API / docs only. |
 
 ## Upstream v0.14.0 → v0.15.0 deltas
@@ -437,12 +440,12 @@ verdict vocabulary as above.
 | `--safety-net` repeatable + `none`; `--safety-net-backend` without exactly one `--safety-net` is refused with the new `SafetyNetUsage` error (#636) | passthrough | PATCH | 0.12.0 silently ignored a lone `--safety-net-backend` (net off); 0.15 fails every call. The adapter now forwards the backend only when the net is enabled (Kiji PR) and maps `SafetyNetUsage` to `GazeSafetyNetUsageException` (error-variant PR). |
 | CLI error contract: `SafetyNetUsage` added (exit 2); `SafetyNetConfig` also emitted at exit 2 (Nym setup); `UnsupportedSessionScope` removed (#618); `IndexNerModelMissing` (index only); `PolicySchemaUnsupported.supported` reads `"0.1."` | passthrough | PATCH | See [Exception Variants](#exception-variants); fixture re-pinned to v0.15.1. |
 | Nym-small safety net: `--safety-net nym`, `--nym-model-dir`, `--nym-intra-threads`, policy `[safety_net] backend = "nym"` (#609/#636); `gaze setup` turns it on by default (#642) | **wrap** (adapter v0.16.0, #157; deferred in v0.14.0–v0.15.0) | MINOR | Compiled into the stock binary (OPF is not). `gaze.safety_net.nym.model_dir` / `.intra_threads` forward the two flags on `Gaze::clean()` and both daemon spawn paths, only while `GAZE_SAFETY_NET=true` + `GAZE_SAFETY_NET_BACKEND=nym` (gaze exits 3 on them otherwise). `gaze:install:safety-net --safety-net=nym` wires `.env` after checking the bundle (for `--runtime-user` when given) and prints the `gaze setup --safety-net nym` command; the download stays upstream's. `gaze:doctor` fails when no bundle dir is configured (config, env, policy), when `GAZE_NYM_MODEL_DIR` is set but empty, or when gaze would refuse it: owner != effective uid, a directory not `0700`, required files missing or unreadable, symlinks or special files. It also fails an enabled `--safety-net-backend` value other than exactly `openai-filter` / `nym`. A policy `[safety_net]` table still works. |
-| Policy fall-through warnings on stderr (#641); `gaze setup` policies tokenize by default (#635) | passthrough | MINOR | The shipped policy's `preserve` default triggered the warning for 19 classes (national IDs, `custom:family:government-id`, dates of birth, URLs, …) — a real leak the adapter never surfaced (stderr is discarded on success). Fixed by the "tokenize by default" PR of this train; doctor surfacing tracked in #159. |
+| Policy fall-through warnings on stderr (#641); `gaze setup` policies tokenize by default (#635) | passthrough | MINOR | The shipped policy's `preserve` default triggered the warning for 19 classes (national IDs, `custom:family:government-id`, dates of birth, URLs, …) — a real leak the adapter never surfaced (stderr is discarded on success). Fixed by the "tokenize by default" PR of this train; `gaze:doctor` surfaces the warning since #159. |
 | Credential recognizers move from `core` to the opt-in `secrets` pack; `username.field` removed (#607) | passthrough | none | No change versus the 0.12.0 pin: its `core` had no credential recognizers (0.13 added `security_token.anchored`; 0.15 moved it to `secrets`). Opt in with `GAZE_RULEPACKS=core,secrets` — never `secrets` alone, the flag replaces the policy's `bundled` list. Caveat: after a cue word (`Bearer eyJ…`) only the JWT header is tokenized, payload and signature stay raw (upstream recognizer, #175). See [configuration](configuration.md#gazerulepacks). |
 | `gaze clean` without `--policy` runs `core` (#618); `--rulepack-path` without a policy dropped custom classes (#545) | passthrough | none | Leak fixes, **not reachable through the adapter**: `Gaze::clean()`, doctor, canary and bench always pass `--policy`, `gaze daemon` requires one, and the proxy without a policy already ran `core`. Fixed in the binary adopters run anyway (matters for direct `vendor/bin/gaze` use). |
 | Stale prefix-cache decision could return raw PII (#579) | n/a | none | Leak fix, **not reachable**: the prefix cache is a library opt-in; `gaze-cli` (clean, daemon) and the proxy never enable it. |
 | Terminal residual scan after a Resolve+Redact fallback (#584, #586, #591, #599) | passthrough | PATCH | **Reason to upgrade for safety-net users.** A fallback deletion could leave newly detectable raw text behind (v0.8.1–v0.14.0), reachable through `clean` and the daemon whenever a net was on (Kiji shipped in the 0.12.0 stock binary). Named refusals surface as `Pipeline` exit 3 → `GazePipelineException`. |
-| The net writes a one-way `[REDACTED:<class>]` marker instead of deleting bytes (#623) | passthrough | PATCH | Markers are not in `entries[]`, so `Gaze::mask()` leaves them alone; `restore` passes them through verbatim. `leak_report` still counts the suspects, so `CoverageState::Suspect` can be a false red — #160. |
+| The net writes a one-way `[REDACTED:<class>]` marker instead of deleting bytes (#623) | passthrough | PATCH | Markers are not in `entries[]`, so `Gaze::mask()` leaves them alone; `restore` passes them through verbatim. `leak_report` still counts the suspects; since #160 the adapter reads them as protected (`Unverified`) under `redact`. Under `resolve` a marker means the `redact` fallback ran, whose final scan may ship a finding raw, so that run reads `Suspect`. |
 | IBAN fixes: candidate stops at registry length (#622); trailing boundary decided in code (#626); settled family stays settled (#619); NBSP-grouped identifiers and national IDs under JSON keys (#647) | passthrough | PATCH | **Reasons to upgrade, reachable through the shipped policy.** IBAN + `BIC:` label, IBAN glued to `BIC`, NBSP-grouped IBAN, `{"bsn":…}` / `{"nhs":…}` were raw on 0.12.0; all tokenized on 0.15.1 (the JSON-key IDs via the tokenize default). Pinned by `PublishedPolicyTest`. |
 | Containment precedence, per-character residual coverage, strictest-member family action (#628, #597, #624, #627) | passthrough | PATCH | Token stream changes (one token per entity, e.g. one IBAN token instead of split tokens). `entries` / `detections` count replacements. 0.12.0 session blobs restore on 0.15.1 and vice versa (verified). |
 | `schema_version = "0.1"` refused; must be `"0.1.x"` (#576) | passthrough | PATCH | The shipped policy carries no `schema_version`. The adapter docs used to recommend `"0.1"` — corrected to `"0.1.0"`. |
@@ -451,7 +454,7 @@ verdict vocabulary as above.
 | Daemon reports failed eviction audit writes on stderr (#570) | passthrough | none | `{"error":"AuditWriteFailed",…}` lines on the daemon's stderr (`gaze.daemon.stderr_path`); stdout and exit code unchanged. |
 | OPF: offsets read as characters (#608), stock `opf` CLI analyses the whole text (#611), verbose stderr no longer aborts (#580) | passthrough | PATCH | Requires an adopter-built `safety-net-openai` binary. A custom `GAZE_OPENAI_FILTER_COMMAND` wrapper must accept `--no-print-color-coded-text --text-file <path>`. |
 | Other detection changes: per-span locale fall-through (#614), GB/CA/IE postal (#598), AT/CH postal (#613), `birth_date.cue` (#589), IPv6 (#625, #631), NER once per document (#653), case-insensitive regex exclusions (#567), hyphenated dictionary boundaries (#568) | passthrough | PATCH | Expect more tokens (e.g. `London SW1A 2AA`). |
-| Proxy runs configured nets at admission (#585), fails closed after a fallback deletion (#593), proxy fixes (#544, #548, #549, #572, #652, #656) | passthrough | none | No adapter surface; #167. |
+| Proxy runs configured nets at admission (#585), fails closed after a fallback deletion (#593), proxy fixes (#544, #548, #549, #572, #652, #656) | passthrough | none | No adapter surface; documented in [proxy-daemon.md → Safety nets and refusals](../how-to/proxy-daemon.md#safety-nets-and-refusals-gaze--015). |
 | `gaze index` core floor (#620), MCP/bridge/rmcp 2.x (#546, #557, #571, #578, #582, #590, #616), dashboard (#547, #550, #551, #592), document/TokenBridge (#553, #556, #565, #569, #634, #650) | defer | none | Not wrapped; see [Deferred](#deferred), #165, #166. |
 | Bench/scorecard, docs, refactors, tests (#594, #601–#606, #615, #621, #630, #633, #643, #645, #648, #649, #651, #654, #655, #657, …) | n/a | none | Upstream internals. |
 
@@ -481,7 +484,7 @@ the stderr error envelope are unchanged.
 | ORT NER decoder receives the document text, not its provenance label (#424; upstream audit S07-F1) | passthrough | PATCH | More name spans for short values; shipped policy tokenizes them. |
 | Audit `decided_by` names the deciding tier; `structured_containment` value; canonical enum strings | passthrough | PATCH | Values flow through `QueryBuilder`/`export()` unchanged. |
 | `FallbackReason` JSON is snake_case | n/a | none | Not on any surface the adapter parses: audit rows already stored snake_case at 0.12.0; clean/daemon JSON do not carry it. |
-| MCP strict protection (#452), dashboard (#397), index schema v2 (#432), Rust APIs | defer | none | Not wrapped; #165, #166. |
+| MCP strict protection (#452), dashboard (#397), index schema v2 (#432), Rust APIs | defer | none | Not wrapped; re-adjudicated in [Deferred](#deferred) (#165, #166). |
 
 ## Upstream v0.11.3 → v0.12.0 deltas
 
@@ -493,7 +496,7 @@ is **no surface to promote**. Same verdict vocabulary as above.
 
 | Upstream change | Verdict | Adapter SemVer | Notes |
 |---|---|---|---|
-| `gaze clean` warns on stderr when an uncovered collision-family class would silently leak (upstream #360 / PR #362) | passthrough | PATCH | Fires only on the success path; the adapter reads stderr exclusively on failure (`buildException`), so nothing chokes. Verified: silent against the shipped `resources/policy.toml` (covers `custom:family:payment-card-or-iban` since #151), fires against an uncovered probe policy. Surfacing it via `gaze:doctor`/`gaze:check` is a promotion candidate, not a gap — the shipped policy makes the warning unreachable for default installs. |
+| `gaze clean` warns on stderr when an uncovered collision-family class would silently leak (upstream #360 / PR #362) | passthrough | PATCH | Fires only on the success path; the adapter reads stderr exclusively on failure (`buildException`), so nothing chokes. Verified: silent against the shipped `resources/policy.toml` (covers `custom:family:payment-card-or-iban` since #151), fires against an uncovered probe policy. `gaze:doctor` surfaces it since #159 (one success-path clean probe). |
 | `gaze_assembly::uncovered_collision_family_classes` — new Rust library API (upstream PR #362) | **defer** | none | Rust-embedding surface; the PHP adapter consumes the CLI, not the crates. Revisit if upstream exposes it as a CLI subverb (e.g. `gaze policy lint`). |
 | Policy-authoring docs: collision-family contract + `\b`-next-to-symbol pitfall (upstream PRs #362, #363); CI drift gate now `--verify-ack` | passthrough | none | Process/docs hardening; nothing to forward. The `\b` guidance is already applied to the shipped policy (#152). |
 
@@ -565,18 +568,83 @@ a typed, metadata-only DTO and a derived trust state on every `GazeSession`.
 | Surface | Detail |
 |---|---|
 | `GazeSession::$leakReport` | `?CertaMesh\Gaze\LeakReport` — the parsed report, or `null` when the binary emits no `leak_report` |
-| `CertaMesh\Gaze\LeakReport` | Counts (`suspectCount`, `uncoveredCount`, `partialBleedCount`, `classMismatchCount`, `localeSkippedCount`), a `list<LeakSuspect> $suspects`, optional `$replayHash` |
+| `CertaMesh\Gaze\LeakReport` | Counts (`suspectCount`, `uncoveredCount`, `partialBleedCount`, `classMismatchCount`, `localeSkippedCount`), a `list<LeakSuspect> $suspects`, optional `$replayHash`; since #160 also `actsOnSuspects` (the safety-net decision the adapter forwarded) and `unactionableSubwordCount` (count of upstream `UnactionableSubword` telemetry rows) |
 | `CertaMesh\Gaze\LeakSuspect` | Per-suspect **metadata only**: `safetyNetId`, `rawLabel` (backend category label, never source text), `mappedClass`, `leakKind`, `pipelineClass`, `spanLen`, `fieldPath`, `score` |
 | `GazeSession::coverageState(): CoverageState` | `Verified` (green) \| `Unverified` (amber) \| `Suspect` (red) |
-| `GazeSession::hasSuspectedLeak(): bool` | `true` only when the safety net actively flagged a span |
+| `GazeSession::hasSuspectedLeak(): bool` | `true` only when a span the safety net flagged may still be raw in `cleanText` |
+| `LeakReport::hasResolvedSuspects(): bool` | `true` when the net flagged spans and the safety-net decision protected every one (amber from the net, not from a gap); never after a `redact` fallback run |
+
+**What the report says.** `suspects` / `stats` record what the safety net
+**found**, not what is still raw. The first scan is recorded before the
+pipeline acts on it (upstream `Pipeline::clean_text_target`). Under `resolve`,
+later scans append to the same list: the second resolve round, the `redact`
+fallback, and the final scan after that fallback, whose unprotected findings
+ship raw (`Pipeline::admit_terminal_output`). With Nym on the 0.15.1 release binary,
+input `Invoice date 1971-05-30, plate B-MW 1234` (synthetic) needs no second
+round and yields the same report in every mode that returns output:
+
+```json
+{"stats":{"suspect_count":2,"uncovered_count":2,"partial_bleed_count":0,"class_mismatch_count":0,"locale_skipped_count":0},
+ "suspects":[{"safety_net_id":"nym-small-int8","raw_label":"DATE_OF_BIRTH>=0.9","mapped_class":"Custom:date","leak_kind":"uncovered","span_len":10,"score":0.9992361},
+             {"safety_net_id":"nym-small-int8","raw_label":"LICENSE_PLATE>=0.5","mapped_class":"Custom:license_plate","leak_kind":"uncovered","span_len":9,"score":0.99993986}],
+ "telemetry":[]}
+```
+
+| `--safety-net-mode` / `--safety-net-fallback` | Exit | `clean_text` | Adapter reads |
+|---|---|---|---|
+| `resolve` / `redact` (default), `resolve` / `strict` | 0 | `Invoice date <h:Custom:date_1>, plate <h:Custom:license_plate_1>` | acting → `Unverified` |
+| `resolve` / `tolerant` (`GAZE_ALLOW_TOLERANT=1`) | 0 | same tokens here; a residual would ship raw | observe → `Suspect` |
+| `redact` | 0 | `Invoice date [REDACTED:custom:date], plate [REDACTED:custom:license-plate]` | acting → `Unverified` |
+| `tolerant` (`GAZE_ALLOW_TOLERANT=1`) | 0 | `Invoice date 1971-05-30, plate B-MW 1234` — **raw** | observe → `Suspect` |
+| `strict` | 3 | none: `{"error":"SafetyNet","exit":3,"variant":"SuspectedLeak"}` | `GazeSafetyNetFailureException` |
+
+That input resolves in one round. When the resolve pass cannot protect a
+flagged span — up front, or because the rescans after it keep flagging one —
+the fallback decides, and the two acting pairs part ways. Input
+`admin_root930 May 1971AB12 CDE` (synthetic), same binary:
+
+| `--safety-net-mode` / `--safety-net-fallback` | Exit | `clean_text` | Adapter reads |
+|---|---|---|---|
+| `resolve` / `redact` (default) | 0 | `admin_[REDACTED:custom:license-plate] <h:Custom:license_plate_1> <h:Custom:license_plate_2>`, 3 suspects | fallback ran → observe → `Suspect` |
+| `resolve` / `strict` | 3 | none: `{"error":"Pipeline","exit":3}` | `GazePipelineException` — `Retryable`, so `GazeRetryPolicy` releases the job with backoff, and the same input refuses again |
+
+No suspect carries an outcome or a round: upstream never built the per-suspect
+`action_taken` field its v0.8 design proposed. Mode and fallback reach gaze only
+as command-line flags (no env var, no policy key), so the adapter knows the
+decision: `Gaze::clean()` passes it to the report as `actsOnSuspects`, mirroring
+upstream `SafetyNetPolicy::decision()`. Under an acting decision upstream's own
+"not acted on" signal is the `UnactionableSubword` telemetry row: a name,
+location or organization suspect that starts or ends inside a word, left raw.
+Nym never emits one (all its classes are `custom:*`, which the sub-word guard
+exempts); OPF can.
+
+One acting run gets no such signal: once the `redact` fallback has run,
+upstream scans the output once more and ships what that scan flags raw
+(`TerminalAdmission::Admit`), appended to the report like the protected suspects
+and with no telemetry row. The fallback's one-way `[REDACTED:<class>]` marker is
+the only trace of the run in the response, so under `resolve` + `redact` a
+`[REDACTED:` anywhere in `cleanText` makes `Gaze::clean()` pass
+`actsOnSuspects: false`: every suspect that is not a `class_mismatch` reads red,
+including the protected ones. Input that already contains `[REDACTED:`, or a
+policy `redact` rule's marker, costs a false red the same way; amber is never
+the result of a guess. `redact` mode writes the marker by design and never
+rescans, and `resolve` + `strict` refuses instead of falling back, so both keep
+acting semantics.
 
 **Trust-state semantics** ([why a green count over-asserts](../explanation/security.md#trust-state-a-count-is-not-a-verification)):
 
 | State | When | Meaning |
 |---|---|---|
-| `Suspect` (red) | `suspect_count > 0` | The observer-only safety net flagged a span that may still carry raw PII. Hardest signal — wins over amber. |
-| `Unverified` (amber) | no suspects, but any of `uncovered_count` / `partial_bleed_count` / `class_mismatch_count` / `locale_skipped_count` > 0 — **or `leak_report` absent** | Coverage is partial, or there is no upstream verification to back a green. Never silently promoted to green. |
+| `Suspect` (red) | **acting decision** (`resolve` with the `redact` or `strict` fallback, `redact`): an `UnactionableSubword` row. **Observe decision** (`strict`, `tolerant`, `resolve` with the `tolerant` fallback, a `resolve` run whose `redact` fallback ran, or a report built without a decision): any suspect that is not a `class_mismatch` | A flagged span may still carry raw PII. Hardest signal — wins over amber. |
+| `Unverified` (amber) | nothing flagged may still be raw, but `suspect_count` or any of `uncovered_count` / `partial_bleed_count` / `class_mismatch_count` / `locale_skipped_count` > 0 — **or `leak_report` absent** | Coverage is partial, the net caught spans the primary pass missed and they were protected, or there is no upstream verification to back a green. Never silently promoted to green: upstream's "no leaks" contract is exit 0 **and** `suspect_count = 0`. |
 | `Verified` (green) | no suspects **and** no coverage gaps | Upstream's coverage check passed. Not "N detections" — an actual verification. |
+
+A `class_mismatch` suspect is covered by a token of another class, so it is
+amber, not red, under every decision; upstream's strict boundary refuses only
+`uncovered` and `partial_bleed` suspects. Under the `tolerant` fallback a
+residual may ship raw and the report cannot say which suspect it was, so that
+pair stays red even when the resolve pass protected everything. The same holds
+for a `redact` fallback run (see above).
 
 The report is **metadata only**: upstream serialises no source text and no byte
 offsets (only `span_len` survives; `raw_label` is the backend's category label).
@@ -588,11 +656,11 @@ flow through (enforced by a hostile-fixture test).
 > **Pass-3 safety net**. Without a net configured those stay `0` / empty, so
 > the strongest reachable state is `Unverified`. Since upstream v0.15.0 the
 > stock release binary ships the Nym net (OPF still needs a `safety-net-openai`
-> build), so `Suspect` (red) is reachable with `GAZE_SAFETY_NET_BACKEND=nym` —
-> but the report keeps counting suspects the default `resolve` mode already
-> tokenized (or `redact` replaced with `[REDACTED:<class>]`), so red can be a
-> false alarm until #160 lands. The four coverage-gap counts come from the core
-> pipeline and are always present.
+> build), so suspects appear with `GAZE_SAFETY_NET_BACKEND=nym`. Under the
+> default `resolve` mode they read `Unverified`, and `Suspect` (red) needs a
+> decision that may leave bytes raw (#160) — including a run whose `redact`
+> fallback ran, since its final scan ships what it flags raw. The four
+> coverage-gap counts come from the core pipeline and are always present.
 
 ## Deferred
 
@@ -600,13 +668,12 @@ flow through (enforced by a hostile-fixture test).
 |---|---|
 | Per-detection byte spans (`start` / `end`) on `gaze clean --format=json` entries | **Upstream feature request.** As of the v0.11.3 pin, clean `--format=json` `entries[]` keys are exactly `{class, raw, token, family}` — there are **no byte offsets**. Computing span positions in PHP is a NORTH_STAR non-goal (it would re-derive detection geometry outside upstream). Blocked on upstream adding per-detection byte spans (start/end) to the clean `--format=json` contract; until then `Gaze::mask()` ships on the collision-safe token map instead. A `length()` / offset accessor on `Entry`/`GazeSession` lands as an additive MINOR once upstream emits the spans. |
 | `--context-json` | P1 design item; needs PHP API design before exposure. |
-| `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve` | Opt-in `mcp` feature in upstream v0.7.0; needs `php artisan gaze:mcp:*` artisan surface design. Tracked separately. |
-| `gaze-mcp-bridge` (#330) | MCP server lifecycle — explicit NORTH_STAR non-goal. Not a Laravel idiom; lives upstream. Tracked with the other `gaze mcp *` surfaces above. |
+| `gaze mcp install --client=<name>` / `gaze mcp doctor` / `gaze mcp serve`, `gaze-mcp-bridge` (#330), MCP strict transactional protection (upstream v0.13.0 #452; rmcp 2.x #616, bridge session caps #578, journal #582) | **Re-adjudicated at the v0.15.1 pin (#166): stays deferred.** (1) The release binaries the adapter installs are built with the default features (`proxy`, `setup`, which pulls in Nym) plus `document` (`GAZE_RELEASE_FEATURES: document,proxy`) — `mcp` is not among them, so `gaze mcp` is not there (`{"error":"PolicyConfig"}` on 0.15.1), so no wrap would work with the pinned binary. (2) MCP server lifecycle is a NORTH_STAR non-goal. (3) Strict protection — carrier declarations, transactional argument/response protection, owner-side restoration — is a Rust embedding API (`gaze-mcp-core`), not a CLI contract a PHP adapter can call; faking it in PHP would re-implement upstream semantics (principle 1). A Laravel-hosted MCP tool can protect its own payloads with `Gaze::clean()` / `Gaze::restore()` today, but that is **not** equivalent to upstream's strict mode (no carrier declarations, no all-or-nothing transaction) — do not advertise it as such. **Promotion triggers:** upstream ships `mcp` in the release binaries **and** exposes strict protection through a CLI/stdio contract, **and** an adopter asks for it. |
 | `gaze setup` (v0.11.2 one-command onboarding) | The Laravel path is covered by `php artisan gaze:install` / `gaze:install:ner` + `gaze:doctor`, which also handle the adapter-side pieces (config publish, pinned-binary install) that upstream `setup` does not know about. Delegating the artisans to `gaze setup` internally is a future option; a separate wrap would only duplicate the surface. |
 | TokenBridge index-search (`gaze index`, #327) | **Re-adjudicated at the v0.11.2 pin.** The v0.11.1 deferral leaned on two legs: (1) indexes persisted raw PII **unencrypted on disk** — **resolved upstream in v0.11.2** (ChaCha20-Poly1305 per-index encryption at rest, `GAZE_INDEX_KEY`, optional `os-keychain`; plus `gaze index ingest --on-residual redact\|strict` for residual safety-net hits); (2) the search flow routes through an MCP chokepoint, and owner-side gated search over redacted corpora sits outside this package's thin clean/restore gate — **still holds**. Verdict stays **defer** on leg 2 alone, but the surface is now a **promotion candidate**: a wrap would be `php artisan gaze:index:ingest` / `gaze:index:search` artisans plus a `gaze.index_key` / `GAZE_INDEX_KEY` config passthrough (key material handled like `GAZE_ENCRYPTION_KEY`, never logged). Promote once an adopter files a concrete Laravel-side use case. |
 | `gaze document clean <input> --out <dir>` | Opt-in `document` feature in upstream v0.7.1 (Tesseract + pdfium); needs `Gaze::document()` facade or `php artisan gaze:document:clean` design. The v0.11.x `gaze-document` split (#279) keeps OCR a non-goal — still deferred, not re-scoped. Tracked separately. |
 | `Ipv4Parse` / `Ipv6Parse` / `EthEip55` validator kinds, `eth.address` in published policy | Upstream v0.7.0 additions. Tracked for v0.8.x adapter release. |
 | `gaze proxy install-launchd` / `install-systemd-user` | Upstream stubs the launchd / systemd integrations in v0.8.0 (return `"reserved for v0.8.x"`). Adapter will ship `php artisan gaze:proxy:install` once upstream implements them. |
-| Proxy inspection dashboard (`--dashboard*`, upstream v0.13.0, `dashboard` feature not in release binaries) | #165. |
+| Proxy inspection dashboard (`--dashboard*` on `gaze proxy serve` / `start`, upstream v0.13.0 #397; fixes #547, #550, #551, #592) | **Re-adjudicated at the v0.15.1 pin (#165): stays deferred.** The `dashboard` cargo feature is off by default and not in the release build (default features plus `GAZE_RELEASE_FEATURES: document,proxy`), so the pinned binary has no `--dashboard*` flags; a `gaze.proxy.dashboard.*` passthrough would only ever reach self-built binaries, and no adopter has asked (surface promotion rule, NORTH_STAR §3b). The dashboard also has its own trust boundary (memory-only process, browser pairing — upstream `docs/explanation/dashboard/trust-boundary.md`) that an artisan wrapper must not blur. Adopters with a self-built `--features dashboard` binary can run `gaze proxy serve --dashboard…` directly. **Promotion triggers:** upstream adds `dashboard` to the release features, or an adopter running a dashboard build asks for the passthrough. |
 | `gaze clean --ner-model-dir` / `--ner-locale` (runtime NER overrides) | Runtime overrides of policy `[ner].model_dir` / `[ner].locale` — distinct from the **install-time** variants the adapter already owns (`gaze:install:ner --dest --locale` writes them into `policy.toml`). Currently **not exposed**: no config key or per-call arg forwards them. Deferring keeps one source of truth for NER placement (the policy file `gaze:doctor` validates); a per-request model-dir swap has no adopter demand yet. Wrap-later candidate: `gaze.ner_model_dir` / `gaze.ner_locale` config passthrough (additive MINOR) once an adopter needs per-environment model dirs without policy edits. |
 | Safety-net registry family (`--safety-net-registry`, `--safety-net-add`, `--opf-locales`, v0.9.0; `--kiji-distilbert-locales` removed upstream in 0.15.0) | Locale-aware Pass-3 registry dispatch — see [Safety-net registry (v0.9.0)](#safety-net-registry-v090) for per-flag verdicts. Not exposed; the single-backend `gaze.safety_net_backend` surface covers current adopters. Wrap once an adopter needs per-locale backend routing (list-shaped config, additive MINOR). |

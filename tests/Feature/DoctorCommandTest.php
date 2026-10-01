@@ -315,7 +315,7 @@ it('warns but passes when the policy session scope is ephemeral and nothing over
 
         if ($warns) {
             $command->expectsOutputToContain('policy session scope')
-                ->expectsOutputToContain('fails every Gaze::clean() with GazePipelineException')
+                ->expectsOutputToContain('makes every Gaze::clean() throw a non-retryable')
                 ->expectsOutputToContain('GAZE_SESSION_SCOPE');
         } else {
             $command->doesntExpectOutputToContain('policy session scope');
@@ -333,6 +333,34 @@ it('warns but passes when the policy session scope is ephemeral and nothing over
     'conversation override' => ['conversation', false],
     'persistent override' => ['persistent', false],
 ]);
+
+it('fails the deep check on an ephemeral policy scope via the clean pre-flight, without spawning clean', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+
+    $policy = (string) tempnam(sys_get_temp_dir(), 'gaze-policy-');
+    file_put_contents($policy, "[session]\nscope = \"ephemeral\"\n\n[[rule]]\nkind = \"default\"\naction = \"tokenize\"\n");
+    $this->app['config']->set('gaze.policy_path', $policy);
+
+    Process::fake([
+        '*--version*' => Process::result(output: "gaze 0.15.1\n"),
+        '*' => Process::result(output: '', errorOutput: '{"error":"Pipeline","exit":3}', exitCode: 3),
+    ]);
+
+    try {
+        $this->artisan('gaze:doctor', ['--deep' => true])
+            ->assertExitCode(1)
+            ->expectsOutputToContain('policy [session] scope = "ephemeral" is not supported by Gaze::clean()')
+            ->doesntExpectOutputToContain('pipeline failed')
+            ->run();
+
+        Process::assertDidntRun(fn ($process): bool => in_array('clean', $process->command, true));
+    } finally {
+        @unlink($policy);
+    }
+});
 
 it('does not flag the shipped policy session scope', function () {
     $this->app->instance(

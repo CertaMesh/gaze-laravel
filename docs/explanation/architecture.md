@@ -99,7 +99,9 @@ Gaze::restore(session, text)
   loudly if `GAZE_ENCRYPTION_KEY` is set but malformed.
 - No PII or raw session blob is logged. `toLogContext()` surfaces only
   `exit_code`, `error_variant`, and `stderr_sha256` (SHA256 of binary stderr,
-  never plaintext).
+  never plaintext). The daemon family logs `daemon_variant`, a
+  `session_id_sha256` digest of the adopter-chosen session id, and the
+  envelope with its ids and text digested.
 
 ---
 
@@ -167,14 +169,16 @@ both exceptions until 1.0 for BC); nothing in this package dispatches on it.
 | `Fail` | `NonRetryable` | `$job->fail($e)` — permanent failure |
 | `ReleaseWithBackoff` | `Retryable` | `$job->release($delay)` — silent retry |
 | `ReleaseWithAlert` | `RetryableWithAlert` | fires `GazeInfraAlert` event, then `$job->release($delay)` |
-| `Throw` | unknown exception | re-throws — lets framework handle it |
+| `Throw` | unknown exception, or `retryDisposition()` returns `Throw` | re-throws — lets framework handle it |
 
 Exceptions whose retry lane depends on runtime state implement
 `HasRetryDisposition` instead of a static marker; `classify()` consults it
 before the marker arms and returns `$e->retryDisposition()` directly.
-`GazeSafetyNetFailureException` (variant-dependent: `Timeout` retries,
-`SuspectedLeak` alerts, `InputTooLarge`/unknown variants fail) is the sole
-implementer today.
+Two classes implement it, and both read one variant → lane map
+(`Queue\SafetyNetRetryMap`, internal): `GazeSafetyNetFailureException`
+(`Timeout`/`Runtime` retry, `SuspectedLeak` alerts, configuration, model and
+input variants and unknown ones fail) and `GazeDaemonException`, which applies
+the same map to its `SafetyNet*` variants and returns `Throw` for the rest.
 
 ---
 

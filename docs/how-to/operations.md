@@ -4,7 +4,7 @@ This page expands the operations guidance from the [README](../../README.md). Us
 
 `php artisan gaze:check` verifies binary resolution and encrypter wiring.
 
-`php artisan gaze:doctor --deep` adds policy-file checks plus a clean/restore smoke test.
+`php artisan gaze:doctor` adds policy checks, including one `gaze clean` that shows gaze's own policy warnings ([diagnostics](../reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor)). `--deep` adds a clean/restore smoke test.
 
 `php artisan gaze:bench --requests=N` measures cold `Gaze::clean()` latency for adopter diagnostics.
 

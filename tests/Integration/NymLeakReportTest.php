@@ -1,0 +1,149 @@
+<?php
+
+declare(strict_types=1);
+
+use CertaMesh\Gaze\Contracts\Gaze as GazeContract;
+use CertaMesh\Gaze\CoverageState;
+use CertaMesh\Gaze\Exceptions\GazePipelineException;
+use CertaMesh\Gaze\Exceptions\GazeSafetyNetFailureException;
+use CertaMesh\Gaze\Gaze;
+use CertaMesh\Gaze\Queue\Contracts\Retryable;
+
+/*
+ * #160: the trust state against the real binary and the real Nym net. The
+ * leak_report is the same under every mode; only the decision says whether the
+ * flagged spans were protected. Needs GAZE_BINARY (gaze >= 0.15.0) and
+ * GAZE_TEST_NYM_MODEL_DIR, a verified Nym-small int8 bundle owned by the
+ * current user with directory mode 0700 (`gaze setup --safety-net nym`).
+ * Input is synthetic: no real person, date or plate.
+ */
+
+const NYM_TEST_INPUT = 'Invoice date 1971-05-30, plate B-MW 1234';
+
+// Drives the default `resolve` decision into its `redact` fallback on the
+// 0.15.1 release binary: two resolve rounds tokenize `1971AB12` and `CDE`, the
+// fallback marks `root930 May`. Synthetic.
+const NYM_FALLBACK_INPUT = 'admin_root930 May 1971AB12 CDE';
+
+beforeEach(function () {
+    $binary = getenv('GAZE_BINARY');
+    $nymDir = getenv('GAZE_TEST_NYM_MODEL_DIR');
+
+    if (! is_string($binary) || $binary === '' || ! is_string($nymDir) || $nymDir === '') {
+        $this->markTestSkipped('GAZE_BINARY and GAZE_TEST_NYM_MODEL_DIR not both set — Nym leak-report integration skipped.');
+    }
+
+    // The shipped policy plus a [safety_net.nym] table: the policy route the
+    // safety-net how-to documents, with no env var leaking into other tests.
+    $this->nymPolicyPath = sys_get_temp_dir().'/gaze-laravel-nym-policy-'.bin2hex(random_bytes(6)).'.toml';
+    file_put_contents(
+        $this->nymPolicyPath,
+        file_get_contents(gl_integrationPolicyPath())
+            ."\n[safety_net.nym]\nmodel_dir = ".json_encode($nymDir, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n",
+    );
+
+    $this->app['config']->set('gaze.binary', $binary);
+    $this->app['config']->set('gaze.policy_path', $this->nymPolicyPath);
+});
+
+afterEach(function () {
+    unset($_ENV['GAZE_ALLOW_TOLERANT']);
+
+    if (isset($this->nymPolicyPath) && is_file($this->nymPolicyPath)) {
+        unlink($this->nymPolicyPath);
+    }
+});
+
+function nymGaze(?string $mode, ?string $fallback = null): Gaze
+{
+    config()->set('gaze.safety_net', [
+        'enabled' => true,
+        'backend' => 'nym',
+        'mode' => $mode,
+        'fallback' => $fallback,
+    ]);
+
+    // Gaze is a singleton built from config: drop it so the new mode applies.
+    app()->forgetInstance(GazeContract::class);
+
+    return app(Gaze::class);
+}
+
+it('reports protected Nym suspects as Unverified, not Suspect (#160)', function (?string $mode, ?string $fallback, string $marker, string $restored) {
+    $gaze = nymGaze($mode, $fallback);
+    $session = $gaze->clean(NYM_TEST_INPUT);
+
+    // The net flagged the spans and the decision protected them.
+    expect($session->cleanText)->not->toContain('1971-05-30')
+        ->and($session->cleanText)->not->toContain('B-MW 1234')
+        ->and($session->cleanText)->toContain($marker)
+        ->and($session->leakReport?->suspectCount)->toBeGreaterThan(0)
+        ->and($session->leakReport?->actsOnSuspects)->toBeTrue()
+        ->and($session->hasSuspectedLeak())->toBeFalse()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeTrue()
+        ->and($session->coverageState())->toBe(CoverageState::Unverified)
+        // resolve tokens round-trip; redact markers are one-way and restore verbatim.
+        ->and($gaze->restore($session, $session->cleanText))->toBe($restored);
+})->with([
+    'default (resolve + redact)' => [null, null, ':Custom:date_1>', NYM_TEST_INPUT],
+    'resolve + strict fallback' => ['resolve', 'strict', ':Custom:license_plate_1>', NYM_TEST_INPUT],
+    'redact' => ['redact', null, '[REDACTED:custom:date]', 'Invoice date [REDACTED:custom:date], plate [REDACTED:custom:license-plate]'],
+]);
+
+it('keeps red for observe decisions: tolerant ships the spans raw, strict refuses them', function () {
+    $_ENV['GAZE_ALLOW_TOLERANT'] = '1';
+
+    $session = nymGaze('tolerant')->clean(NYM_TEST_INPUT);
+
+    expect($session->cleanText)->toContain('1971-05-30')
+        ->and($session->leakReport?->actsOnSuspects)->toBeFalse()
+        ->and($session->hasSuspectedLeak())->toBeTrue()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeFalse()
+        ->and($session->coverageState())->toBe(CoverageState::Suspect);
+
+    // Same input under strict: no report at all, the binary refuses (exit 3).
+    try {
+        nymGaze('strict')->clean(NYM_TEST_INPUT);
+        $this->fail('strict mode returned a session for a flagged span');
+    } catch (GazeSafetyNetFailureException $e) {
+        expect($e->safetyNetVariant())->toBe('SuspectedLeak');
+    }
+});
+
+it('reads a resolve + redact fallback run as Suspect: its final scan may ship a finding raw', function () {
+    $session = nymGaze(null)->clean(NYM_FALLBACK_INPUT);
+
+    if (! str_contains($session->cleanText, '[REDACTED:')) {
+        throw new RuntimeException('NYM_FALLBACK_INPUT no longer drives the redact fallback on this binary and bundle; pick a new input.');
+    }
+
+    // After the fallback, upstream scans once more and ships what it flags
+    // raw, in the same report and without a telemetry row. Here every span
+    // happens to be protected, so the red is a false one — the safe way to be
+    // wrong: the report cannot tell this run from one that shipped raw.
+    expect($session->leakReport?->suspectCount)->toBeGreaterThan(0)
+        ->and($session->leakReport?->unactionableSubwordCount)->toBe(0)
+        ->and($session->leakReport?->actsOnSuspects)->toBeFalse()
+        ->and($session->hasSuspectedLeak())->toBeTrue()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeFalse()
+        ->and($session->coverageState())->toBe(CoverageState::Suspect);
+
+    // `redact` writes the same kind of marker by design and never rescans: amber.
+    $redacted = nymGaze('redact')->clean(NYM_FALLBACK_INPUT);
+
+    expect($redacted->cleanText)->toContain('[REDACTED:')
+        ->and($redacted->leakReport?->actsOnSuspects)->toBeTrue()
+        ->and($redacted->leakReport?->hasResolvedSuspects())->toBeTrue()
+        ->and($redacted->coverageState())->toBe(CoverageState::Unverified);
+
+    // `resolve` + `strict`: the same residual makes the strict fallback refuse
+    // the document — exit 3 with a Pipeline envelope, not SafetyNet.
+    try {
+        nymGaze('resolve', 'strict')->clean(NYM_FALLBACK_INPUT);
+
+        throw new RuntimeException('resolve + strict returned a session for a residual the resolve pass could not protect');
+    } catch (GazePipelineException $e) {
+        expect($e->exitCode)->toBe(3)
+            ->and($e)->toBeInstanceOf(Retryable::class);
+    }
+});

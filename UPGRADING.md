@@ -13,7 +13,61 @@ upcoming release in full; per-minor guides for earlier versions live in
 
 ### TL;DR
 
-1. **Nym is now a first-class safety net.** If you run Nym through
+1. **Safety-net failures get a queue lane per real upstream variant, on clean
+   and on the daemon** (#183). If your jobs call `GazeRetryPolicy::dispatch()`
+   or `classify()`, a one-shot `Runtime` failure now releases with backoff
+   instead of failing. Daemon safety-net errors are no longer re-thrown:
+   `SafetyNetTimeout` / `SafetyNetRuntime` release with backoff,
+   `SafetyNetSuspectedLeak` releases and fires `GazeInfraAlert`, and the
+   configuration, model and input variants (`SafetyNetWeightsMissing`,
+   `SafetyNetInputTooLarge`, …) fail the job at once. Before, `dispatch()`
+   re-threw all of them and the worker retried until `$tries` ran out. Other
+   daemon errors still re-throw. If you caught those daemon errors yourself
+   before calling `dispatch()`, check that branch; the full table is in the
+   [exception reference](docs/reference/exceptions.md#safety-net-and-session-scope-exceptions).
+2. **Daemon exceptions log a session-id digest, not the raw id** (#181).
+   `GazeDaemonException::toLogContext()` replaces the `session_id` key with
+   `session_id_sha256`: the first 12 hex characters of the id's SHA-256. Its
+   `raw` envelope swaps `session_id` the same way, and `clean_text` /
+   `raw_line` for `clean_text_sha256` / `raw_line_sha256` (full SHA-256). The
+   mismatched-session_id message shows the two digests instead of the ids.
+   If a log query, dashboard or alert reads `session_id` from daemon log
+   context, switch it to `session_id_sha256`, and look an id up with
+   `substr(hash('sha256', $id), 0, 12)`. `$e->sessionId()` and `$e->raw()`
+   still return the raw values for code.
+3. **`gaze:doctor` now shows gaze's own policy warnings** (#159). gaze prints
+   them only when a clean succeeds, and the adapter discards that output, so
+   a published `policy.toml` that preserves IDs, URLs or dates of birth leaked
+   them without a trace. Run `php artisan gaze:doctor` and fix every
+   `warning:` line, usually by setting the default rule to
+   `action = "tokenize"`. Doctor runs one `gaze clean` on a fixed input, writes
+   no audit row, and the warnings keep its exit code. It exits 1 when that
+   clean fails NonRetryable, because then every `Gaze::clean()` fails too. See
+   [diagnostics](docs/reference/diagnostics.md#upstream-policy-warnings-in-gazedoctor).
+4. **Safety-net hits the pipeline protected are amber, not red** (#160). With
+   a safety net on (Nym on the release binary), `coverageState()` used to
+   return `Suspect` and `hasSuspectedLeak()` `true` for every span the net
+   flagged, even after the default `resolve` mode tokenized it. They now
+   return `Unverified` / `false`; `$session->leakReport->hasResolvedSuspects()`
+   is `true`. `Suspect` stays for spans that may still be raw (`tolerant`, the
+   `tolerant` fallback, an upstream `UnactionableSubword`) and for a `resolve`
+   run whose `redact` fallback ran: upstream's final scan after the fallback
+   ships what it flags raw and the report cannot say which suspect that was,
+   so a `[REDACTED:<class>]` marker in `cleanText` keeps the run red, false
+   reds included. If you alerted or blocked on `Suspect` with `resolve` /
+   `redact`, expect most of those alerts to stop; if you counted
+   `leakReport->suspectCount` as leaks, switch to `hasSuspectedLeak()`. A
+   `LeakReport::fromArray()` you build yourself (fakes, replays) reads every
+   suspect except a `class_mismatch` as red unless you pass the decision
+   (`actsOnSuspects: true`); a `class_mismatch`-only report is now amber
+   everywhere.
+5. **Queued `GazeSession`s cross the deploy one way.** A session a v0.15.x
+   process serialized unserializes on v0.16 (no decision recorded, so it reads
+   red as before). The reverse fails: v0.15.x cannot unserialize the new
+   `LeakReport` fields (`Cannot create dynamic property`). Deploy workers no
+   later than the code that dispatches, and drain such jobs before rolling
+   back.
+6. **Nym is now a first-class safety net.** If you run Nym through
    `GAZE_SAFETY_NET=true` + `GAZE_SAFETY_NET_BACKEND=nym`, nothing breaks, but
    you can now point the adapter at the bundle:
    `GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8` is forwarded as
@@ -27,7 +81,7 @@ upcoming release in full; per-minor guides for earlier versions live in
    deploy user with `--runtime-user=www-data` (new option) so the owner is
    checked for the user that runs gaze. See
    [SafetyNet → Quick start (Nym)](docs/how-to/safety-net.md#quick-start-nym).
-2. **`gaze:doctor` now fails on a Nym bundle gaze would refuse**, while the net
+7. **`gaze:doctor` now fails on a Nym bundle gaze would refuse**, while the net
    is enabled with backend `nym`: no bundle directory configured anywhere, a
    bare `GAZE_NYM_MODEL_DIR=` line (gaze takes the empty value and skips the
    policy), a missing or unreadable file, a bundle not owned by the user
@@ -37,11 +91,11 @@ upcoming release in full; per-minor guides for earlier versions live in
    (`sudo -u www-data php artisan gaze:doctor`). A deploy pipeline that runs
    doctor as the deploy user against a bundle owned by `www-data` now fails;
    run that step as `www-data` instead.
-3. **`gaze:doctor` now fails a mis-spelled backend.** With the net enabled,
+8. **`gaze:doctor` now fails a mis-spelled backend.** With the net enabled,
    `GAZE_SAFETY_NET_BACKEND` must be exactly `nym` or `openai-filter`. `Nym`
    used to pass doctor while every clean failed with `PolicyConfig`; fix the
    spelling.
-4. **`GAZE_NYM_INTRA_THREADS` must be a positive integer.** `0`, a negative
+9. **`GAZE_NYM_INTRA_THREADS` must be a positive integer.** `0`, a negative
    number or a non-integer (`1.5`, `abc`) fails fast with
    `GazeSafetyNetConfigException` before gaze runs, and doctor fails on it.
    Before, `1.5` was cut to `1` and `abc` was dropped without a word.

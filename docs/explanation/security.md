@@ -15,6 +15,23 @@ This page expands the security model from the [README](../../README.md). It desc
 - Audit DB access control: `GAZE_AUDIT_DB_PATH` points to a SQLite file — OS-level file permissions apply.
 - GDPR, DSGVO, or HIPAA compliance: the adapter is designed to support pseudonymization per GDPR Art. 4(5) and related frameworks, but compliance depends on your full data processing context, not this library alone.
 
+## Raw input never reaches stack traces
+
+With `zend.exception_ignore_args=Off` (PHP's development default, and common in
+containers) PHP keeps call arguments in exception traces, and Laravel's handler
+and error trackers (Flare, Sentry) log them. Every adapter parameter that
+carries raw input text, a binary response holding `entries[].raw`, a plaintext
+session blob or an adopter session id is marked `#[\SensitiveParameter]`, so it
+is recorded as `SensitiveParameterValue` instead of its value (#195). Exception
+messages and `toLogContext()` never carry input text either; they log hashes.
+That includes the `Gaze` Facade's `__callStatic()` and the JSON paths (no
+`JsonException` chained from a built-in, whose arguments cannot be marked). Your
+own code is not covered: the attribute works on the *implementing* method only,
+not through an interface, so a decorator or custom implementation of
+`Contracts\Gaze` / `Contracts\DaemonManager` must mark its parameters too, and
+code that passes raw text around before calling `Gaze::clean()` likewise — or run
+production with `zend.exception_ignore_args=On`.
+
 ## Trust state: a count is not a verification
 
 `Gaze::clean()` returns a `GazeSession` carrying a detection count
@@ -31,8 +48,8 @@ trust state rather than letting callers reverse-engineer safety from a number:
 
 - **`$session->coverageState()`** returns a `CoverageState` — `Verified` (green),
   `Unverified` (amber), or `Suspect` (red).
-- **`$session->hasSuspectedLeak()`** is `true` only when upstream's observer-only
-  safety net actively flagged a span that may still carry raw PII.
+- **`$session->hasSuspectedLeak()`** is `true` only when a span upstream's
+  safety net flagged may still carry raw PII in `cleanText`.
 
 The resolution is deliberately conservative:
 
@@ -40,12 +57,22 @@ The resolution is deliberately conservative:
   an upstream verification, not a detection tally.
 - **`Unverified`** is the default whenever coverage is partial **or** there is no
   `leak_report` to back a green at all. Absence of evidence is treated as
-  *unverified*, never as *verified*. Show amber, not green.
-- **`Suspect`** wins over everything when the safety net flags a possible leak.
+  *unverified*, never as *verified*. Show amber, not green. Spans the safety net
+  flagged and the default `resolve` mode tokenized (or `redact` replaced with a
+  `[REDACTED:<class>]` marker) are amber too: the primary pass missed them, and
+  `$session->leakReport->hasResolvedSuspects()` says the net covered them.
+- **`Suspect`** wins over everything when a flagged span may have stayed raw:
+  under `tolerant`, when upstream reports a suspect no stage acted on, or when
+  the `resolve` mode's `redact` fallback ran — upstream then scans once more and
+  ships what that scan flags raw, and the report cannot say which suspect that
+  was, so the adapter reads the whole run red.
 
-Drive your UI and gating off `coverageState()` / `hasSuspectedLeak()`, not off
-`detections`. The `LeakReport` is metadata only — it never carries source text or
-byte offsets — so it is safe to log, serialise, or surface to operators. See the
+The safety-net report lists what the net *found*, not what is still raw; the
+adapter reads it together with the `safety_net_mode` / `safety_net_fallback` it
+forwarded. Drive your UI and gating off `coverageState()` /
+`hasSuspectedLeak()`, not off `detections` or `suspectCount`. The `LeakReport`
+is metadata only — it never carries source text or byte offsets — so it is safe
+to log, serialise, or surface to operators. See the
 [upstream-coverage reference](../reference/upstream-coverage.md#clean-leak-report--trust-state-v011x)
-for the field-level shape and the stock-binary caveat (the red `Suspect` state
-requires a safety-net-enabled build).
+for the field-level shape and the per-mode table. The stock release binary has
+carried the Nym safety net since gaze 0.15.0.

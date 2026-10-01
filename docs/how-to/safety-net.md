@@ -279,6 +279,35 @@ Example matrix:
 | `resolve` | `tolerant` | Spans pseudonymized | Log, keep original manifest |
 | `resolve` | `strict` | Spans pseudonymized | Throw `GazeSafetyNetFailureException` |
 
+### Trust state per mode
+
+The session's `leak_report` lists what the net found, not what is still raw,
+so `$session->coverageState()` reads it together with the mode and fallback the
+adapter forwarded. Spans the net flagged read `Unverified` (amber) under
+`resolve` with the `redact` or `strict` fallback and under `redact`: they were
+tokenized or replaced with a marker, and
+`$session->leakReport->hasResolvedSuspects()` is `true`. They read `Suspect`
+(red) under `tolerant` and under `resolve` with the `tolerant` fallback, where
+they may have shipped raw. Under `strict` the clean throws instead.
+
+The fallback also engages without a backend failure, whenever the `resolve`
+pass cannot protect a flagged span:
+
+- `resolve` + `redact` (the default) replaces it with a `[REDACTED:<class>]`
+  marker, then scans the output once more and ships what that scan flags raw,
+  with nothing in the report to tell it apart. A `resolve` + `redact` session
+  whose `cleanText` carries a marker therefore reads `Suspect` whenever the net
+  flagged anything other than a class mismatch, even when every span was in
+  fact protected. Any `[REDACTED:` the input or a policy `redact` rule put
+  there counts the same.
+- `resolve` + `strict` refuses the document: exit 3 with a `Pipeline` envelope,
+  so `Gaze::clean()` throws `GazePipelineException` (not
+  `GazeSafetyNetFailureException`). It is `Retryable`, but the same input
+  refuses again.
+
+Per-mode probe output:
+[Clean leak report & trust state](../reference/upstream-coverage.md#clean-leak-report--trust-state-v011x).
+
 ## Doctor probe
 
 `php artisan gaze:doctor` probes the Nym bundle (`probeNymBundle()` in
@@ -385,7 +414,7 @@ SafetyNet failures map onto three typed exceptions. All three sit under the
 | Exception | When raised | Exit | Retry policy | Accessors |
 |---|---|---|---|---|
 | `GazeSafetyNetConfigException` | Config invalid: a backend subprocess/config error upstream (exit 3), a Nym setup error such as no bundle directory configured (exit 2, gaze >= 0.15.0), or the adapter's pre-flight for an enabled `kiji-distilbert` backend (exit 2, no stderr — the binary never ran). | 3 / 2 | NonRetryable | inherited |
-| `GazeSafetyNetFailureException` | Backend ran but failed (`Timeout`, `WeightsMissing`, `InputTooLarge`, `Unsupported`, `SuspectedLeak`, `Runtime`, `InvalidOutput`, `ModelUnavailable`, `Unavailable`, `Other`). | 3 | varies — implements `HasRetryDisposition`; classify via `GazeRetryPolicy::classify()` or `retryDisposition()` | `safetyNetVariant(): string` |
+| `GazeSafetyNetFailureException` | Safety net failed or refused the clean (`Timeout`, `Runtime`, `SuspectedLeak`, `Unavailable`, `WeightsMissing`, `ModelUnavailable`, `ModelIntegrityMismatch`, `InputTooLarge`, `InvalidOutput`, `TolerantModeDisabled`, `Unknown`). | 3 | varies — implements `HasRetryDisposition`; classify via `GazeRetryPolicy::classify()` or `retryDisposition()` | `safetyNetVariant(): string` |
 | `GazeSafetyNetArtifactMissingException` (v0.9.0 new) | Backend's pinned artifact bundle is missing or incomplete — e.g. the policy's `[safety_net.nym] model_dir` (or `GAZE_NYM_MODEL_DIR`) points at a directory without the Nym bundle; `path()` is upstream's `<missing:SHA256SUMS> (install via …)` placeholder, not the directory. | 2 | NonRetryable | `backend(): string`, `path(): string` |
 
 Use `GazeRetryPolicy::classify()` to route exceptions onto your queue's
@@ -427,10 +456,21 @@ describe it — it implements **none** of them. Instead it implements
 `CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition`, whose
 `retryDisposition(): RetryAction` inspects `safetyNetVariant()`:
 
-- `Timeout`, `Other` → `RetryAction::ReleaseWithBackoff`
+- `Timeout`, `Runtime` → `RetryAction::ReleaseWithBackoff` (transient
+  backend failures)
 - `SuspectedLeak` → `RetryAction::ReleaseWithAlert` (fires `GazeInfraAlert`)
-- `WeightsMissing`, `InputTooLarge`, `Unsupported` — and any variant this
-  package does not know yet — → `RetryAction::Fail` (fail closed)
+- `Unavailable`, `WeightsMissing`, `ModelUnavailable`,
+  `ModelIntegrityMismatch`, `InputTooLarge`, `InvalidOutput`,
+  `TolerantModeDisabled`, `Unknown` — and any variant this package does not
+  know yet — → `RetryAction::Fail` (configuration, model or input problems
+  that a retry does not fix; unknown variants fail closed)
+- Legacy names no gaze release emits keep their old lanes until 1.0: `Other`
+  → `ReleaseWithBackoff`, `Unsupported` → `Fail`
+
+The [exception reference](../reference/exceptions.md#safety-net-and-session-scope-exceptions)
+gives the reason for each. Daemon safety-net errors
+(`DaemonErrorVariant::SafetyNet*` on `GazeDaemonException`) get the same lane
+as the one-shot variant of the same name.
 
 `GazeRetryPolicy::classify()` consults `HasRetryDisposition` before the marker
 interfaces, so classification works with no special-casing. If you branch on

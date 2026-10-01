@@ -260,3 +260,26 @@ it('container-resolved Gaze refuses GAZE_SESSION_SCOPE=ephemeral before spawning
 
     Process::assertNothingRan();
 });
+
+it('container-resolved Gaze refuses a policy-level ephemeral scope before spawning (#182)', function () {
+    $policy = (string) tempnam(sys_get_temp_dir(), 'gaze-policy-');
+    file_put_contents($policy, "[session]\nscope = \"ephemeral\"\n");
+
+    config([
+        'gaze.binary' => '/fake/gaze',
+        'gaze.policy_path' => $policy,
+        'gaze.session_scope' => null,
+    ]);
+    $this->app->forgetInstance(Gaze::class);
+
+    Process::fake();
+
+    try {
+        expect(fn () => $this->app->make(Gaze::class)->clean('Hello'))
+            ->toThrow(GazePolicyConfigDetailException::class, SessionScopeGuard::POLICY_EPHEMERAL_UNSUPPORTED);
+
+        Process::assertNothingRan();
+    } finally {
+        @unlink($policy);
+    }
+});
