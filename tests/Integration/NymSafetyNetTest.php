@@ -105,7 +105,10 @@ it('gaze:doctor pre-empts the missing bundle dir that fails every clean, and pas
     expect(Artisan::output())->toContain('nym bundle')->toContain('not configured')
         ->and($exit)->toBe(1);
 
+    // Fresh Gaze: doctor's upstream-warning probe runs a real clean with the
+    // resolved instance, which still holds the missing dir from above.
     $this->app['config']->set('gaze.nym_model_dir', $this->bundle);
+    $this->app->forgetInstance(GazeContract::class);
 
     $exit = Artisan::call('gaze:doctor');
     expect(Artisan::output())->toContain('OK for '.NymBundle::userLabel(posix_geteuid()))
