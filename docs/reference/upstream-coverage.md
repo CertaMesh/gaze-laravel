@@ -173,8 +173,8 @@ filtering). `--class` is a PHP reserved word as a method name, hence the
 
 ## Proxy (v0.8.1)
 
-The upstream `gaze proxy` daemon (v0.8.0, opt-in `--features proxy` build)
-is wrapped by six Artisan commands. See [`docs/proxy.md`](../how-to/proxy-daemon.md) for
+The upstream `gaze proxy` daemon (v0.8.0; `proxy` is a default cargo feature since v0.8.1, so the release binaries include it)
+is wrapped by six Artisan commands. See [`docs/how-to/proxy-daemon.md`](../how-to/proxy-daemon.md) for
 the adopter quickstart, security notes, and the doctor probe.
 
 | Upstream subcommand | Artisan surface |
