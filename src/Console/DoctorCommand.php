@@ -6,6 +6,7 @@ namespace CertaMesh\Gaze\Console;
 
 use CertaMesh\Gaze\BinaryResolver;
 use CertaMesh\Gaze\Console\Concerns\RunsHealthProbes;
+use CertaMesh\Gaze\Exceptions\GazeException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
@@ -77,8 +78,19 @@ final class DoctorCommand extends Command
         $this->components->twoColumnDetail('session_ttl_seconds', (string) ($config->get('gaze.session_ttl_seconds') ?? 86400));
 
         if ($this->option('deep')) {
-            $session = $gaze->clean('doctor@example.com');
-            $restored = $gaze->restore($session, $session->cleanText);
+            // A failing round-trip is a FAIL row, not an uncaught exception
+            // (e.g. a policy-level ephemeral scope answers clean with Pipeline).
+            // The exception message carries no input text.
+            try {
+                $session = $gaze->clean('doctor@example.com');
+                $restored = $gaze->restore($session, $session->cleanText);
+            } catch (GazeException $e) {
+                $this->components->twoColumnDetail('deep', '<fg=red>FAIL</>');
+                $this->line($e->getMessage());
+                $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+                return self::FAILURE;
+            }
 
             // Both directions: the probe value must leave clean() masked AND
             // come back from restore(). A round-trip alone passes vacuously when

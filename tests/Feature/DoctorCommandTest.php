@@ -53,6 +53,26 @@ it('runs the deep round-trip check when requested', function () {
         ->expectsOutputToContain('OK');
 });
 
+it('reports a failing deep round-trip as FAIL instead of crashing', function () {
+    $this->app->instance(
+        BinaryResolver::class,
+        new BinaryResolver(explicitPath: '/fake/gaze', vendorBinPath: '/none'),
+    );
+    $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
+
+    // `--version` succeeds; the deep probe's clean answers like upstream does
+    // for a policy-level ephemeral scope.
+    Process::fake([
+        '*--version*' => Process::result(output: "gaze 0.15.1\n"),
+        '*' => Process::result(output: '', errorOutput: '{"error":"Pipeline","exit":3}', exitCode: 3),
+    ]);
+
+    $this->artisan('gaze:doctor', ['--deep' => true])
+        ->assertExitCode(1)
+        ->expectsOutputToContain('pipeline failed')
+        ->expectsOutputToContain('FAIL');
+});
+
 it('fails the deep check when clean() leaves the probe value unmasked', function () {
     $this->app->instance(
         BinaryResolver::class,

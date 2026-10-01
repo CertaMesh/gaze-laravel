@@ -25,6 +25,9 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   retryable Pipeline error, and the adapter cannot catch it before spawning.
   `config/gaze.php` and the configuration reference no longer list `ephemeral`
   as a valid value.
+- **`gaze:doctor --deep` reports a failing round-trip as `FAIL`** instead of
+  crashing with an uncaught exception (e.g. on a policy-level `ephemeral`
+  scope). The row prints the exception message, which carries no input text.
 
 ## [0.14.0] - 2026-10-01
 
