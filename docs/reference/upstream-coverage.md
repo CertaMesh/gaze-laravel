@@ -200,13 +200,13 @@ the adopter quickstart, security notes, and the doctor probe.
 | `--timeout` (stop / restart) | `gaze.proxy.stop_timeout` / `GAZE_PROXY_STOP_TIMEOUT` (default `10s`) |
 | `--force` (stop / restart) | `--force` artisan flag |
 | `--follow` (logs) | `--follow` artisan flag |
-| `--_foreground-daemon` (serve; hidden upstream arg) | `--foreground-daemon` artisan flag (forwarded with upstream's underscore spelling since adapter v0.14.1, #161) |
+| `--_foreground-daemon` (serve; hidden upstream arg) | `--foreground-daemon` artisan flag (forwarded with upstream's underscore spelling since adapter v0.15.0, #161) |
 
 Since upstream v0.13.0 the detached child started by `gaze:proxy:start` /
 `gaze:proxy:restart` actually applies `--policy`, `--rulepack` and the
 `--upstream-*` URLs; before that it ran without a policy and with default
 upstreams even though `status` showed the configured values. Before adapter
-v0.14.1 the `--foreground-daemon` artisan flag forwarded the underscore-less
+v0.15.0 the `--foreground-daemon` artisan flag forwarded the underscore-less
 spelling, which every release binary rejects (#161).
 
 ## SafetyNet backend & mode reshape (v0.8.1)
