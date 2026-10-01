@@ -173,8 +173,13 @@ final class DaemonClient implements DaemonClientContract
             $response = $parsed;
 
             if ($response->sessionId !== $sessionId) {
+                // Digests only: both ids are adopter-chosen and may carry
+                // user data, and this message lands in logs (#181).
+                $sent = SessionIdDigest::of($sessionId);
+                $got = SessionIdDigest::of($response->sessionId);
+
                 throw new GazeDaemonTransportException(
-                    "daemon echoed mismatched session_id (sent={$sessionId}, got={$response->sessionId})",
+                    "daemon echoed mismatched session_id (session_id_sha256 sent={$sent}, got={$got})",
                     $sessionId,
                     $response->raw,
                 );
