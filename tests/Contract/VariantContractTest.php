@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Tests\Fixtures\UpstreamErrorNames;
 use CertaMesh\Gaze\Variant;
 
 /**
@@ -43,24 +44,10 @@ const UPSTREAM_VARIANTS = [
     'PolicyOpen' => ['PolicyOpen', 4, ['error' => 'PolicyOpen', 'exit' => 4]],
 ];
 
-/**
- * Variants upstream removed while the PHP case is kept, deprecated, for BC.
- * The reverse-drift test below tolerates exactly these — and nothing else.
- *   - UnsupportedSessionScope: removed in gaze 0.15.0 (#618); only the no-policy
- *     clean path ever emitted it, and the adapter always passes --policy.
- */
-const RETIRED_UPSTREAM_VARIANTS = ['UnsupportedSessionScope'];
-
 /*
- * Upstream wire names deliberately NOT mapped, because no command the adapter
- * runs (clean, restore, audit, daemon, proxy) can emit them:
- *   - Setup (exit 2): `gaze setup` only.
- *   - IndexNerModelMissing (exit 2): `gaze index` only.
- *   - Document (5) / Mcp (6) / Proxy (7): feature-gated `document`, `mcp`
- *     and proxy-control errors; the proxy artisans pass the binary's output
- *     through verbatim instead of parsing it.
- * Should one ever surface on a mapped path, Variant::unknownFor() still
- * classifies it by exit code.
+ * Retired variants (kept, deprecated, for BC) and the upstream wire names
+ * deliberately left unmapped live in UpstreamErrorNames, shared with the
+ * opt-in UpstreamErrorDriftTest that checks them against upstream source.
  */
 
 it('upstream variant exists as a PHP enum case', function (string $name, int $exit, array $wirePayload) {
@@ -86,7 +73,13 @@ it('PHP enum has no variants beyond the upstream set (catches reverse drift)', f
     $expectedNames = array_map(fn (array $row) => $row[0], array_values(UPSTREAM_VARIANTS));
     $actualNames = array_map(fn (Variant $v) => $v->name, Variant::cases());
 
-    expect(array_values(array_diff($actualNames, $expectedNames, RETIRED_UPSTREAM_VARIANTS)))->toBe([]);
+    expect(array_values(array_diff($actualNames, $expectedNames, UpstreamErrorNames::RETIRED_VARIANTS)))->toBe([]);
+});
+
+it('has no case for the deliberately unmapped upstream wire names', function () {
+    foreach (UpstreamErrorNames::UNMAPPED_VARIANTS as $wire) {
+        expect(Variant::tryFrom($wire))->toBeNull("wire name {$wire}");
+    }
 });
 
 it('keeps retired upstream variants parseable for older binaries', function () {

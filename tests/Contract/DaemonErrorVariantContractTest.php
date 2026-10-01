@@ -5,6 +5,7 @@ declare(strict_types=1);
 use CertaMesh\Gaze\Daemon\DaemonEnvelopeParser;
 use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 use CertaMesh\Gaze\Exceptions\GazeDaemonException;
+use CertaMesh\Gaze\Tests\Fixtures\UpstreamErrorNames;
 
 /**
  * Source-of-truth fixture mirrored from upstream `crates/gaze-cli/src/commands/daemon.rs`
@@ -47,20 +48,11 @@ const UPSTREAM_DAEMON_ERRORS = [
  */
 const ADAPTER_DAEMON_VARIANTS = ['Transport', 'Timeout', 'Unavailable', 'Unknown'];
 
-/**
- * Upstream daemon error names deliberately NOT mapped; they land in `Unknown`:
- *   - SafetyNetConfig, PolicyConfig, PolicyOpen, Io, CliError: listed in
- *     `DaemonError::variant()`, but no `clean_request` path builds those
- *     `CliError`s at 0.15.1 (`CliError` is the catch-all name). All but
- *     `CliError` do occur at startup (`Daemon::new`), as one-shot stderr JSON
- *     before the daemon exits; the client then reads EOF →
- *     `GazeDaemonTransportException`.
- *   - TolerantModeDisabled: a `SafetyNetFailure` raised only in `Daemon::new`.
- *   - Unknown: `map_safety_net_error`'s arm for a future `SafetyNetError`
- *     variant (dead at 0.15.1, every variant is matched); it is the sink anyway.
- *   - AuditWriteFailed: a failed eviction audit write (#570), stderr only.
+/*
+ * The upstream daemon error names deliberately left unmapped (they land in
+ * `Unknown`) live in UpstreamErrorNames::UNMAPPED_DAEMON_ERRORS, shared with
+ * the opt-in UpstreamErrorDriftTest that checks them against upstream source.
  */
-const UNMAPPED_DAEMON_ERRORS = ['SafetyNetConfig', 'PolicyConfig', 'PolicyOpen', 'Io', 'CliError', 'TolerantModeDisabled', 'Unknown', 'AuditWriteFailed'];
 
 it('upstream daemon error maps to its own case', function (string $case, array $envelope) {
     expect(DaemonErrorVariant::fromWire($envelope['error']))
@@ -89,7 +81,7 @@ it('PHP enum is exactly the upstream set plus the adapter-owned cases (catches d
 });
 
 it('routes every other wire name to Unknown, adapter-only names included', function () {
-    foreach ([...UNMAPPED_DAEMON_ERRORS, 'Transport'] as $wire) {
+    foreach ([...UpstreamErrorNames::UNMAPPED_DAEMON_ERRORS, 'Transport'] as $wire) {
         expect(DaemonErrorVariant::fromWire($wire))->toBe(DaemonErrorVariant::Unknown, "wire name {$wire}");
     }
 });
