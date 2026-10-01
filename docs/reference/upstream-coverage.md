@@ -346,7 +346,10 @@ pinned against upstream `commands/daemon.rs` by
 a safety-net failure's own variant as `error`, so those cases carry a
 `SafetyNet` prefix. Without it, the safety net's `Timeout` and `Unavailable`
 would collide with the adapter-owned cases. All wire variants throw
-`GazeDaemonException`. The wire name stays in `raw()['error']`.
+`GazeDaemonException`. The wire name stays in `raw()['error']`. The
+`SafetyNet*` cases share the one-shot safety-net retry map
+(`retryDisposition()`, v0.16.0, #183), pinned against upstream by
+`tests/Contract/SafetyNetRetryMapContractTest.php`.
 
 | Wire variant | `DaemonErrorVariant` | Exception subclass | Adapter posture |
 |---|---|---|---|

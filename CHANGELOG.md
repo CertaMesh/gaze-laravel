@@ -4,6 +4,33 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Changed
+
+- **Safety-net retry lanes follow the real upstream variants, on clean and on
+  the daemon** ([#183](https://github.com/CertaMesh/gaze-laravel/issues/183)).
+  The one-shot map knew `Other` and `Unsupported`, names no gaze release
+  emits, so most gaze 0.15.1 variants fell through to `Fail`. One map
+  (`Queue\SafetyNetRetryMap`, internal) now gives every variant gaze 0.15.1
+  `clean` can emit an explicit lane, pinned by a contract test. What
+  `GazeRetryPolicy::classify()` returns, old → new:
+  - `GazeSafetyNetFailureException`: `Runtime` `Fail` → `ReleaseWithBackoff`.
+    `Unavailable`, `ModelUnavailable`, `ModelIntegrityMismatch`,
+    `InvalidOutput`, `TolerantModeDisabled` and `Unknown` stay `Fail`, but
+    now by decision, so `isNonRetryable()` turns `true` for them. `Timeout`
+    (`ReleaseWithBackoff`), `SuspectedLeak` (`ReleaseWithAlert`),
+    `WeightsMissing` and `InputTooLarge` (`Fail`) are unchanged; so are the
+    legacy `Other` and `Unsupported`. Unknown variants still fail closed.
+  - `GazeDaemonException` now implements `HasRetryDisposition`:
+    `SafetyNetTimeout` and `SafetyNetRuntime` `Throw` → `ReleaseWithBackoff`;
+    `SafetyNetSuspectedLeak` `Throw` → `ReleaseWithAlert`;
+    `SafetyNetUnavailable`, `SafetyNetWeightsMissing`,
+    `SafetyNetModelUnavailable`, `SafetyNetModelIntegrityMismatch`,
+    `SafetyNetInputTooLarge` and `SafetyNetInvalidOutput` `Throw` → `Fail`.
+    Every other daemon variant and the transport / timeout /
+    feature-unsupported subclasses stay `Throw`. New
+    `DaemonErrorVariant::safetyNetVariant()` returns the one-shot name behind
+    a `SafetyNet*` case (`SafetyNetTimeout` → `Timeout`).
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
