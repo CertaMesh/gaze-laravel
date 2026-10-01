@@ -48,18 +48,48 @@ it('renames to gaze:install:ner with gaze:install-ner kept as a deprecated alias
 });
 
 it('still resolves and runs the legacy gaze:install-ner name (CB3 / Decision D)', function () {
-    // The deprecated alias must remain functional (MINOR-safe). A --check on a
-    // missing dest is a real no-op invocation that proves the name still routes.
+    // The deprecated alias must remain functional (MINOR-safe). The provider's
+    // default NerManifest downloads SHA256SUMS.ner from the GitHub release, so
+    // bind the manifest and the fetcher the NerInstaller factory resolves: the
+    // alias still runs through the real container wiring, offline (#186). The
+    // live download stays behind GAZE_LIVE_NER_SMOKE=1 (InstallNerSmokeTest).
+    $fetcher = new class implements NerFetcher
+    {
+        public int $fetches = 0;
+
+        /** @var list<string> */
+        public array $verified = [];
+
+        public function fetch(NerArtifactSet $set, string $stagingDir, OutputInterface $output): void
+        {
+            $this->fetches++;
+        }
+
+        public function verify(NerArtifactSet $set, string $dir): bool
+        {
+            $this->verified[] = $dir;
+
+            return false;
+        }
+    };
+    app()->instance(NerManifest::class, NerManifest::fromString(gl_nerChecksumFixture()));
+    app()->instance(NerFetcher::class, $fetcher);
+
     expect(Artisan::all())->toHaveKey('gaze:install-ner');
 
+    $dest = sys_get_temp_dir().'/gaze-ner-missing-'.bin2hex(random_bytes(4));
     $exit = Artisan::call('gaze:install-ner', [
         '--check' => true,
-        '--dest' => sys_get_temp_dir().'/gaze-ner-missing-'.bin2hex(random_bytes(4)),
+        '--dest' => $dest,
         '--no-progress' => true,
     ]);
 
-    // Missing artifacts → CheckFailed (exit 1); the point is the alias executed.
-    expect($exit)->toBe(1);
+    // Missing artifacts → CheckFailed (exit 1). The fetcher saw the --check for
+    // this dest, so the alias dispatched into the installer; nothing was fetched.
+    expect($exit)->toBe(1)
+        ->and($fetcher->verified)->toBe([$dest])
+        ->and($fetcher->fetches)->toBe(0)
+        ->and(Artisan::output())->toContain(NerInstallStatus::CheckFailed->value);
 });
 
 it('--yes confirms a headless install without re-downloading or overwriting (CB3)', function () {
