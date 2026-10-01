@@ -53,11 +53,11 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   composer/composer 2.10.2 → 2.10.3) and moves phpstan to 2.2.16, pint to 1.32.1,
   testbench to 11.3.0 and symfony/process / http-client to 8.1.7 / 8.1.8.
   `pestphp/pest` and `pestphp/pest-plugin-laravel` now accept `^3.0|^4.0|^5.0`.
-  Composer picks Pest 3 on PHP 8.2, Pest 4 on PHP 8.3 and on Laravel 11/12, and
+  Composer picks Pest 3 on PHP 8.2, Pest 4 on PHP 8.3 and on Laravel 12, and
   Pest 5 (PHPUnit 13) on PHP 8.4+ with Laravel 13. The suite runs unchanged on
-  all three. CI: the advisory-blocking override is now scoped to the Laravel 11
-  matrix legs (and the prefer-lowest job), so the 12/13 legs resolve with
-  advisory blocking on. GitHub Actions were already on their latest majors.
+  all three. CI: the Laravel 12/13 matrix legs resolve with advisory blocking
+  on; only the prefer-lowest job keeps the advisory override, to validate the
+  declared floors. GitHub Actions were already on their latest majors.
 
 ### Added
 
