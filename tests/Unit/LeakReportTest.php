@@ -38,6 +38,196 @@ function leakReportArray(array $stats = [], array $suspects = [], ?string $repla
     return $report;
 }
 
+/**
+ * The `leak_report` the real gaze 0.15.1 release binary emits with the Nym net
+ * for the synthetic input `Invoice date 1971-05-30, plate B-MW 1234` (stock
+ * policy, `--safety-net=nym`). Captured byte-for-byte; the report is IDENTICAL
+ * under every mode that ships output:
+ *
+ *   resolve (default) / resolve + strict fallback / resolve + tolerant fallback
+ *       clean_text "Invoice date <h:Custom:date_1>, plate <h:Custom:license_plate_1>"
+ *   redact
+ *       clean_text "Invoice date [REDACTED:custom:date], plate [REDACTED:custom:license-plate]"
+ *   tolerant (GAZE_ALLOW_TOLERANT=1)
+ *       clean_text "Invoice date 1971-05-30, plate B-MW 1234"   <- raw
+ *   strict
+ *       exit 3, {"error":"SafetyNet","exit":3,"variant":"SuspectedLeak"}, no report
+ *
+ * So the report alone cannot say whether the suspects are still raw; the
+ * decision (`actsOnSuspects`) has to come from the forwarded flags.
+ *
+ * @return array<string, mixed>
+ */
+function nymLeakReport0151(): array
+{
+    return json_decode(<<<'JSON'
+{"stats":{"suspect_count":2,"uncovered_count":2,"partial_bleed_count":0,"class_mismatch_count":0,"locale_skipped_count":0},"suspects":[{"safety_net_id":"nym-small-int8","raw_label":"DATE_OF_BIRTH>=0.9","mapped_class":"Custom:date","leak_kind":"uncovered","span_len":10,"score":0.9992361},{"safety_net_id":"nym-small-int8","raw_label":"LICENSE_PLATE>=0.5","mapped_class":"Custom:license_plate","leak_kind":"uncovered","span_len":9,"score":0.99993986}],"telemetry":[]}
+JSON, true, 512, JSON_THROW_ON_ERROR);
+}
+
+/**
+ * Upstream `LeakTelemetryResponse::UnactionableSubword` (gaze 0.15.1
+ * crates/gaze-cli/src/pipeline/run.rs, `#[serde(tag = "kind")]`): a word-like
+ * suspect that starts or ends inside a word. No stage acts on it under
+ * `resolve` / `redact`, so its bytes ship raw. Nym cannot produce one (its
+ * classes are all `custom:*`, which the sub-word guard exempts), so this shape
+ * is built from the upstream serializer, with an OPF-style suspect.
+ *
+ * @return array<string, mixed>
+ */
+function unactionableSubwordReport(): array
+{
+    return [
+        'stats' => [
+            'suspect_count' => 1,
+            'uncovered_count' => 1,
+            'partial_bleed_count' => 0,
+            'class_mismatch_count' => 0,
+            'locale_skipped_count' => 0,
+        ],
+        'suspects' => [[
+            'safety_net_id' => 'openai-privacy-filter-subprocess',
+            'raw_label' => 'private_person',
+            'mapped_class' => 'Name',
+            'leak_kind' => 'uncovered',
+            'span_len' => 5,
+            'score' => 0.81,
+        ]],
+        'telemetry' => [[
+            'kind' => 'UnactionableSubword',
+            'safety_net_id' => 'openai-privacy-filter-subprocess',
+            'class' => 'name',
+            'start' => 8,
+            'end' => 13,
+            'document_kind' => 'text',
+        ]],
+    ];
+}
+
+it('reads the captured Nym report as protected under an acting decision (resolve / redact)', function () {
+    $report = LeakReport::fromArray(nymLeakReport0151(), actsOnSuspects: true);
+
+    expect($report->suspectCount)->toBe(2)
+        ->and($report->uncoveredCount)->toBe(2)
+        ->and($report->actsOnSuspects)->toBeTrue()
+        ->and($report->unactionableSubwordCount)->toBe(0)
+        ->and($report->hasSuspectedLeak())->toBeFalse()
+        ->and($report->hasResolvedSuspects())->toBeTrue()
+        // Protected suspects are amber, never green: the primary pass missed them.
+        ->and($report->coverageState())->toBe(CoverageState::Unverified);
+});
+
+it('reads the same captured Nym report as Suspect under an observe decision (tolerant)', function () {
+    $report = LeakReport::fromArray(nymLeakReport0151(), actsOnSuspects: false);
+
+    expect($report->hasSuspectedLeak())->toBeTrue()
+        ->and($report->hasResolvedSuspects())->toBeFalse()
+        ->and($report->coverageState())->toBe(CoverageState::Suspect);
+});
+
+it('cannot show a raw final-scan finding after the redact fallback: only actsOnSuspects false keeps it red', function () {
+    // Upstream's fixture (gaze v0.15.1 crates/gaze/tests/terminal_admission.rs,
+    // terminal_round_happens_at_most_once_and_reports_what_it_could_not_act_on):
+    // alpha tokenized, charlie marker-redacted by the fallback, delta tokenized
+    // by the terminal round, bravo flagged by the final scan and shipped RAW.
+    // Four uncovered suspects, no telemetry row: indistinguishable from a
+    // report whose spans were all protected.
+    $suspect = [
+        'safety_net_id' => 'terminal.fixture',
+        'raw_label' => 'synthetic',
+        'mapped_class' => 'Name',
+        'leak_kind' => 'uncovered',
+        'span_len' => 5,
+        'score' => 1.0,
+    ];
+    $payload = leakReportArray(
+        ['suspect_count' => 4, 'uncovered_count' => 4],
+        [$suspect, ['span_len' => 7] + $suspect, $suspect, $suspect],
+    );
+
+    // Read under acting semantics the raw `bravo` would be a false amber;
+    // Gaze::clean() therefore passes false when the fallback ran.
+    expect(LeakReport::fromArray($payload, actsOnSuspects: true)->coverageState())->toBe(CoverageState::Unverified);
+
+    $report = LeakReport::fromArray($payload, actsOnSuspects: false);
+
+    expect($report->hasSuspectedLeak())->toBeTrue()
+        ->and($report->hasResolvedSuspects())->toBeFalse()
+        ->and($report->coverageState())->toBe(CoverageState::Suspect);
+});
+
+it('keeps observe semantics when the decision is unknown (fromArray without a decision)', function () {
+    $report = LeakReport::fromArray(nymLeakReport0151());
+
+    expect($report->actsOnSuspects)->toBeFalse()
+        ->and($report->coverageState())->toBe(CoverageState::Suspect);
+});
+
+it('reports Suspect for an UnactionableSubword row even under an acting decision', function () {
+    $report = LeakReport::fromArray(unactionableSubwordReport(), actsOnSuspects: true);
+
+    expect($report->unactionableSubwordCount)->toBe(1)
+        ->and($report->hasSuspectedLeak())->toBeTrue()
+        ->and($report->hasResolvedSuspects())->toBeFalse()
+        ->and($report->coverageState())->toBe(CoverageState::Suspect);
+});
+
+it('carries only the UnactionableSubword count — never the telemetry offsets', function () {
+    $report = LeakReport::fromArray(unactionableSubwordReport(), actsOnSuspects: true);
+
+    $serialized = json_encode($report, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toContain('"start"')
+        ->and($serialized)->not->toContain('"end"')
+        ->and($serialized)->not->toContain('UnactionableSubword');
+});
+
+it('counts only UnactionableSubword telemetry rows and tolerates malformed telemetry', function () {
+    $payload = nymLeakReport0151();
+    $payload['telemetry'] = [
+        ['kind' => 'LocaleSkipped', 'safety_net_id' => 'nym-small-int8', 'document_kind' => 'text'],
+        'not-a-row',
+        ['kind' => 'UnactionableSubword', 'safety_net_id' => 'nym-small-int8', 'class' => 'name', 'start' => 0, 'end' => 3, 'document_kind' => 'text'],
+    ];
+
+    expect(LeakReport::fromArray($payload, actsOnSuspects: true)->unactionableSubwordCount)->toBe(1);
+    expect(LeakReport::fromArray(['telemetry' => 'nope'], actsOnSuspects: true)->unactionableSubwordCount)->toBe(0);
+});
+
+it('treats a class-mismatch-only report as covered: Unverified, not Suspect (what upstream strict ships)', function () {
+    // Upstream strict refuses only uncovered / partial-bleed suspects; a
+    // ClassMismatch is already covered by a token of another class and ships
+    // with a stderr warning. That is the only report a successful strict clean
+    // can carry.
+    $report = LeakReport::fromArray(leakReportArray(
+        ['suspect_count' => 1, 'class_mismatch_count' => 1],
+        [[
+            'safety_net_id' => 'nym-small-int8',
+            'raw_label' => 'DATE_OF_BIRTH>=0.9',
+            'mapped_class' => 'Custom:date',
+            'leak_kind' => 'class_mismatch',
+            'pipeline_class' => 'Custom:date_of_birth',
+            'span_len' => 10,
+        ]],
+    ));
+
+    expect($report->hasSuspectedLeak())->toBeFalse()
+        ->and($report->hasResolvedSuspects())->toBeFalse()
+        ->and($report->coverageState())->toBe(CoverageState::Unverified);
+});
+
+it('never reports Verified while a suspect exists, even one of an unknown leak kind', function (bool $actsOnSuspects, CoverageState $expected, bool $resolved) {
+    // A future upstream LeakKind serialises as leak_kind "unknown": counted in
+    // suspect_count but in none of the gap counts.
+    $report = LeakReport::fromArray(leakReportArray(['suspect_count' => 1]), $actsOnSuspects);
+
+    expect($report->coverageState())->toBe($expected)
+        ->and($report->hasResolvedSuspects())->toBe($resolved);
+})->with([
+    'acting decision: protected, amber' => [true, CoverageState::Unverified, true],
+    'observe decision: possibly raw, red' => [false, CoverageState::Suspect, false],
+]);
+
 it('parses the leak_report stats counts from the upstream shape', function () {
     $report = LeakReport::fromArray(leakReportArray([
         'suspect_count' => 2,

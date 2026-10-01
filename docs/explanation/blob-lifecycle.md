@@ -7,7 +7,7 @@ The session blob (`$session->ciphertext`) is the only thing that lets `restore()
 **Where the blob lives between `clean()` and `restore()`:**
 
 - **Default — same request, method scope.** Sync HTTP requests should call `clean()` and `restore()` in the same controller/service method. The `GazeSession` lives on the stack and is GC'd when the request ends.
-- **Permitted — encrypted job payload.** Dispatching a queued job that carries the `GazeSession` is fine: the blob is already AES-encrypted under your `GAZE_ENCRYPTION_KEY` (or `APP_KEY`) before serialization. Combine with the Telescope/Pulse exclusion below so the encrypted payload does not get re-logged in plaintext-adjacent telemetry.
+- **Permitted — encrypted job payload.** Dispatching a queued job that carries the `GazeSession` is fine: the blob is already AES-encrypted under your `GAZE_ENCRYPTION_KEY` (or `APP_KEY`) before serialization. Combine with the Telescope/Pulse exclusion below so the encrypted payload does not get re-logged in plaintext-adjacent telemetry. Across the v0.15 → v0.16 upgrade a v0.16 worker reads a session v0.15.x queued, not the other way round: upgrade workers no later than the code that dispatches (see [UPGRADING.md](../../UPGRADING.md)).
 - **NOT permitted — cross-request persistence without a threat model.** Do not store `$session->ciphertext` in the user session, request cache, durable cache (Redis/Memcached without TTL alignment), or your application database. Doing so widens the blast radius of any cache/DB compromise from "ciphertext only" to "ciphertext plus the matching clean text it was generated against".
 
 **Threat model:**

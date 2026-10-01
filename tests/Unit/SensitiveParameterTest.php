@@ -29,6 +29,8 @@ const SENSITIVE_PARAMETERS = [
     [Gaze::class, 'run', 'input'],
     [Gaze::class, 'decodeResponse', 'output'],
     [Gaze::class, 'mapEntries', 'raw'],
+    [Gaze::class, 'mapLeakReport', 'cleanText'],
+    [Gaze::class, 'safetyNetActsOnSuspects', 'cleanText'],
     [Gaze::class, 'assertInput', 'text'],
     [Gaze::class, 'assertInputSize', 'input'],
     [GazeContract::class, 'clean', 'text'],

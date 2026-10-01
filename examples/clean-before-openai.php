@@ -107,9 +107,9 @@ $session = Gaze::clean($prompt);     // -> CertaMesh\Gaze\GazeSession (entries +
 
 // Trust gate BEFORE anything crosses the model boundary. Don't gate on
 // $session->detections — a high count never proves nothing bled through.
-// hasSuspectedLeak() is the hard red: upstream's observer-only safety net
-// flagged a span that may STILL carry raw PII inside cleanText. That text is
-// not trusted to leave your server — stop, alert, keep the prompt owner-side.
+// hasSuspectedLeak() is the hard red: a span upstream's safety net flagged
+// may STILL carry raw PII inside cleanText. That text is not trusted to leave
+// your server — stop, alert, keep the prompt owner-side.
 if ($session->hasSuspectedLeak()) {
     report(new RuntimeException('gaze flagged a suspected PII leak — prompt withheld from the LLM'));
     echo "→ suspected leak in the cleaned text — nothing sent to the model\n";
@@ -117,11 +117,11 @@ if ($session->hasSuspectedLeak()) {
     return;
 }
 
-// Anything short of Verified is amber, not red: coverage is partial, or there
-// was no leak_report to back a green at all. (Through the stock binary the
-// Suspect channel is absent, so Unverified is the strongest caution you'll
-// see.) Proceeding is a policy call — here we proceed but surface amber
-// honestly instead of implying a green we don't have.
+// Anything short of Verified is amber, not red: coverage is partial, there
+// was no leak_report to back a green at all, or the safety net flagged spans
+// and the default `resolve` mode tokenized them (leakReport->hasResolvedSuspects()).
+// Proceeding is a policy call — here we proceed but surface amber honestly
+// instead of implying a green we don't have.
 if ($session->coverageState() !== CoverageState::Verified) {
     logger()->info('gaze coverage not verified', ['state' => $session->coverageState()->value]);
 }
