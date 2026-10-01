@@ -25,9 +25,10 @@ upcoming release in full; per-minor guides for earlier versions live in
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
    gaze >= 0.15.0.
-4. **Published-policy leak fix — action required if you published the
-   policy.** The shipped policy's default rule now tokenizes instead of
-   preserving. Change the last rule of your copy; see
+4. **Policy leak fix — action required on every existing install.** The
+   shipped policy's default rule now tokenizes instead of preserving, but your
+   app runs its own copy of `policy.toml`, which the upgrade does not touch.
+   Change its last rule (`gaze:doctor` warns until you do); see
    [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
@@ -132,8 +133,12 @@ kind = "default"
 action = "tokenize"
 ```
 
-If you published the policy into your app (`vendor:publish` or
-`gaze:install`), make the same change in your copy:
+**Every existing install needs this change.** `gaze:install` and
+`vendor:publish` copy the policy into your app (`base_path('policy.toml')` by
+default, or wherever `GAZE_POLICY_PATH` points), and that copy is what runs —
+upgrading the package does not touch it, and `gaze:install --force` keeps it.
+`php artisan gaze:doctor` now warns (`policy default … preserve`) while your
+copy still falls through to `preserve`. Make the same change in your copy:
 
 ```diff
  [[rule]]

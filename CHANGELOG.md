@@ -40,8 +40,9 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   so in minified JSON it also covers the fields after a URL (restore stays
   exact; UPGRADING.md shows the explicit-preserve opt-out and its trade-off).
   New integration tests pin both the tokenize default and the absence of the
-  upstream warning. **Published
-  policies do not update themselves — see UPGRADING.md.**
+  upstream warning. **Every existing install runs its own `policy.toml` copy,
+  which does not update itself — see UPGRADING.md.** `gaze:doctor` now warns
+  while the configured policy's fall-through rule is `preserve` (or missing).
 
 ### Deprecated
 
