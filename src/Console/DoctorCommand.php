@@ -10,6 +10,7 @@ use CertaMesh\Gaze\Exceptions\GazeException;
 use CertaMesh\Gaze\Gaze;
 use CertaMesh\Gaze\GazeOptions;
 use CertaMesh\Gaze\Install\BinaryDownloader;
+use CertaMesh\Gaze\Install\NymBundle;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
 use CertaMesh\Gaze\SessionScopeGuard;
 use Devium\Toml\Toml;
@@ -59,6 +60,11 @@ final class DoctorCommand extends Command
         $this->probeDaemonFeature($binary, $config, $process);
         $this->probeRestoreTelemetry($config);
         if (! $this->probeKijiRemoval($config)) {
+            $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
+
+            return self::FAILURE;
+        }
+        if (! $this->probeNymBundle($config, $policy, $binary)) {
             $this->components->twoColumnDetail('status', '<fg=red>FAIL</>');
 
             return self::FAILURE;
@@ -494,6 +500,82 @@ final class DoctorCommand extends Command
         $this->warn('Remove it (see UPGRADING.md); for a safety net, switch to nym.');
 
         return true;
+    }
+
+    /**
+     * Nym bundle probe (gaze >= 0.15.0), active only while the enabled safety
+     * net selects `nym` — the state in which the adapter forwards
+     * `--safety-net-backend=nym` and the binary loads the bundle on every
+     * clean / daemon start.
+     *
+     * FAILS (P7 doctor-before-failure) when:
+     *  - no bundle directory is configured anywhere: not in
+     *    `gaze.safety_net.nym.model_dir`, not in a `GAZE_NYM_MODEL_DIR` the
+     *    process environment passes to gaze, not in the policy's
+     *    `[safety_net.nym] model_dir` — the binary then fails every clean
+     *    with SafetyNetConfig "nym model_dir is missing";
+     *  - the directory or a required file is missing, a path in it is a
+     *    symlink, a path is not owned by the effective uid, the directory is
+     *    not mode 0700, or a file is group/world-writable — the binary
+     *    refuses the bundle ({@see NymBundle}).
+     *
+     * The ownership checks hold for the user running doctor, which is often
+     * not the PHP-FPM pool / queue worker user that spawns gaze, so every
+     * result names the uid it was judged against and a failure tells the
+     * adopter to run doctor as that user. The SHA-256 digests are left to
+     * the binary (`--deep` exercises them).
+     */
+    private function probeNymBundle(ConfigRepository $config, string $policyPath, string $binary): bool
+    {
+        /** @var array<string, mixed> $gazeConfig */
+        $gazeConfig = (array) $config->get('gaze', []);
+        $options = GazeOptions::fromConfig($gazeConfig);
+        if (! $options->nymSelected()) {
+            return true;
+        }
+
+        $bundle = $this->laravel->make(NymBundle::class);
+        $user = NymBundle::userLabel($bundle->effectiveUid());
+        $located = NymBundle::locate($options->nymModelDir, $policyPath);
+
+        if ($located === null) {
+            $this->components->twoColumnDetail('nym bundle', '<fg=red>not configured</>');
+            $this->error(
+                'GAZE_SAFETY_NET_BACKEND=nym, but no Nym bundle directory is configured: gaze fails every clean '
+                .'with "nym model_dir is missing". Set GAZE_NYM_MODEL_DIR (gaze.safety_net.nym.model_dir) '
+                ."or the policy's [safety_net.nym] model_dir."
+            );
+            // Own short lines so each command survives console width-wrapping.
+            $this->warn('Fetch the bundle as the PHP-FPM pool / queue worker user (replace www-data):');
+            $this->warn(NymBundle::setupCommand($binary));
+            $this->warn('Then: php artisan gaze:install:safety-net --safety-net=nym --nym-model-dir='.NymBundle::setupTarget());
+
+            return false;
+        }
+
+        $problems = $bundle->problems($located['dir']);
+        if ($problems === []) {
+            $this->components->twoColumnDetail('nym bundle', "<fg=green>OK</> for {$user}");
+
+            return true;
+        }
+
+        $this->components->twoColumnDetail('nym bundle', "<fg=red>refused for {$user}</>");
+        $this->error("gaze would refuse the Nym bundle at {$located['dir']} (from {$located['source']}):");
+        foreach ($problems as $problem) {
+            $this->line("  - {$problem}");
+        }
+        // Own short lines so each hint survives console width-wrapping.
+        $this->warn(
+            "These checks ran as {$user}. gaze enforces them for the user that runs it, so run doctor "
+            .'as the PHP-FPM pool user, e.g. sudo -u www-data php artisan gaze:doctor.'
+        );
+        $this->warn('Re-fetch the bundle as that user: '.NymBundle::setupCommand($binary, $located['dir']));
+        if (is_dir($located['dir'])) {
+            $this->warn('Or hand it to that user: '.NymBundle::chownCommand($located['dir']));
+        }
+
+        return false;
     }
 
     /**

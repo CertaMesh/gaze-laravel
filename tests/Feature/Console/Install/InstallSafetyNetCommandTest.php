@@ -71,7 +71,7 @@ it('rejects the kiji backend removed upstream in gaze 0.15.0 without touching .e
             ->assertExitCode(2);
         expect(InstallSafetyNetCommand::KIJI_REMOVED)
             ->toContain('removed upstream in gaze 0.15.0')
-            ->toContain('CertaMesh/gaze-laravel#157');
+            ->toContain('--safety-net=nym');
         expect(file_get_contents($env))->toBe("APP_ENV=testing\n"); // untouched
         expect(is_file($env.'.backup'))->toBeFalse();
     } finally {
@@ -112,12 +112,13 @@ it('wires safety-net with no progress escape sequences when non-interactive', fu
     }
 });
 
-it('interactive choice offers only opf and wires it', function () {
+it('interactive choice offers nym and opf and wires opf', function () {
     $env = isn_bindEnv();
     try {
         $this->artisan('gaze:install:safety-net')
             ->expectsChoice('Which safety-net backend?', 'opf', [
-                'opf' => 'OpenAI privacy-filter (Tier 2)',
+                'nym' => 'Nym-small (compiled into the release binary)',
+                'opf' => 'OpenAI privacy-filter (Tier 2, needs a safety-net-openai build)',
             ])
             ->assertExitCode(0);
         expect(file_get_contents($env))->toContain('GAZE_SAFETY_NET_BACKEND=openai-filter');

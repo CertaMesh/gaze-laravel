@@ -357,14 +357,21 @@ it('shows no Kiji row when no Kiji config is present', function () {
     $this->app['config']->set('gaze.policy_path', __DIR__.'/../../resources/policy.toml');
     $this->app['config']->set('gaze.safety_net', true);
     $this->app['config']->set('gaze.safety_net_backend', 'nym');
+    // A valid bundle, so the Nym probe passes and only the Kiji rows are under test.
+    $bundle = gl_makeNymBundle();
+    $this->app['config']->set('gaze.nym_model_dir', $bundle);
 
     Process::fake(['*' => Process::result(output: "gaze 0.8.1\n")]);
 
-    $this->artisan('gaze:doctor')
-        ->assertExitCode(0)
-        ->doesntExpectOutputToContain('kiji')
-        ->doesntExpectOutputToContain('Kiji')
-        ->expectsOutputToContain('OK');
+    try {
+        $this->artisan('gaze:doctor')
+            ->assertExitCode(0)
+            ->doesntExpectOutputToContain('kiji')
+            ->doesntExpectOutputToContain('Kiji')
+            ->expectsOutputToContain('OK');
+    } finally {
+        gl_removeNymBundle($bundle);
+    }
 });
 
 it('fails when the enabled safety net still selects kiji-distilbert (removed upstream in gaze 0.15.0)', function (array $config) {

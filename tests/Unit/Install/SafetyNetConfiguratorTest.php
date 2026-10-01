@@ -33,6 +33,45 @@ it('rejects the kiji backend removed upstream in gaze 0.15.0', function () {
     SafetyNetConfigurator::pairsFor('kiji');
 })->throws(InvalidArgumentException::class, 'unknown safety-net backend: kiji');
 
+it('builds nym env pairs, wiring the bundle dir only when given', function () {
+    expect(SafetyNetConfigurator::pairsFor('nym'))
+        ->toBe([
+            'GAZE_SAFETY_NET' => 'true',
+            'GAZE_SAFETY_NET_BACKEND' => 'nym',
+        ])
+        ->and(SafetyNetConfigurator::pairsFor('nym', nymModelDir: '/srv/gaze/gaze/models/nym-small-int8'))
+        ->toBe([
+            'GAZE_SAFETY_NET' => 'true',
+            'GAZE_SAFETY_NET_BACKEND' => 'nym',
+            'GAZE_NYM_MODEL_DIR' => '/srv/gaze/gaze/models/nym-small-int8',
+        ]);
+});
+
+it('quotes path values .env could not hold bare, so phpdotenv reads them back verbatim', function () {
+    $cases = [
+        // plain values stay bare, exactly as before paths were accepted
+        '/srv/gaze/gaze/models/nym-small-int8' => 'GAZE_NYM_MODEL_DIR=/srv/gaze/gaze/models/nym-small-int8',
+        '/Users/a/Library/Application Support/nym' => "GAZE_NYM_MODEL_DIR='/Users/a/Library/Application Support/nym'",
+        '/srv/#nym$HOME' => "GAZE_NYM_MODEL_DIR='/srv/#nym\$HOME'",
+        "/srv/o'brien/nym \$x" => 'GAZE_NYM_MODEL_DIR="/srv/o\'brien/nym \\$x"',
+    ];
+
+    foreach ($cases as $value => $line) {
+        $env = snc_tempEnv();
+
+        try {
+            (new SafetyNetConfigurator($env))->apply(['GAZE_NYM_MODEL_DIR' => (string) $value], force: false);
+            $contents = (string) file_get_contents($env);
+
+            expect($contents)->toContain($line."\n")
+                ->and(Dotenv\Dotenv::parse($contents)['GAZE_NYM_MODEL_DIR'])->toBe((string) $value);
+        } finally {
+            @unlink($env);
+            @unlink($env.'.backup');
+        }
+    }
+});
+
 it('upserts keys idempotently, preserving unrelated keys', function () {
     $env = snc_tempEnv("APP_ENV=testing\nGAZE_SAFETY_NET=false\n");
     $configurator = new SafetyNetConfigurator($env);

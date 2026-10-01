@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Install\NymBundle;
 use Composer\Composer;
 use Composer\Config;
 use Composer\IO\BufferIO;
@@ -127,4 +128,57 @@ function gl_jsonEncode(mixed $value, int $flags = 0): string
     }
 
     return $encoded;
+}
+
+/**
+ * A temp directory shaped like a pinned Nym bundle the way upstream
+ * `gaze setup --safety-net nym` leaves it: directory 0700, the four required
+ * files 0600, owned by the test user. The file contents are placeholders —
+ * the adapter-side checks never hash them (the binary does).
+ *
+ * @param  list<string>|null  $files  required files to create (default: all)
+ */
+function gl_makeNymBundle(?array $files = null): string
+{
+    $dir = sys_get_temp_dir().'/gaze-nym-'.bin2hex(random_bytes(6));
+    mkdir($dir, 0700);
+    chmod($dir, 0700);
+
+    foreach ($files ?? NymBundle::REQUIRED as $name) {
+        file_put_contents($dir.'/'.$name, "placeholder\n");
+        chmod($dir.'/'.$name, 0600);
+    }
+
+    return $dir;
+}
+
+/**
+ * Remove a bundle made by gl_makeNymBundle(), restoring the owner bits first
+ * so a test that chmod'ed it to 0000 cannot leave it behind.
+ */
+function gl_removeNymBundle(string $dir): void
+{
+    if (is_dir($dir) && ! is_link($dir)) {
+        @chmod($dir, 0700);
+    }
+
+    gl_recursiveRemove($dir);
+}
+
+/**
+ * Unset GAZE_NYM_MODEL_DIR for a test that needs it absent (it may be exported
+ * for the Nym integration suite) and return the previous value for
+ * gl_restoreNymEnv().
+ */
+function gl_stashNymEnv(): string|false
+{
+    $previous = getenv('GAZE_NYM_MODEL_DIR');
+    putenv('GAZE_NYM_MODEL_DIR');
+
+    return $previous;
+}
+
+function gl_restoreNymEnv(string|false $previous): void
+{
+    putenv($previous === false ? 'GAZE_NYM_MODEL_DIR' : 'GAZE_NYM_MODEL_DIR='.$previous);
 }
