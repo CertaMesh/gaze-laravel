@@ -140,6 +140,145 @@ it('derives the trust state from the safety-net decision it forwarded (#160)', f
     'tolerant (raw output)' => ['tolerant', null, 'Invoice date 1971-05-30, plate B-MW 1234', CoverageState::Suspect, true],
 ]);
 
+/**
+ * A clean response whose report came through the `resolve` decision's `redact`
+ * fallback. Two shapes:
+ *
+ *  - `nym`: real 0.15.1 release-binary output with the Nym net, default mode,
+ *    input `admin_root930 May 1971AB12 CDE` (synthetic). Two resolve rounds
+ *    tokenize `1971AB12` and `CDE`, the fallback marks `root930 May`; here
+ *    every span happens to be protected.
+ *  - `terminal-raw`: upstream's own fixture (gaze v0.15.1
+ *    crates/gaze/tests/terminal_admission.rs,
+ *    `terminal_round_happens_at_most_once_and_reports_what_it_could_not_act_on`):
+ *    `alpha bravo charlie delta`, the fallback marks `charlie`, the terminal
+ *    round tokenizes `delta`, and the final scan's `bravo` ships RAW — in the
+ *    report, with no telemetry row. The report alone looks exactly like the
+ *    protected `nym` one.
+ */
+function fallbackCleanOutput(string $shape): string
+{
+    $suspect = fn (string $net, string $label, string $class, int $len, float $score): array => [
+        'safety_net_id' => $net,
+        'raw_label' => $label,
+        'mapped_class' => $class,
+        'leak_kind' => 'uncovered',
+        'span_len' => $len,
+        'score' => $score,
+    ];
+
+    [$cleanText, $suspects] = match ($shape) {
+        'nym' => [
+            'admin_[REDACTED:custom:license-plate] <1cc914e6:Custom:license_plate_1> <1cc914e6:Custom:license_plate_2>',
+            [
+                $suspect('nym-small-int8', 'LICENSE_PLATE>=0.5', 'Custom:license_plate', 8, 0.56586945),
+                $suspect('nym-small-int8', 'LICENSE_PLATE>=0.5', 'Custom:license_plate', 3, 0.56680036),
+                $suspect('nym-small-int8', 'LICENSE_PLATE>=0.5', 'Custom:license_plate', 11, 0.726112),
+            ],
+        ],
+        // alpha (second batch), charlie (fallback), delta (terminal round),
+        // bravo (final scan, raw) — in the order upstream appends them.
+        'terminal-raw' => [
+            '<1cc914e6:Name_1> bravo [REDACTED:name] <1cc914e6:Name_2>',
+            [
+                $suspect('terminal.fixture', 'synthetic', 'Name', 5, 1.0),
+                $suspect('terminal.fixture', 'synthetic', 'Name', 7, 1.0),
+                $suspect('terminal.fixture', 'synthetic', 'Name', 5, 1.0),
+                $suspect('terminal.fixture', 'synthetic', 'Name', 5, 1.0),
+            ],
+        ],
+        default => throw new InvalidArgumentException("Unknown fallback fixture shape: {$shape}"),
+    };
+
+    return json_encode([
+        'clean_text' => $cleanText,
+        'session_blob' => 'blob-bytes',
+        'entries' => [],
+        'stats' => ['detections' => 0],
+        'leak_report' => [
+            'stats' => [
+                'suspect_count' => count($suspects),
+                'uncovered_count' => count($suspects),
+                'partial_bleed_count' => 0,
+                'class_mismatch_count' => 0,
+                'locale_skipped_count' => 0,
+            ],
+            'suspects' => $suspects,
+            'telemetry' => [],
+        ],
+    ], JSON_THROW_ON_ERROR);
+}
+
+it('reads a report from a resolve + redact fallback run as Suspect: its final scan ships raw', function (?string $mode, ?string $fallback, string $shape) {
+    Process::fake([
+        '*' => Process::result(output: fallbackCleanOutput($shape)),
+    ]);
+
+    $session = $this->makeGaze(
+        safetyNet: true,
+        safetyNetBackend: 'nym',
+        safetyNetMode: $mode,
+        safetyNetFallback: $fallback,
+    )->clean('synthetic input');
+
+    // The fallback's marker in the clean text: the report may hold a final-scan
+    // finding upstream admitted raw, so no suspect in it is vouched for.
+    expect($session->cleanText)->toContain('[REDACTED:')
+        ->and($session->leakReport?->actsOnSuspects)->toBeFalse()
+        ->and($session->hasSuspectedLeak())->toBeTrue()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeFalse()
+        ->and($session->coverageState())->toBe(CoverageState::Suspect);
+})->with([
+    'default, real Nym fallback (all protected: a false red, never a false amber)' => [null, null, 'nym'],
+    'default, upstream fixture with a raw final-scan finding' => [null, null, 'terminal-raw'],
+    'resolve + redact spelled out' => ['resolve', 'redact', 'terminal-raw'],
+    'resolve, fallback defaulted' => ['resolve', null, 'terminal-raw'],
+]);
+
+it('keeps acting semantics where a marker cannot mean a fallback run', function (string $mode, ?string $fallback) {
+    // `redact` writes markers by design and never rescans; `resolve` + `strict`
+    // refuses (exit 3, Pipeline) instead of running a fallback, so a marker
+    // there is input or policy text, not a fallback trace.
+    Process::fake([
+        '*' => Process::result(output: fallbackCleanOutput('nym')),
+    ]);
+
+    $session = $this->makeGaze(
+        safetyNet: true,
+        safetyNetBackend: 'nym',
+        safetyNetMode: $mode,
+        safetyNetFallback: $fallback,
+    )->clean('synthetic input');
+
+    expect($session->leakReport?->actsOnSuspects)->toBeTrue()
+        ->and($session->hasSuspectedLeak())->toBeFalse()
+        ->and($session->leakReport?->hasResolvedSuspects())->toBeTrue()
+        ->and($session->coverageState())->toBe(CoverageState::Unverified);
+})->with([
+    'redact' => ['redact', null],
+    'redact + redact fallback' => ['redact', 'redact'],
+    'resolve + strict' => ['resolve', 'strict'],
+]);
+
+it('reads any [REDACTED: in a resolve + redact clean text as a fallback run, including typed input', function () {
+    // A document that already carries the marker text costs a false red: the
+    // adapter cannot tell it from the fallback's own marker, and amber is the
+    // wrong way to be wrong.
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'clean_text' => 'Ticket [REDACTED:name] closed, plate <1cc914e6:Custom:license_plate_1>',
+            'session_blob' => 'blob-bytes',
+            'stats' => ['detections' => 0],
+            'leak_report' => json_decode(fallbackCleanOutput('nym'), true, 512, JSON_THROW_ON_ERROR)['leak_report'],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $session = $this->makeGaze(safetyNet: true, safetyNetBackend: 'nym')->clean('synthetic input');
+
+    expect($session->coverageState())->toBe(CoverageState::Suspect)
+        ->and($session->leakReport?->actsOnSuspects)->toBeFalse();
+});
+
 it('exposes the trust state through the faked Gaze facade', function () {
     Gaze::fake(cleanHandler: fn (string $text): GazeSession => new GazeSession(
         cleanText: 'Hello Name_1',

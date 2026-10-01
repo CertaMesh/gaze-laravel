@@ -21,15 +21,20 @@ namespace CertaMesh\Gaze;
  * byte offsets.
  *
  * What the report records: `suspects[]` / `stats` are what the Pass-3 safety net
- * FOUND, recorded before the pipeline acts (gaze v0.15.1
- * `Pipeline::clean_text_target`). They stay the same whether the safety-net
- * decision then tokenized the spans (`resolve`), replaced them with a one-way
- * `[REDACTED:<class>]` marker (`redact`, or the `redact` fallback), or left them
- * raw (`tolerant`). The report carries no per-suspect outcome (upstream never
- * built the `action_taken` field its v0.8 design proposed), so the adapter
- * attaches the decision it forwarded as {@see $actsOnSuspects}. Under an acting
- * decision, upstream's own "not acted on" signal is the `UnactionableSubword`
- * telemetry row ({@see $unactionableSubwordCount}).
+ * FOUND, not what is still raw. The first scan is recorded before the pipeline
+ * acts (gaze v0.15.1 `Pipeline::clean_text_target`); it stays the same whether
+ * the safety-net decision then tokenized the spans (`resolve`), replaced them
+ * with a one-way `[REDACTED:<class>]` marker (`redact`), or left them raw
+ * (`tolerant`). Under `resolve`, later scans append to the same list: what the
+ * second resolve round and the `redact` fallback acted on, and — once that
+ * fallback has run — what a final scan flagged, which upstream ships raw
+ * (`Pipeline::apply_safety_net_policy`, `Pipeline::admit_terminal_output`). The
+ * report carries no per-suspect outcome or round (upstream never built the
+ * `action_taken` field its v0.8 design proposed), so the adapter attaches how
+ * the report may be read as {@see $actsOnSuspects}. Under an acting decision,
+ * upstream's own "not acted on" signal is the `UnactionableSubword` telemetry
+ * row ({@see $unactionableSubwordCount}); the final scan after the `redact`
+ * fallback emits none for a raw finding, so that case reads as observe.
  *
  * The suspects channel is populated only when a safety net runs. The stock
  * release binary ships the Nym net since gaze 0.15.0 (OPF still needs a
@@ -43,13 +48,16 @@ final readonly class LeakReport
 {
     /**
      * @param  list<LeakSuspect>  $suspects
-     * @param  bool  $actsOnSuspects  Whether the clean ran under a safety-net
-     *                                decision that acts on suspects: `resolve` with
-     *                                the `redact` or `strict` fallback, or `redact`.
-     *                                False (the default) means observe semantics —
-     *                                `strict`, `tolerant`, `resolve` with the
-     *                                `tolerant` fallback, or unknown — where a
-     *                                flagged span may have shipped raw.
+     * @param  bool  $actsOnSuspects  Whether every flagged span was protected
+     *                                unless upstream says otherwise: the clean ran
+     *                                under a safety-net decision that acts on
+     *                                suspects (`resolve` with the `redact` or
+     *                                `strict` fallback, or `redact`) and the
+     *                                `redact` fallback did not run. False (the
+     *                                default) means observe semantics — `strict`,
+     *                                `tolerant`, `resolve` with the `tolerant`
+     *                                fallback, a `redact` fallback run, or unknown
+     *                                — where a flagged span may have shipped raw.
      * @param  int  $unactionableSubwordCount  Number of upstream
      *                                         `UnactionableSubword` telemetry rows:
      *                                         word-like suspects no stage acted on,
@@ -75,9 +83,11 @@ final readonly class LeakReport
      * drift never turns a clean() into a hard failure.
      *
      * `$actsOnSuspects` is not part of the upstream JSON: `Gaze::clean()` passes
-     * it from the `--safety-net-mode` / `--safety-net-fallback` it forwarded.
-     * Leave it false when the decision is unknown — that keeps every flagged
-     * span that is not a class mismatch counted as possibly raw.
+     * it from the `--safety-net-mode` / `--safety-net-fallback` it forwarded,
+     * and passes false for `resolve` + `redact` when the clean text carries a
+     * `[REDACTED:` marker (the fallback ran). Leave it false when the decision
+     * is unknown — that keeps every flagged span that is not a class mismatch
+     * counted as possibly raw.
      *
      * @param  array<string, mixed>  $payload
      */
@@ -125,18 +135,22 @@ final readonly class LeakReport
     /**
      * Whether a span the safety net flagged may still be raw in the clean text.
      *
-     * - Acting decision (`resolve` + `redact`/`strict` fallback, `redact`):
-     *   upstream tokenized or marker-replaced every actionable suspect, so only
-     *   an `UnactionableSubword` row means raw bytes shipped.
-     * - Observe decision (`strict`, `tolerant`, `resolve` + `tolerant`
-     *   fallback, or unknown): every suspect that is not a `ClassMismatch` may
-     *   be raw. A class mismatch is already covered by a token of another
-     *   class; upstream's own boundary counts only uncovered and partial-bleed
-     *   suspects as suspected leaks.
+     * - Acting ({@see $actsOnSuspects}: `resolve` + `redact`/`strict` fallback,
+     *   `redact`, and the `redact` fallback did not run): upstream tokenized or
+     *   marker-replaced every actionable suspect, so only an
+     *   `UnactionableSubword` row means raw bytes shipped.
+     * - Observe (`strict`, `tolerant`, `resolve` + `tolerant` fallback, a
+     *   `redact` fallback run, or unknown): every suspect that is not a
+     *   `ClassMismatch` may be raw. A class mismatch is fully covered by a
+     *   replacement of another class; upstream's own boundary counts only
+     *   uncovered and partial-bleed suspects as suspected leaks.
      *
-     * One upstream path stays invisible here: after the `redact` fallback has
-     * run, a final scan's finding that no stage may act on ships in the report
-     * without a telemetry row. It reads amber, never green.
+     * The `redact` fallback run reads as observe because upstream scans the
+     * output once more afterwards and ships what that scan flags raw, in this
+     * report and with no telemetry row (`TerminalAdmission::Admit`). The report
+     * cannot say which suspect that was, so a fallback run is red whenever it
+     * holds a suspect that is not a class mismatch — also when every span was
+     * in fact protected.
      *
      * Distinct from coverage gaps, which are weaker "could not fully verify"
      * signals rather than a possibly-raw span.
@@ -153,9 +167,10 @@ final readonly class LeakReport
     /**
      * Whether the safety net flagged at least one span and the safety-net
      * decision protected all of them: tokenized under `resolve`, or replaced
-     * with a one-way `[REDACTED:<class>]` marker under `redact` or the `redact`
-     * fallback. The trust state is then Unverified (amber), not Suspect: the
-     * primary pipeline missed the spans, the net caught them.
+     * with a one-way `[REDACTED:<class>]` marker under `redact`. The trust state
+     * is then Unverified (amber), not Suspect: the primary pipeline missed the
+     * spans, the net caught them. Never true once the `resolve` decision's
+     * `redact` fallback has run (see {@see hasSuspectedLeak()}).
      */
     public function hasResolvedSuspects(): bool
     {

@@ -125,6 +125,37 @@ it('reads the same captured Nym report as Suspect under an observe decision (tol
         ->and($report->coverageState())->toBe(CoverageState::Suspect);
 });
 
+it('cannot show a raw final-scan finding after the redact fallback: only actsOnSuspects false keeps it red', function () {
+    // Upstream's fixture (gaze v0.15.1 crates/gaze/tests/terminal_admission.rs,
+    // terminal_round_happens_at_most_once_and_reports_what_it_could_not_act_on):
+    // alpha tokenized, charlie marker-redacted by the fallback, delta tokenized
+    // by the terminal round, bravo flagged by the final scan and shipped RAW.
+    // Four uncovered suspects, no telemetry row: indistinguishable from a
+    // report whose spans were all protected.
+    $suspect = [
+        'safety_net_id' => 'terminal.fixture',
+        'raw_label' => 'synthetic',
+        'mapped_class' => 'Name',
+        'leak_kind' => 'uncovered',
+        'span_len' => 5,
+        'score' => 1.0,
+    ];
+    $payload = leakReportArray(
+        ['suspect_count' => 4, 'uncovered_count' => 4],
+        [$suspect, ['span_len' => 7] + $suspect, $suspect, $suspect],
+    );
+
+    // Read under acting semantics the raw `bravo` would be a false amber;
+    // Gaze::clean() therefore passes false when the fallback ran.
+    expect(LeakReport::fromArray($payload, actsOnSuspects: true)->coverageState())->toBe(CoverageState::Unverified);
+
+    $report = LeakReport::fromArray($payload, actsOnSuspects: false);
+
+    expect($report->hasSuspectedLeak())->toBeTrue()
+        ->and($report->hasResolvedSuspects())->toBeFalse()
+        ->and($report->coverageState())->toBe(CoverageState::Suspect);
+});
+
 it('keeps observe semantics when the decision is unknown (fromArray without a decision)', function () {
     $report = LeakReport::fromArray(nymLeakReport0151());
 

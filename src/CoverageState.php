@@ -19,8 +19,10 @@ namespace CertaMesh\Gaze;
  *                         an absent locale — or the safety net flagged spans and
  *                         the `resolve` / `redact` decision protected them.
  *  - Suspect    (red):    a span the safety net flagged may still carry raw PII
- *                         in the clean text (e.g. under `tolerant`, or an
- *                         upstream `UnactionableSubword` the pipeline left raw).
+ *                         in the clean text (e.g. under `tolerant`, an upstream
+ *                         `UnactionableSubword` the pipeline left raw, or after
+ *                         the `resolve` decision's `redact` fallback ran, whose
+ *                         final scan ships what it flags raw).
  *
  * @see LeakReport for how each state is computed from the upstream counts.
  */

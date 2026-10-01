@@ -27,6 +27,10 @@ class Gaze implements AuditRunner, GazeContract
 {
     private const DEFAULT_MAX_BYTES = 10485760;
 
+    // Prefix of the one-way marker the safety net writes for a span it
+    // redacts (upstream gaze_types::redaction_marker::REDACTION_MARKER_PREFIX).
+    private const REDACTION_MARKER_PREFIX = '[REDACTED:';
+
     // Mirrors of the GazeOptions fields consumed by restore(), run(), and
     // the pre-flight helpers in the lower half of this file. clean()/mask()
     // read $this->options directly; these keep the process-invocation and
@@ -118,7 +122,7 @@ class Gaze implements AuditRunner, GazeContract
             ciphertext: EncryptedBlob::wrap($decoded['session_blob'], $this->encrypter),
             detections: (int) ($decoded['stats']['detections'] ?? 0),
             entries: $this->mapEntries($decoded['entries'] ?? null),
-            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null),
+            leakReport: $this->mapLeakReport($decoded['leak_report'] ?? null, $decoded['clean_text']),
         );
     }
 
@@ -151,15 +155,18 @@ class Gaze implements AuditRunner, GazeContract
      * a null report degrades the session's trust state to Unverified rather than
      * silently asserting Verified. Never throws on shape drift.
      */
-    private function mapLeakReport(mixed $raw): ?LeakReport
+    private function mapLeakReport(mixed $raw, string $cleanText): ?LeakReport
     {
         return is_array($raw)
-            ? LeakReport::fromArray($raw, $this->safetyNetActsOnSuspects())
+            ? LeakReport::fromArray($raw, $this->safetyNetActsOnSuspects($cleanText))
             : null;
     }
 
     /**
-     * Whether the safety-net decision this clean() forwarded acts on suspects.
+     * Whether this clean()'s leak_report can be read under acting semantics:
+     * every flagged span protected unless upstream says otherwise (an
+     * `UnactionableSubword` row). False means observe semantics: any flagged
+     * span that is not a class mismatch may be raw.
      *
      * The leak_report is identical whether the suspects were tokenized,
      * marker-replaced or shipped raw, so the decision has to come from the
@@ -169,15 +176,31 @@ class Gaze implements AuditRunner, GazeContract
      * null — are the decision. Mirrors upstream `SafetyNetPolicy::decision()`:
      * `redact` and `resolve` with a `redact` or `strict` fallback act;
      * `strict`, `tolerant` and `resolve` with the `tolerant` fallback observe.
+     *
+     * One acting case reads as observe: `resolve` with the `redact` fallback
+     * once that fallback has run. Upstream then scans the output once more and
+     * ships what that scan flags raw, in the same report and with no telemetry
+     * row (gaze v0.15.1 `Pipeline::admit_terminal_output`,
+     * `TerminalAdmission::Admit`), so no suspect in it can be vouched for. The
+     * fallback's one-way `[REDACTED:<class>]` marker is the only trace of the
+     * run in the response; any `[REDACTED:` in the clean text counts. Input
+     * that already carries one, or a policy `redact` rule's marker, costs a
+     * false red, never a false amber. `resolve` + `strict` needs no such check:
+     * its fallback refuses instead (exit 3, `Pipeline`), so a returned clean
+     * never ran it.
      */
-    private function safetyNetActsOnSuspects(): bool
+    private function safetyNetActsOnSuspects(string $cleanText): bool
     {
         $mode = $this->options->safetyNetMode ?? 'resolve';
         $fallback = $this->options->safetyNetFallback ?? 'redact';
 
         return match ($mode) {
             'redact' => true,
-            'resolve' => in_array($fallback, ['redact', 'strict'], true),
+            'resolve' => match ($fallback) {
+                'strict' => true,
+                'redact' => ! str_contains($cleanText, self::REDACTION_MARKER_PREFIX),
+                default => false,
+            },
             default => false,
         };
     }
