@@ -213,10 +213,11 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 
 ### TL;DR
 
-1. **Optional rebuild for daemon feature.** If the GitHub-release `gaze`
-   binary on your hosts is built without `--features daemon`, rebuild
-   with `cargo install gaze-cli --features daemon` to enable the new
-   `Gaze::daemon()` surface. The one-shot `Gaze::clean()` /
+1. **No rebuild needed for the daemon.** `gaze daemon` ships in every gaze
+   since 0.9.0 and is not behind a cargo feature. (Corrected at v0.15.0: this
+   guide used to advise `cargo install gaze-cli --features daemon`, a feature
+   that never existed upstream.) The new `Gaze::daemon()` surface works with
+   the pinned binary. The one-shot `Gaze::clean()` /
    `Gaze::restore()` path is unaffected — daemon is purely additive.
 2. **New `Gaze::daemon()` Facade.** Use for multi-turn agent loops or
    worker queues that need repeated low-latency redaction without

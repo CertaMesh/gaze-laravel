@@ -406,7 +406,8 @@ it('warns with the cargo install hint when the binary lacks the proxy feature', 
 
     $this->artisan('gaze:doctor')
         ->assertExitCode(0)
-        ->expectsOutputToContain('cargo install gaze-cli --features proxy');
+        ->expectsOutputToContain('built without the proxy feature')
+        ->expectsOutputToContain('gaze:install:binary --force');
 });
 
 it('skips the restore-telemetry probe when gaze.restore_telemetry is off', function () {

@@ -45,7 +45,9 @@ it('surfaces the cargo-install hint when the binary lacks the daemon subverb', f
     });
 
     $this->artisan('gaze:doctor')
-        ->expectsOutputToContain('cargo install gaze-cli --features daemon');
+        ->expectsOutputToContain('predates gaze 0.9.0')
+        ->expectsOutputToContain('gaze:install:binary --force')
+        ->doesntExpectOutputToContain('--features daemon');
 });
 
 it('reports daemon feature available when the binary recognises the subverb', function () {

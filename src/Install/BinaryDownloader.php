@@ -110,7 +110,10 @@ class BinaryDownloader
             self::installBinary($assetPath, $binPath);
             @chmod($binPath, 0755);
             $emit('info', "gaze-laravel: installed gaze v{$version} → {$binPath}");
-            $emit('comment', 'gaze-laravel: gaze proxy is opt-in. To use `php artisan gaze:proxy:*`, rebuild upstream with: cargo install gaze-cli --features proxy');
+            // Upstream's release build enables `document,proxy` (release.yml
+            // GAZE_RELEASE_FEATURES), so `gaze:proxy:*` works with this binary;
+            // the feature it lacks is the OpenAI privacy-filter safety net.
+            $emit('comment', 'gaze-laravel: this release binary includes `gaze proxy` (php artisan gaze:proxy:*). The opf safety net (GAZE_SAFETY_NET_BACKEND=openai-filter) needs your own build with --features safety-net-openai.');
 
             return new BinaryDownloadResult(BinaryDownloadStatus::Installed, $binPath, $version, 'installed');
         } catch (\Throwable $e) {

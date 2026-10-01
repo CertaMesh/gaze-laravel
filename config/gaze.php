@@ -259,13 +259,13 @@ return [
      * exact `--flag` to the binary; null/empty omits the flag and lets the
      * binary fall back to its own config file (default `~/.config/gaze/proxy.toml`).
      *
-     * The upstream `proxy` subcommand is feature-gated. The GitHub-release
-     * binary asset is built WITHOUT `--features proxy`. Adopters that want
-     * `php artisan gaze:proxy:*` at runtime must rebuild upstream with:
+     * The upstream `proxy` subcommand sits behind a cargo feature that is ON by
+     * default since gaze 0.8.1, so the release binaries `gaze:install`
+     * downloads and a plain `cargo install gaze-cli` both include it. Only a
+     * `--no-default-features` build lacks it; `gaze:doctor` says so when it
+     * detects one.
      *
-     *     cargo install gaze-cli --features proxy
-     *
-     * See `docs/proxy.md` for the full reference.
+     * See `docs/how-to/proxy-daemon.md` for the full reference.
      */
     'proxy' => [
         /*
@@ -326,13 +326,11 @@ return [
     | `Gaze::clean()` path uses, so a configured pipeline behaves
     | identically in both runtimes. Only daemon-specific knobs live here.
     |
-    | The upstream `daemon` subcommand may be feature-gated. When the binary
-    | lacks the feature, `php artisan gaze:daemon:serve` will fail at first
-    | invocation. Doctor's `--deep` probe pre-flights this and surfaces:
+    | `gaze daemon` exists in every gaze since 0.9.0 and is not behind a cargo
+    | feature, so only a binary older than 0.9.0 lacks it; `gaze:doctor` then
+    | says to install the pinned binary.
     |
-    |     cargo install gaze-cli --features daemon
-    |
-    | See `docs/daemon.md` for the full reference.
+    | See `docs/how-to/daemon.md` for the full reference.
     |
     | Connections-style configuration (`gaze.daemon.connections.{name}.*`) is
     | intentionally not shipped — it's an additive MINOR promotion once a

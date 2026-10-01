@@ -9,10 +9,9 @@ use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 /**
  * Upstream binary lacks the `daemon` subcommand.
  *
- * The GitHub-release binary may be built without `--features daemon`.
- * Doctor's pre-flight surfaces this exception verbatim with the hint:
- *
- *     cargo install gaze-cli --features daemon
+ * `gaze daemon` exists in every gaze since 0.9.0 and is not behind a cargo
+ * feature, so this means a binary older than 0.9.0: install the pinned one
+ * (`php artisan gaze:install:binary --force`).
  */
 final class GazeDaemonFeatureUnsupportedException extends GazeDaemonException
 {
@@ -20,7 +19,7 @@ final class GazeDaemonFeatureUnsupportedException extends GazeDaemonException
      * @param  array<string, mixed>  $raw
      */
     public function __construct(
-        string $message = 'gaze daemon subcommand unavailable; rebuild with: cargo install gaze-cli --features daemon',
+        string $message = 'gaze daemon subcommand unavailable; the binary predates gaze 0.9.0 — run php artisan gaze:install:binary --force',
         ?string $sessionId = null,
         array $raw = [],
         ?\Throwable $previous = null,

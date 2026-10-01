@@ -26,8 +26,8 @@ config keys, and exception types in this package keep that name.
 ## TL;DR
 
 ```bash
-# 1. Rebuild upstream with the daemon feature (one-time per host, if gated)
-cargo install gaze-cli --features daemon
+# 1. Install the pinned binary (gaze daemon ships in every gaze >= 0.9.0)
+php artisan gaze:install
 
 # 2. Set a policy path and start the foreground wrapper under your supervisor
 GAZE_DAEMON_POLICY_PATH=/etc/gaze/policy.toml php artisan gaze:daemon:serve
@@ -36,10 +36,10 @@ GAZE_DAEMON_POLICY_PATH=/etc/gaze/policy.toml php artisan gaze:daemon:serve
 Gaze::daemon()->session('agent-thread-a')->clean($prompt);
 ```
 
-> **Opt-in upstream feature.** The published GitHub-release `gaze`
-> binary may be built **without** `--features daemon`. Doctor's
-> pre-flight surfaces the exact `cargo install` hint when it detects
-> daemon configuration against a binary missing the subverb.
+> **No feature flag needed.** `gaze daemon` exists in every gaze since
+> 0.9.0 and is not behind a cargo feature (there is no `daemon` feature).
+> Doctor's pre-flight flags a binary older than that when it detects daemon
+> configuration.
 
 ## When To Use
 
@@ -262,7 +262,7 @@ in `DaemonErrorVariant::Unknown` and would otherwise raise an unhandled
 | `Pipeline` | upstream | `GazeDaemonException` | Upstream pipeline failed closed. Same fail-closed posture as one-shot. |
 | `Transport` | adapter | `GazeDaemonTransportException` | Broken pipe / EOF / mismatched session id. Doctor probe is the only place reconnect logic lives — hot path is fail-closed. |
 | `Timeout` | adapter | `GazeDaemonTimeoutException` | Per-request `gaze.daemon.request_timeout_ms` exceeded. Raise for cold first requests. |
-| `Unavailable` | adapter | `GazeDaemonFeatureUnsupportedException` | Binary missing `daemon` subverb. Rebuild with `cargo install gaze-cli --features daemon`. |
+| `Unavailable` | adapter | `GazeDaemonFeatureUnsupportedException` | Binary missing the `daemon` subverb, i.e. older than gaze 0.9.0. Install the pinned binary (`php artisan gaze:install:binary --force`). |
 | `Unknown` | forward-compat | `GazeDaemonException` | New upstream variant; doctor logs an adopter warning when it appears on `gaze daemon --help`. |
 
 ```php
@@ -358,9 +358,8 @@ The schema is documented in upstream
 `gaze.daemon.policy_path` is null. When the key is populated, the
 probe:
 
-1. Pre-flights `gaze daemon --help` — feature-gate check. Missing
-   subverb throws `GazeDaemonFeatureUnsupportedException` with the
-   `cargo install gaze-cli --features daemon` hint.
+1. Pre-flights `gaze daemon --help`. A missing subverb (a binary older
+   than gaze 0.9.0) warns with the hint to install the pinned binary.
 2. Checks readability of `gaze.daemon.policy_path` and parent-dir
    writability of `gaze.daemon.audit_db_path` / `stderr_path` when set.
 3. (`--deep`) Diffs the upstream variant list against
