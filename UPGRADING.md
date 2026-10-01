@@ -9,7 +9,7 @@ upcoming release in full; per-minor guides for earlier versions live in
 ## v0.13.0 → v0.14.0
 
 > Pre-1.0 SemVer: breaking changes land on a MINOR bump. v0.14.0 moves the
-> pinned binary from gaze 0.12.0 to 0.15.x and tracks the upstream contract
+> pinned binary from gaze 0.12.0 to 0.15.1 and tracks the upstream contract
 > changes that come with it.
 
 ### TL;DR
@@ -35,22 +35,8 @@ upcoming release in full; per-minor guides for earlier versions live in
    preserving. Change the last rule of your copy; see
    [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
 6. **Laravel 11 dropped (BREAKING); PHP 8.2 support ends after 2026-12-31.**
-   See [Laravel 11 is no longer supported](#laravel-11-is-no-longer-supported-breaking).
-
-### Laravel 11 is no longer supported (BREAKING)
-
-Laravel 11 reached end of life on 2026-03-12. gaze-laravel v0.14.0 requires
-**Laravel 12 or 13** (`illuminate/*: ^12.0|^13.0`). On a Laravel 11 app,
-`composer update` keeps you on gaze-laravel 0.13.x. Upgrade Laravel first
-(see the [Laravel 12 upgrade guide](https://laravel.com/docs/12.x/upgrade)),
-then update this package. Nothing else in the adapter changes for Laravel 12/13
-users.
-
-### PHP 8.2: support ends after 2026-12-31
-
-PHP 8.2 leaves upstream security support on 2026-12-31. The first gaze-laravel
-release after that date will require PHP 8.3+. v0.14.0, and any further release
-in 2026, still supports PHP 8.2.
+   See [Laravel 11 is no longer supported](#laravel-11-is-no-longer-supported-breaking)
+   and [PHP 8.2: support ends after 2026-12-31](#php-82-support-ends-after-2026-12-31).
 
 ### Binary pin 0.12.0 → 0.15.1: what changes for you
 
@@ -213,6 +199,21 @@ echo probe | vendor/bin/gaze clean --policy=policy.toml --format=json 2>&1 >/dev
 
 Expect more tokens after the change: whole URLs become `Custom:url` tokens
 (they restore exactly), and the ID/date-of-birth classes above are tokenized.
+
+### Laravel 11 is no longer supported (BREAKING)
+
+Laravel 11 reached end of life on 2026-03-12. gaze-laravel v0.14.0 requires
+**Laravel 12 or 13** (`illuminate/*: ^12.0|^13.0`). On a Laravel 11 app,
+`composer update` keeps you on gaze-laravel 0.13.x. Upgrade Laravel first
+(see the [Laravel 12 upgrade guide](https://laravel.com/docs/12.x/upgrade)),
+then update this package. Nothing else in the adapter changes for Laravel 12/13
+users.
+
+### PHP 8.2: support ends after 2026-12-31
+
+PHP 8.2 leaves upstream security support on 2026-12-31. The first gaze-laravel
+release after that date will require PHP 8.3+. v0.14.0, and any further release
+in 2026, still supports PHP 8.2.
 
 ## v0.12.0 → v0.13.0
 
