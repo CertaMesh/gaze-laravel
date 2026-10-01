@@ -4,6 +4,18 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Added
+
+- **Tests: opt-in upstream error-name drift check** (#184). With
+  `GAZE_UPSTREAM_SRC` set to a gaze checkout, `UpstreamErrorDriftTest` reads
+  `error.rs`, `commands/daemon.rs` and `pipeline/run.rs` at the pinned tag and
+  fails on any error name that is neither mapped by `Variant` /
+  `DaemonErrorVariant` nor listed as deliberately unmapped. Before, a new
+  upstream name silently became `Unknown` until someone updated the hand-copied
+  lists. The unmapped and retired lists move to `tests/Fixtures/UpstreamErrorNames.php`,
+  shared with the contract tests. The check is skipped when the variable is
+  unset and runs during the pin-bump audit, not in regular CI.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it

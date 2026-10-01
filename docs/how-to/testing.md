@@ -296,6 +296,31 @@ To update snapshots after an intentional binary change:
 ./vendor/bin/pest tests/Contract/ --update-snapshots
 ```
 
+### Upstream error-name drift check (opt-in)
+
+`VariantContractTest` and `DaemonErrorVariantContractTest` compare the PHP enums
+against error names copied by hand from upstream. `UpstreamErrorDriftTest`
+checks those copies against the upstream source. It runs only when
+`GAZE_UPSTREAM_SRC` points at a `gaze` git checkout, and is skipped otherwise:
+
+```bash
+GAZE_UPSTREAM_SRC=/path/to/gaze ./vendor/bin/pest tests/Contract/UpstreamErrorDriftTest.php
+```
+
+At tag `v` + `BinaryDownloader::PINNED_VERSION`, it reads
+`crates/gaze-cli/src/error.rs`, `commands/daemon.rs` and `pipeline/run.rs` with
+`git show`, so the checkout's working tree is never touched; the tag must be
+fetched. It extracts every error name the binary writes and fails on any name
+that is neither mapped by `Variant` / `DaemonErrorVariant` nor listed in
+`tests/Fixtures/UpstreamErrorNames.php`. It also fails on a listed name upstream
+no longer writes.
+
+The extraction is regex over Rust source, and its limits are listed at the top of
+the test. A name built at runtime is invisible to it. If upstream refactors one of
+the scanned functions, the test fails and asks to be updated; it never passes on
+an empty list. Run it during every pin bump (see the lockstep audit in
+`AGENTS.md`).
+
 ---
 
 ## Static Analysis
