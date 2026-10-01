@@ -33,6 +33,20 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   the pidfile and log paths, which pointed at a `gaze-proxy/` directory that
   upstream never used.
 
+### Added
+
+- **Tests: opt-in upstream error-name drift check** (#184). With
+  `GAZE_UPSTREAM_SRC` set to a gaze checkout, `UpstreamErrorDriftTest` reads
+  `error.rs`, `commands/daemon.rs` and `pipeline/run.rs` at the pinned tag and
+  fails on any error name that is neither mapped by `Variant` /
+  `DaemonErrorVariant` nor listed as deliberately unmapped. Before, a new
+  upstream name silently became `Unknown` until someone updated the hand-copied
+  lists. It also fails when a mapped case's name is no longer found, so a
+  refactor that shrinks the extraction cannot hide one. The unmapped, retired
+  and adapter-made lists (`SigPipe` is the adapter's, not upstream's) move to
+  `tests/Fixtures/UpstreamErrorNames.php`, shared with the contract tests. The check is skipped when the variable is
+  unset and runs during the pin-bump audit, not in regular CI.
+
 ## [0.15.0] - 2026-10-01
 
 Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
