@@ -4,6 +4,30 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-01
+
+Bug-fix wave on the gaze 0.15.1 pin. It ships as a MINOR release because it
+adds enum cases and a doctor probe (NORTH_STAR SemVer policy); the binary pin
+is unchanged.
+
+### Added
+
+- **`DaemonErrorVariant` gains 11 cases** for the error names the gaze 0.15.1
+  daemon writes: `ProtocolInvalid`, `PipelineInvariant` and nine `SafetyNet*`
+  cases (#162). A `match()` on the variant needs its `default` arm.
+- **`gaze:doctor` session-scope probe:** fails on `GAZE_SESSION_SCOPE=ephemeral`,
+  warns on a policy-level `[session] scope = "ephemeral"` (#163).
+
+### Changed
+
+- **Daemon safety-net errors are no longer mistaken for adapter faults** (#162):
+  the daemon's safety-net `Timeout` is `SafetyNetTimeout` on the base
+  `GazeDaemonException`, not `GazeDaemonTimeoutException`;
+  `DaemonErrorVariant::fromWire('Transport')` returns `Unknown`. Session-id
+  mismatches and concurrent requests throw `GazeDaemonTransportException`.
+- **`GAZE_SESSION_SCOPE=ephemeral` fails fast** with the non-retryable
+  `GazePolicyConfigDetailException` before gaze runs (#163).
+
 ### Fixed
 
 - **`gaze:proxy:serve --foreground-daemon` now starts the proxy** (#161). It
@@ -82,7 +106,6 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
   `GazeDaemonException` with the `Transport` variant, so a
   `catch (GazeDaemonTransportException)` missed them. The subclass extends the
   base class, so existing `catch (GazeDaemonException)` blocks still match.
-
 
 ## [0.14.0] - 2026-10-01
 

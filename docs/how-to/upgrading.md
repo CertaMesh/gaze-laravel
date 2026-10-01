@@ -4,6 +4,16 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 [CHANGELOG.md](../../CHANGELOG.md) and the upstream binary's
 [UPGRADE.md](https://github.com/CertaMesh/gaze/blob/main/UPGRADE.md).
 
+## v0.14.0 → v0.15.0
+
+> **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
+> Same gaze 0.15.1 pin, no re-install. `GAZE_SESSION_SCOPE=ephemeral` now fails
+> fast with a non-retryable `GazePolicyConfigDetailException` (it never worked
+> and used to retry forever). `DaemonErrorVariant` gains 11 cases; the daemon's
+> safety-net `Timeout` / `Unavailable` are now `SafetyNetTimeout` /
+> `SafetyNetUnavailable`, not the adapter's own `GazeDaemonTimeoutException` /
+> missing-daemon cases. `gaze:proxy:serve --foreground-daemon` works.
+
 ## v0.13.0 → v0.14.0
 
 > **Canonical guide: [UPGRADING.md](../../UPGRADING.md) at the repo root.**
