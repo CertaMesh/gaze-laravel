@@ -15,8 +15,10 @@ Per-minor upgrade guide for `certamesh/gaze-laravel`. Pair with
 > `kiji-distilbert` backend fails closed before spawning, and every Kiji config
 > key, env var and installer option is removed. Migrate to Nym or turn the net
 > off. (2) Laravel 11 is no longer supported (`illuminate/*: ^12.0|^13.0`).
-> **The published-policy leak fix requires action if you published the
-> policy:** flip the default rule from `preserve` to `tokenize`. Also:
+> **The policy leak fix requires action on every existing install** (your app
+> runs its own `policy.toml` copy): flip the default rule from `preserve` to
+> `tokenize`; `gaze:doctor` warns until you do. The daemon now honours
+> `GAZE_RULEPACKS`. Also:
 > `GazeSafetyNetUsageException` is new, `GazeUnsupportedSessionScopeException`
 > is deprecated, `--safety-net-backend` is forwarded only while the net is
 > enabled, and PHP 8.2 support ends with the first release after 2026-12-31.
