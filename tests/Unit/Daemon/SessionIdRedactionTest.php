@@ -170,3 +170,18 @@ it('keeps a null session id null in the log context', function () {
     expect($e->toLogContext()['session_id_sha256'])->toBeNull()
         ->and($e->toLogContext()['raw'])->toBe(['session_id_sha256' => null]);
 });
+
+it('hashes envelope fields it does not know instead of logging them verbatim', function () {
+    $e = new GazeDaemonException(
+        'daemon error',
+        null,
+        ['error' => 'Pipeline', 'detail' => 'pipeline failed', 'future_field' => 'SECRET-PII'],
+        DaemonErrorVariant::Pipeline,
+    );
+
+    $raw = $e->toLogContext()['raw'];
+
+    expect($raw)->toHaveKeys(['error', 'detail', 'future_field_sha256'])
+        ->not->toHaveKey('future_field')
+        ->and(json_encode($raw))->not->toContain('SECRET-PII');
+});

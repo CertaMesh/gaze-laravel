@@ -102,14 +102,20 @@ class GazeDaemonException extends GazeIntegrityException
      */
     private static function logSafeRaw(array $raw): array
     {
+        // Allowlist, not denylist: a field upstream adds to the envelope later
+        // is hashed until someone checks it carries no input. Kept verbatim:
+        // the error name and detail (fixed upstream strings), and manifest /
+        // tokens (spans, classes, tokens — no raw values at gaze 0.15.1).
+        $verbatim = ['error', 'detail', 'manifest', 'tokens'];
+
         $safe = [];
         foreach ($raw as $key => $value) {
             if ($key === 'session_id') {
                 $safe['session_id_sha256'] = is_string($value) ? SessionIdDigest::of($value) : null;
-            } elseif ($key === 'clean_text' || $key === 'raw_line') {
-                $safe[$key.'_sha256'] = is_string($value) ? hash('sha256', $value) : null;
-            } else {
+            } elseif (in_array($key, $verbatim, true)) {
                 $safe[$key] = $value;
+            } else {
+                $safe[$key.'_sha256'] = is_string($value) ? hash('sha256', $value) : hash('sha256', (string) json_encode($value));
             }
         }
 
