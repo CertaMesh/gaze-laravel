@@ -10,7 +10,7 @@ This file provides guidance for AI agents (Claude Code, Codex, Cursor, etc.) whe
 
 Project compass: [`docs/NORTH_STAR.md`](./docs/NORTH_STAR.md) — mission, principles, non-goals, SemVer policy. Cite it when implementation choices fork.
 
-Living roadmap: Solo scratchpad `Convention — Living roadmap protocol` (41) → `gaze → gaze-laravel coverage roadmap` (46). Orchestrators maintain on every release. (IDs 1550/1538 in older docs are stale.)
+Living roadmap: Solo project `gaze-laravel` scratchpad `gaze → gaze-laravel coverage roadmap` (145) — current pin, release train and deferred-surface queue; detailed verdicts live in [`docs/reference/upstream-coverage.md`](./docs/reference/upstream-coverage.md). Review/priority state: scratchpad 107. Orchestrators maintain both on every release. (IDs 41/46 and 1550/1538 in older docs never resolved or are deleted.)
 
 Operational implications for agents working in this repo:
 - **Track upstream first.** Before adding a feature here, verify the upstream `gaze` contract (CLI flags, exit codes, JSON shapes). The source of truth is the Rust repo, not this one.
