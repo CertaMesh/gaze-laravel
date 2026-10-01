@@ -41,8 +41,14 @@ return [
 
     /*
      * Optional session isolation scope forwarded to `gaze clean`.
-     * Valid values are `ephemeral`, `conversation`, and `persistent`.
-     * Null omits the flag and lets upstream apply its default.
+     * Supported values are `conversation` and `persistent`. Null omits the
+     * flag and uses the policy's `[session] scope`.
+     *
+     * `ephemeral` is rejected before the binary runs (non-retryable
+     * GazePolicyConfigDetailException): gaze clean must return an exported
+     * session blob for restore(), and gaze never exports an ephemeral
+     * session. A policy `[session] scope = "ephemeral"` fails every clean the
+     * same way; `gaze:doctor` warns about it.
      */
     'session_scope' => env('GAZE_SESSION_SCOPE'),
 

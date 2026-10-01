@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Exceptions\GazePolicyConfigDetailException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
+use CertaMesh\Gaze\Queue\GazeRetryPolicy;
+use CertaMesh\Gaze\Queue\RetryAction;
 use CertaMesh\Gaze\SafetyNetBackendGuard;
+use CertaMesh\Gaze\SessionScopeGuard;
 use Illuminate\Support\Facades\Process;
 
 it('assembles clean argv with policy and json output', function () {
@@ -239,7 +243,39 @@ it('forwards --session-scope when configured', function (string $sessionScope) {
 
         return true;
     });
-})->with(['ephemeral', 'conversation', 'persistent']);
+})->with(['conversation', 'persistent']);
+
+it('refuses an ephemeral session scope before spawning, regardless of case and whitespace', function (string $sessionScope) {
+    Process::fake();
+
+    try {
+        $this->makeGaze(policyPath: '/tmp/policy.toml', sessionScope: $sessionScope)->clean('Hello');
+    } catch (GazePolicyConfigDetailException $e) {
+        expect($e->getMessage())->toBe(SessionScopeGuard::EPHEMERAL_UNSUPPORTED)
+            ->not->toContain('Hello')
+            ->and($e->detail())->toContain('ephemeral')
+            ->and($e->exitCode)->toBe(2)
+            ->and($e->stderrHash)->toBeNull()
+            // The binary's own answer (Pipeline, exit 3) is Retryable; the
+            // pre-flight must land in the fail lane instead.
+            ->and(GazeRetryPolicy::classify($e))->toBe(RetryAction::Fail);
+
+        Process::assertNothingRan();
+
+        return;
+    }
+
+    $this->fail('Expected GazePolicyConfigDetailException to be thrown.');
+})->with(['ephemeral', 'EPHEMERAL', ' Ephemeral ']);
+
+it('refuses an ephemeral session scope on mask() too, before spawning', function () {
+    Process::fake();
+
+    expect(fn () => $this->makeGaze(policyPath: '/tmp/policy.toml', sessionScope: 'ephemeral')->mask('Hello'))
+        ->toThrow(GazePolicyConfigDetailException::class, SessionScopeGuard::EPHEMERAL_UNSUPPORTED);
+
+    Process::assertNothingRan();
+});
 
 it('produces multiple --rulepack-bundled entries', function () {
     Process::fake([
