@@ -6,6 +6,9 @@ namespace CertaMesh\Gaze\Exceptions;
 
 use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 use CertaMesh\Gaze\Daemon\SessionIdDigest;
+use CertaMesh\Gaze\Queue\Contracts\HasRetryDisposition;
+use CertaMesh\Gaze\Queue\RetryAction;
+use CertaMesh\Gaze\Queue\SafetyNetRetryMap;
 
 /**
  * Exception thrown by the long-lived `gaze daemon` JSONL adapter.
@@ -20,12 +23,14 @@ use CertaMesh\Gaze\Daemon\SessionIdDigest;
  * (#181). `sessionId()` and `raw()` keep the raw values for code that needs
  * them; nothing logs them automatically.
  *
- * This class is intentionally NOT `Retryable`: queue retry policy is the
- * adopter's responsibility, mirroring the one-shot semantics of the
- * underlying `gaze` binary. Transport / timeout subclasses inherit the
- * same posture.
+ * This class implements none of the static retry markers (`Retryable`,
+ * `NonRetryable`, ...). Its {@see self::retryDisposition()} answers only for
+ * the `SafetyNet*` variants, with the same map as the one-shot
+ * `GazeSafetyNetFailureException`; every other variant returns
+ * `RetryAction::Throw`, so its queue retry stays the adopter's call.
+ * Transport / timeout subclasses inherit the same posture.
  */
-class GazeDaemonException extends GazeIntegrityException
+class GazeDaemonException extends GazeIntegrityException implements HasRetryDisposition
 {
     /**
      * @param  array<string, mixed>  $raw
@@ -47,6 +52,21 @@ class GazeDaemonException extends GazeIntegrityException
     public function daemonVariant(): DaemonErrorVariant
     {
         return $this->daemonVariant;
+    }
+
+    /**
+     * Safety-net failures (`DaemonErrorVariant::SafetyNet*`) get the same
+     * disposition as the one-shot variant of the same name
+     * ({@see SafetyNetRetryMap}). Every other daemon variant returns
+     * `RetryAction::Throw`, as before this method existed.
+     */
+    public function retryDisposition(): RetryAction
+    {
+        $safetyNetVariant = $this->daemonVariant->safetyNetVariant();
+
+        return $safetyNetVariant === null
+            ? RetryAction::Throw
+            : SafetyNetRetryMap::for($safetyNetVariant);
     }
 
     /**

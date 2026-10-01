@@ -10,7 +10,19 @@ upcoming release in full; per-minor guides for earlier versions live in
 
 ### TL;DR
 
-1. **Daemon exceptions log a session-id digest, not the raw id** (#181).
+1. **Safety-net failures get a queue lane per real upstream variant, on clean
+   and on the daemon** (#183). If your jobs call `GazeRetryPolicy::dispatch()`
+   or `classify()`, a one-shot `Runtime` failure now releases with backoff
+   instead of failing. Daemon safety-net errors are no longer re-thrown:
+   `SafetyNetTimeout` / `SafetyNetRuntime` release with backoff,
+   `SafetyNetSuspectedLeak` releases and fires `GazeInfraAlert`, and the
+   configuration, model and input variants (`SafetyNetWeightsMissing`,
+   `SafetyNetInputTooLarge`, …) fail the job at once. Before, `dispatch()`
+   re-threw all of them and the worker retried until `$tries` ran out. Other
+   daemon errors still re-throw. If you caught those daemon errors yourself
+   before calling `dispatch()`, check that branch; the full table is in the
+   [exception reference](docs/reference/exceptions.md#safety-net-and-session-scope-exceptions).
+2. **Daemon exceptions log a session-id digest, not the raw id** (#181).
    `GazeDaemonException::toLogContext()` replaces the `session_id` key with
    `session_id_sha256`: the first 12 hex characters of the id's SHA-256. Its
    `raw` envelope swaps `session_id` the same way, and `clean_text` /

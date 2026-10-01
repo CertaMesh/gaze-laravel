@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use CertaMesh\Gaze\Daemon\DaemonErrorVariant;
 use CertaMesh\Gaze\Events\GazeInfraAlert;
+use CertaMesh\Gaze\Exceptions\GazeDaemonException;
 use CertaMesh\Gaze\Exceptions\GazeIoException;
 use CertaMesh\Gaze\Exceptions\GazePipelineException;
 use CertaMesh\Gaze\Exceptions\GazeSafetyNetConfigException;
@@ -157,10 +159,68 @@ it('classifies new safety-net and session-scope variants', function (Throwable $
 ]);
 
 it('classifies unknown safety-net variants as Fail', function () {
-    // Upstream may ship variants this package does not know yet (Runtime,
-    // InvalidOutput, ModelUnavailable, ...). Fail closed rather than retry.
-    expect(GazeRetryPolicy::classify(new GazeSafetyNetFailureException('runtime', 3, hash('sha256', ''), 'Runtime')))
+    // Upstream may ship variants this package does not know yet. Fail closed
+    // rather than retry. (The known set is pinned in
+    // tests/Contract/SafetyNetRetryMapContractTest.php.)
+    expect(GazeRetryPolicy::classify(new GazeSafetyNetFailureException('future', 3, hash('sha256', ''), 'SomeFutureVariant')))
         ->toBe(RetryAction::Fail);
+});
+
+it('classifies a safety-net Runtime failure as transient', function () {
+    // Before #183 the one-shot map only knew stale names, so Runtime fell
+    // through to Fail.
+    expect(GazeRetryPolicy::classify(new GazeSafetyNetFailureException('runtime', 3, hash('sha256', ''), 'Runtime')))
+        ->toBe(RetryAction::ReleaseWithBackoff);
+});
+
+it('dispatches daemon safety-net errors like their one-shot variant', function (DaemonErrorVariant $variant, bool $released, bool $alerted) {
+    Event::fake();
+
+    $job = new class
+    {
+        public ?Throwable $failed = null;
+
+        public mixed $released = null;
+
+        public int $backoff = 45;
+
+        public function fail(Throwable $e): void
+        {
+            $this->failed = $e;
+        }
+
+        public function release(int $delay): void
+        {
+            $this->released = $delay;
+        }
+    };
+
+    $exception = new GazeDaemonException('gaze daemon request failed closed', 's1', [], $variant);
+    GazeRetryPolicy::dispatch($exception, $job);
+
+    expect($job->released)->toBe($released ? 45 : null)
+        ->and($job->failed)->toBe($released ? null : $exception);
+    $alerted
+        ? Event::assertDispatched(GazeInfraAlert::class)
+        : Event::assertNotDispatched(GazeInfraAlert::class);
+})->with([
+    'timeout releases' => [DaemonErrorVariant::SafetyNetTimeout, true, false],
+    'runtime releases' => [DaemonErrorVariant::SafetyNetRuntime, true, false],
+    'suspected leak releases and alerts' => [DaemonErrorVariant::SafetyNetSuspectedLeak, true, true],
+    'weights missing fails' => [DaemonErrorVariant::SafetyNetWeightsMissing, false, false],
+]);
+
+it('still re-throws non-safety-net daemon errors from dispatch', function () {
+    $job = new class
+    {
+        public function fail(Throwable $e): void {}
+
+        public function release(int $delay): void {}
+    };
+
+    $exception = new GazeDaemonException('pipeline failed', 's1', [], DaemonErrorVariant::Pipeline);
+
+    expect(fn () => GazeRetryPolicy::dispatch($exception, $job))->toThrow($exception);
 });
 
 it('does not mark safety-net failures with static retry marker interfaces', function () {

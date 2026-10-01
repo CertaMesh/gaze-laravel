@@ -332,10 +332,17 @@ and match it. Keep session ids opaque, for example a conversation
 primary key or a random id you map to the user yourself, rather than
 user data.
 
-The daemon exception family does **NOT** implement `Retryable`. Queue
-retry policy is the adopter's responsibility — daemon failures map to
-adopter-defined back-pressure (different surfaces have different
-retry-vs-fail-fast semantics).
+The daemon exception family implements none of the static markers
+(`Retryable`, `NonRetryable`, …). Since v0.16.0 it implements
+`HasRetryDisposition`: the `SafetyNet*` variants get the same queue lane as
+the one-shot safety-net variant of the same name (`SafetyNetTimeout` and
+`SafetyNetRuntime` release with backoff, `SafetyNetSuspectedLeak` releases
+with an alert, the rest fail — see the
+[exception reference](../reference/exceptions.md#safety-net-and-session-scope-exceptions)).
+`DaemonErrorVariant::safetyNetVariant()` returns that one-shot name. Every
+other variant answers `RetryAction::Throw`, so `GazeRetryPolicy::dispatch()`
+re-throws it: retry for transport faults, timeouts and pipeline errors stays
+the adopter's call — daemon failures map to adopter-defined back-pressure.
 
 ## Octane / Swoole / Concurrency
 
