@@ -136,3 +136,40 @@ it('redacts symbol-currency amounts ($/€/£) via the published policy', functi
         ->not->toContain('$3,500.00')
         ->not->toContain('5000€');
 });
+
+it('tokenizes detected classes that have no explicit rule (tokenize default)', function () {
+    // Each value is detected by the bundled `core` pack at the 0.12.0 pin and
+    // later, but no class rule names it — under the old `preserve` default all
+    // of them reached the model raw.
+    $text = 'SSN: 123-45-6789. Steuer-ID: 86095742719. USt-IdNr. DE123456789. '.
+            'Wallet 0x52908400098527886E0F7030069857D2E4169EE7. '.
+            'Kontakt https://www.example.de/kontakt/max.mustermann@example.de';
+
+    $gaze = $this->app->make(Gaze::class);
+    $session = $gaze->clean($text);
+
+    expect($session->cleanText)
+        ->not->toContain('123-45-6789')
+        ->not->toContain('86095742719')
+        ->not->toContain('DE123456789')
+        ->not->toContain('0x52908400098527886E0F7030069857D2E4169EE7')
+        ->not->toContain('max.mustermann@example.de');
+
+    expect($gaze->restore($session, $session->cleanText))->toBe($text);
+});
+
+it('loads without the upstream preserve fall-through warning', function () {
+    // gaze >= 0.15.0 warns on stderr when a policy sends a detected class raw
+    // (upstream #641). The adapter discards stderr on success, so this is the
+    // only gate that would notice the shipped policy regressing to a leak.
+    $process = new Process([
+        (string) $this->app['config']->get('gaze.binary'),
+        'clean',
+        '--policy='.gl_integrationPolicyPath(),
+        '--format=json',
+    ]);
+    $process->setInput('Contact jane.doe@example.com today.');
+    $process->mustRun();
+
+    expect($process->getErrorOutput())->not->toContain('policy preserves');
+});

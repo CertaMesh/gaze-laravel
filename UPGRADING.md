@@ -25,6 +25,11 @@ upcoming release in full; per-minor guides for earlier versions live in
    `GAZE_SAFETY_NET_BACKEND` keeps the net off, as it did on gaze 0.12.0,
    instead of failing every clean / daemon spawn with `SafetyNetUsage` on
    gaze >= 0.15.0.
+4. **Policy leak fix — action required on every existing install.** The
+   shipped policy's default rule now tokenizes instead of preserving, but your
+   app runs its own copy of `policy.toml`, which the upgrade does not touch.
+   Change its last rule (`gaze:doctor` warns until you do); see
+   [Published policies: tokenize by default](#published-policies-tokenize-by-default-leak-fix).
 
 ### Error variants: `SafetyNetUsage` added, `UnsupportedSessionScope` deprecated
 
@@ -107,6 +112,74 @@ Migration:
    Kiji; a `kiji config … ignored` warning lists leftover keys or env vars to
    delete. On Nym, add `--deep` to exercise the bundle through a real
    clean/restore round-trip.
+
+### Published policies: tokenize by default (leak fix)
+
+The shipped `resources/policy.toml` used to end with a `preserve` default.
+Every class the bundled `core` pack detects but no `[[rule]]` names — SSNs,
+Steuer-IDs, VAT IDs and crypto addresses already at the 0.12.0 pin; passports,
+driver licences, national IDs, NHS/BSN/CPF/CNPJ numbers, dates of birth and
+URLs with the gaze 0.15 pin — therefore reached the model **raw**, with a
+success exit. gaze ≥ 0.15.0 prints a warning about it on stderr
+(`warning: policy preserves N detected classes without a reachable class
+rule: …`), but `Gaze::clean()` discards stderr on success, so you will not see
+it in your logs.
+
+The shipped policy now ends with:
+
+```toml
+[[rule]]
+kind = "default"
+action = "tokenize"
+```
+
+**Every existing install needs this change.** `gaze:install` and
+`vendor:publish` copy the policy into your app (`base_path('policy.toml')` by
+default, or wherever `GAZE_POLICY_PATH` points), and that copy is what runs —
+upgrading the package does not touch it, and `gaze:install --force` keeps it.
+`php artisan gaze:doctor` now warns (`policy default … preserve`) while your
+copy still falls through to `preserve`. Make the same change in your copy:
+
+```diff
+ [[rule]]
+ kind = "default"
+-action = "preserve"
++action = "tokenize"
+```
+
+To keep a class readable on purpose, add an explicit class rule with
+`action = "preserve"` **above** the default. Check your copy against the
+binary you run. It must be gaze ≥ 0.15.0 — older binaries never print the
+warning, so silence would prove nothing:
+
+```bash
+vendor/bin/gaze --version   # must report 0.15.0 or newer
+echo probe | vendor/bin/gaze clean --policy=/absolute/path/from/GAZE_POLICY_PATH --format=json 2>&1 >/dev/null
+```
+
+A `warning: policy preserves …` line means classes still leave raw. An
+`{"error":…}` line (e.g. `PolicyOpen` for a wrong path) means the probe did not
+run. No output means the policy sends no detected class through raw.
+
+Expect more tokens after the change: URLs become `Custom:url` tokens, and the
+ID/date-of-birth classes above are tokenized. Everything restores exactly. One
+side effect of upstream's URL recognizer: a URL token runs to the next
+whitespace, so in **minified JSON** (`json_encode()` without
+`JSON_PRETTY_PRINT`) it also swallows the JSON syntax and the fields after the
+URL up to the next space — the model no longer sees them, though restore is
+still exact. Pretty-print JSON the model has to read. If you would rather keep
+URLs readable, add an explicit rule above the default:
+
+```toml
+[[rule]]
+kind = "class"
+class = "custom:url"
+action = "preserve"
+```
+
+PII that other recognizers find inside a preserved URL (emails, IPs, …) is
+still tokenized on gaze ≥ 0.15, but anything only the URL recognizer would have
+covered (e.g. a name in a URL path) then reaches the model raw.
 
 ## v0.12.0 → v0.13.0
 
