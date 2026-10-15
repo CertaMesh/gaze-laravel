@@ -4,6 +4,10 @@ All notable changes to `certamesh/gaze-laravel` (formerly `empiretwo/gaze-larave
 
 ## [Unreleased]
 
+### Repository
+
+- **History rewritten on 2026-10-15.** Commit SHAs and commit signatures changed. Tags `v0.6.4` to `v0.11.1` keep their names; the immutable releases `v0.12.0` to `v0.16.0` were re-published as `v0.12.1` to `v0.16.1` with identical code. Version numbers below refer to the same code as the matching `.1` tag. Mapping and update steps: [docs/reference/history-rewrite-2026-10-15.md](docs/reference/history-rewrite-2026-10-15.md).
+
 ## [0.16.0] - 2026-10-01
 
 Wave 2 on the same gaze 0.15.1 pin: first-class Nym support, safety-net
